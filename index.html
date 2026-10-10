@@ -82,7 +82,19 @@
     <div class="grid">
 
         <a href="https://fred.stlouisfed.org/series/WALCL" class="card">
-            <div class="card-title">연준 자산 변동</div>
+            canvas{
+    width:100% !important;
+    height:180px !important;
+    }
+            <div class="card">
+
+    <canvas id="fedChart"></canvas>
+
+    <div class="card-title">
+        연준 자산 변동
+    </div>
+
+</div>
         </a>
 
         <a href="https://fred.stlouisfed.org/series/M2V" class="card">
@@ -130,6 +142,85 @@
         </a>
 
     </div>
+
+    <script>
+
+const apiKey = "b31821aafbca2bed982cb2704491ccc0";
+
+fetch(
+`https://api.stlouisfed.org/fred/series/observations?series_id=WALCL&api_key=${apiKey}&file_type=json`
+)
+
+.then(response => response.json())
+
+.then(data => {
+
+    const observations = data.observations
+        .filter(x => x.value !== ".");
+
+    const labels = observations
+        .slice(-60)
+        .map(x => x.date);
+
+    const values = observations
+        .slice(-60)
+        .map(x => Number(x.value));
+
+    new Chart(
+        document.getElementById("fedChart"),
+        {
+            type: "line",
+
+            data: {
+
+                labels: labels,
+
+                datasets: [{
+
+                    data: values,
+
+                    borderColor: "gold",
+
+                    borderWidth: 2,
+
+                    pointRadius: 0,
+
+                    tension: 0.2
+
+                }]
+            },
+
+            options: {
+
+                responsive: true,
+
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+
+                scales: {
+
+                    x: {
+                        display: false
+                    },
+
+                    y: {
+                        ticks: {
+                            color: "white"
+                        }
+                    }
+                }
+
+            }
+
+        }
+    );
+
+});
+
+</script>
 
 </body>
 
