@@ -1,139 +1,15 @@
 <!DOCTYPE html>
 <html>
-
 <head>
 <meta charset="UTF-8">
 <title>Hans Jang Lab.</title>
-
-<style>
-
-body{
-    background:#111;
-    color:white;
-    font-family:Arial,sans-serif;
-    margin:0;
-    padding:30px;
-}
-
-h1{
-    color:gold;
-    font-size:60px;
-    text-align:center;
-}
-
-.subtitle{
-    text-align:center;
-    font-size:24px;
-    margin-bottom:5px;
-}
-
-.subtitle-ko{
-    text-align:center;
-    font-size:20px;
-    color:#ccc;
-    margin-bottom:40px;
-}
-
-.grid{
-    display:grid;
-    grid-template-columns:repeat(4,1fr);
-    gap:15px;
-}
-
-.card{
-    background:#222;
-    border:1px solid #444;
-    border-radius:10px;
-    padding:20px;
-}
-
-.card-title{
-    text-align:center;
-    font-size:20px;
-    margin-top:15px;
-}
-
-canvas{
-    width:100%;
-    height:200px;
-}
-
-</style>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.jsscript"/script>
-
 </head>
 
-<body>
+<body style="background:#111;color:white;">
 
 <h1>Hans Jang Lab.</h1>
 
-<div class="subtitle">
-Business Cycle, Markets & Macroeconomic Analysis
-</div>
-
-<div class="subtitle-ko">
-비즈니스 사이클 · 증시 · 매크로 경제 분석
-</div>
-
-<div class="grid">
-
-    <div class="card">
-        <canvas id="fedChart"></canvas>
-        <div class="card-title">
-            연준 자산 변동
-        </div>
-    </div>
-
-</div>
-
-<script>
-
-const apiKey="b31821aafbca2bed982cb2704491ccc0";
-
-fetch(
-`https://api.stlouisfed.org/fred/series/observations?series_id=WALCL&api_key=${apiKey}&file_type=json`
-)
-.then(r=>r.json())
-.then(data=>{
-
-    const obs=data.observations
-      .filter(x=>x.value!=".");
-
-    const labels=obs.slice(-60).map(x=>x.date);
-    const values=obs.slice(-60).map(x=>Number(x.value));
-
-    new Chart(
-        document.getElementById("fedChart"),
-        {
-            type:"line",
-            data:{
-                labels:labels,
-                datasets:[{
-                    data:values,
-                    borderColor:"gold",
-                    borderWidth:2,
-                    pointRadius:0
-                }]
-            },
-            options:{
-                plugins:{
-                    legend:{
-                        display:false
-                    }
-                },
-                scales:{
-                    x:{
-                        display:false
-                    }
-                }
-            }
-        }
-    );
-
-});
-
-</script>
+<p>테스트 성공</p>
 
 </body>
 </html>
