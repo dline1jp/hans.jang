@@ -1,52 +1,36 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>Hans Jang Lab.</title>
-
-<style>
+    <meta charset="UTF-8">
+    <title>Hans Jang Lab.한스장랩 </title>
+       <style>
 body{
     background:#111;
     color:white;
     font-family:Arial,sans-serif;
-    padding:30px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    margin:0;
 }
 
-.card{
-    width:500px;
-    background:#222;
-    padding:20px;
-    border-radius:10px;
-}
-</style>
-https://cdn.jsdelivr.net/npm/chart.jsscript>
+        h1 {
+            color: gold;
+            font-size: 60px;
+        }
+
+        p {
+            font-size: 24px;
+        }
+    </style>
 </head>
 
 <body>
-
-<h1>Hans Jang Lab.</h1>
-
-<div class="card">
-    <canvas id="myChart"></canvas>
-</div>
-
-<script>
-
-new Chart(
-    document.getElementById("myChart"),
-    {
-        type:"line",
-        data:{
-            labels:["1","2","3","4","5"],
-            datasets:[{
-                data:[10,15,8,20,30],
-                borderColor:"gold"
-            }]
-        }
-    }
-);
-
-</script>
-
+    <h1>Hans Jang Lab.</h1>
+    <p>Business Cycle, Markets & Macroeconomic Analysis</p>
+    <p> 비지니스 사이클, 증시, 매크로 경제 분석</p>
 </body>
 </html>
+
