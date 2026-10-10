@@ -62,9 +62,15 @@
         .card-title {
             font-size: 20px;
             font-weight: bold;
+
+                 canvas{
+    width:100% !important;
+    height:180px !important;
+    }
         }
     </style>
 
+    https://cdn.jsdelivr.net/npm/chart.jsscript>
 </head>
 
 <body>
@@ -81,11 +87,7 @@
 
     <div class="grid">
 
-        <a href="https://fred.stlouisfed.org/series/WALCL" class="card">
-            canvas{
-    width:100% !important;
-    height:180px !important;
-    }
+     <a href="https://fred.stlouisfed.org/series/WALCL">        
             <div class="card">
 
     <canvas id="fedChart"></canvas>
@@ -95,7 +97,7 @@
     </div>
 
 </div>
-        </a>
+        
 
         <a href="https://fred.stlouisfed.org/series/M2V" class="card">
             <div class="card-title">미국 M2 유동속도</div>
