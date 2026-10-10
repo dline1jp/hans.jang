@@ -3,13 +3,52 @@
 <head>
 <meta charset="UTF-8">
 <title>Hans Jang Lab.</title>
+
+https://cdn.jsdelivr.net/npm/chart.jsscript>
+
+<style>
+body{
+    background:#111;
+    color:white;
+    font-family:Arial,sans-serif;
+    padding:30px;
+}
+
+.card{
+    width:500px;
+    background:#222;
+    padding:20px;
+    border-radius:10px;
+}
+</style>
+
 </head>
 
-<body style="background:#111;color:white;">
+<body>
 
 <h1>Hans Jang Lab.</h1>
 
-<p>테스트 성공</p>
+<div class="card">
+    <canvas id="myChart"></canvas>
+</div>
+
+<script>
+
+new Chart(
+    document.getElementById("myChart"),
+    {
+        type:"line",
+        data:{
+            labels:["1","2","3","4","5"],
+            datasets:[{
+                data:[10,15,8,20,30],
+                borderColor:"gold"
+            }]
+        }
+    }
+);
+
+</script>
 
 </body>
 </html>
