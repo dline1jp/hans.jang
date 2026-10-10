@@ -1,36 +1,136 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
-    <title>Hans Jang Lab.한스장랩 </title>
-       <style>
-body{
-    background:#111;
-    color:white;
-    font-family:Arial,sans-serif;
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    align-items:center;
-    height:100vh;
-    margin:0;
-}
+    <title>Hans Jang Lab. 한스장랩</title>
+
+    <style>
+        body {
+            background: #111;
+            color: white;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 30px;
+        }
 
         h1 {
             color: gold;
             font-size: 60px;
+            text-align: center;
+            margin-bottom: 10px;
         }
 
-        p {
+        .subtitle {
+            text-align: center;
             font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .subtitle-ko {
+            text-align: center;
+            font-size: 20px;
+            color: #cccccc;
+            margin-bottom: 40px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            max-width: 1400px;
+            margin: auto;
+        }
+
+        .card {
+            background: #222;
+            border: 1px solid #444;
+            border-radius: 10px;
+            padding: 25px;
+            text-align: center;
+            text-decoration: none;
+            color: white;
+            transition: 0.3s;
+        }
+
+        .card:hover {
+            background: #333;
+            border-color: gold;
+            transform: scale(1.03);
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: bold;
         }
     </style>
+
 </head>
 
 <body>
-    <h1>Hans Jang Lab.</h1>
-    <p>Business Cycle, Markets & Macroeconomic Analysis</p>
-    <p> 비지니스 사이클, 증시, 매크로 경제 분석</p>
-</body>
-</html>
 
+    <h1>Hans Jang Lab.</h1>
+
+    <div class="subtitle">
+        Business Cycle, Markets & Macroeconomic Analysis
+    </div>
+
+    <div class="subtitle-ko">
+        비즈니스 사이클 · 증시 · 매크로 경제 분석
+    </div>
+
+    <div class="grid">
+
+        <a href="https://fred.stlouisfed.org/series/WALCL" class="card">
+            <div class="card-title">연준 자산 변동</div>
+        </a>
+
+        <a href="https://fred.stlouisfed.org/series/M2V" class="card">
+            <div class="card-title">미국 M2 유동속도</div>
+        </a>
+
+        <a href="https://finance.yahoo.com/chart/DX-Y.NYB" class="card">
+            <div class="card-title">달러지수</div>
+        </a>
+
+        <a href="https://finance.yahoo.com/chart/%5ETNX" class="card">
+            <div class="card-title">미국 10년 금리</div>
+        </a>
+
+        <a href="https://fred.stlouisfed.org/series/GDP" class="card">
+            <div class="card-title">미국 GDP</div>
+        </a>
+
+        <a href="https://finance.yahoo.com/chart/%5ETNX">
+            <div class="card-title">유가</div>
+        </a>
+
+        <a href="https://finance.yahoo.com/chart/%5EVIX" class="card">
+            <div class="card-title">VIX</div>
+        </a>
+
+        <a href="https://finance.yahoo.com/chart/%5EMOVE" class="card">
+            <div class="card-title">MOVE 지수</div>
+        </a>
+
+        <a href="https://www.multpl.com/shiller-pe" class="card">
+            <div class="card-title">Shiller PE</div>
+        </a>
+
+        <a href="https://finance.yahoo.com/chart/%5ENDX" class="card">
+            <div class="card-title">NASDAQ 100</div>
+        </a>
+
+        <a href="#" class="card">
+            <div class="card-title">OECD 선행지수</div>
+        </a>
+
+        <a href="#" class="card">
+            <div class="card-title">미국 생산성</div>
+        </a>
+
+    </div>
+
+</body>
+
+</html>
