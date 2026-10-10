@@ -2,186 +2,129 @@
 <html>
 
 <head>
-    <meta charset="UTF-8">
-    <title>Hans Jang Lab.</title>
+<meta charset="UTF-8">
+<title>Hans Jang Lab.</title>
 
-    <style>
-        body {
-            background: #111;
-            color: white;
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 30px;
-        }
+<style>
 
-        h1 {
-            color: gold;
-            font-size: 60px;
-            text-align: center;
-            margin-bottom: 10px;
-        }
-
-        .subtitle {
-            text-align: center;
-            font-size: 24px;
-            margin-bottom: 5px;
-        }
-
-        .subtitle-ko {
-            text-align: center;
-            font-size: 20px;
-            color: #cccccc;
-            margin-bottom: 40px;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 15px;
-            max-width: 1400px;
-            margin: auto;
-        }
-
-        .card {
-            background: #222;
-            border: 1px solid #444;
-            border-radius: 10px;
-            padding: 25px;
-            text-align: center;
-            text-decoration: none;
-            color: white;
-            transition: 0.3s;
-        }
-
-        .card:hover {
-            background: #333;
-            border-color: gold;
-            transform: scale(1.03);
-        }
-
-.card-title {
-    font-size: 20px;
-    font-weight: bold;
+body{
+    background:#111;
+    color:white;
+    font-family:Arial,sans-serif;
+    margin:0;
+    padding:30px;
 }
 
-canvas {
-    width: 100% !important;
-    height: 180px !important;
+h1{
+    color:gold;
+    font-size:60px;
+    text-align:center;
 }
-``
-    </style>
 
-    https://cdn.jsdelivr.net/npm/chart.jsscript>
+.subtitle{
+    text-align:center;
+    font-size:24px;
+    margin-bottom:5px;
+}
 
- </head>
+.subtitle-ko{
+    text-align:center;
+    font-size:20px;
+    color:#ccc;
+    margin-bottom:40px;
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:15px;
+}
+
+.card{
+    background:#222;
+    border:1px solid #444;
+    border-radius:10px;
+    padding:20px;
+}
+
+.card-title{
+    text-align:center;
+    font-size:20px;
+    margin-top:15px;
+}
+
+canvas{
+    width:100%;
+    height:200px;
+}
+
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.jsscript"/script>
+
+</head>
 
 <body>
 
-    <h1>Hans Jang Lab.</h1>
+<h1>Hans Jang Lab.</h1>
 
-    <div class="subtitle">
-        Business Cycle, Markets & Macroeconomic Analysis
-    </div>
+<div class="subtitle">
+Business Cycle, Markets & Macroeconomic Analysis
+</div>
 
-    <div class="subtitle-ko">
-        비즈니스 사이클 · 증시 · 매크로 경제 분석
-    </div>
+<div class="subtitle-ko">
+비즈니스 사이클 · 증시 · 매크로 경제 분석
+</div>
 
-<div class="card">
+<div class="grid">
 
-    <canvas id="fedChart"></canvas>
-
-    <div class="card-title">
-        연준 자산 변동
+    <div class="card">
+        <canvas id="fedChart"></canvas>
+        <div class="card-title">
+            연준 자산 변동
+        </div>
     </div>
 
 </div>
-        
-
-        <a href="https://fred.stlouisfed.org/series/M2V" class="card">
-            <div class="card-title">미국 M2 유동속도</div>
-        </a>
-
-        <a href="https://finance.yahoo.com/chart/DX-Y.NYB" class="card">
-            <div class="card-title">달러지수</div>
-        </a>
-
-        <a href="https://finance.yahoo.com/chart/%5ETNX" class="card">
-            <div class="card-title">미국 10년 금리</div>
-        </a>
-
-        <a href="https://fred.stlouisfed.org/series/GDP" class="card">
-            <div class="card-title">미국 GDP</div>
-        </a>
-
-        <a href="https://finance.yahoo.com/chart/%5ETNX">
-            <div class="card-title">유가</div>
-        </a>
-
-        <a href="https://finance.yahoo.com/chart/%5EVIX" class="card">
-            <div class="card-title">VIX</div>
-        </a>
-
-        <a href="https://finance.yahoo.com/chart/%5EMOVE" class="card">
-            <div class="card-title">MOVE 지수</div>
-        </a>
-
-        <a href="https://www.multpl.com/shiller-pe" class="card">
-            <div class="card-title">Shiller PE</div>
-        </a>
-
-        <a href="https://finance.yahoo.com/chart/%5ENDX" class="card">
-            <div class="card-title">NASDAQ 100</div>
-        </a>
-
-        <a href="#" class="card">
-            <div class="card-title">OECD 선행지수</div>
-        </a>
-
-        <a href="#" class="card">
-            <div class="card-title">미국 생산성</div>
-        </a>
-
-    </div>
 
 <script>
 
-const apiKey = "b31821aafbca2bed982cb2704491ccc0";
+const apiKey="b31821aafbca2bed982cb2704491ccc0";
 
 fetch(
 `https://api.stlouisfed.org/fred/series/observations?series_id=WALCL&api_key=${apiKey}&file_type=json`
 )
-.then(response => response.json())
-.then(data => {
+.then(r=>r.json())
+.then(data=>{
 
-    const obs = data.observations
-        .filter(x => x.value !== ".");
+    const obs=data.observations
+      .filter(x=>x.value!=".");
 
-    const labels = obs.slice(-50).map(x => x.date);
-    const values = obs.slice(-50).map(x => Number(x.value));
+    const labels=obs.slice(-60).map(x=>x.date);
+    const values=obs.slice(-60).map(x=>Number(x.value));
 
     new Chart(
         document.getElementById("fedChart"),
         {
-            type: "line",
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: values,
-                    borderColor: "gold",
-                    pointRadius: 0,
-                    borderWidth: 2
+            type:"line",
+            data:{
+                labels:labels,
+                datasets:[{
+                    data:values,
+                    borderColor:"gold",
+                    borderWidth:2,
+                    pointRadius:0
                 }]
             },
-            options: {
-                plugins: {
-                    legend: {
-                        display: false
+            options:{
+                plugins:{
+                    legend:{
+                        display:false
                     }
                 },
-                scales: {
-                    x: {
-                        display: false
+                scales:{
+                    x:{
+                        display:false
                     }
                 }
             }
@@ -193,5 +136,4 @@ fetch(
 </script>
 
 </body>
-
 </html>
