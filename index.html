@@ -153,63 +153,6 @@ style="width:100%; height:220px; object-fit:contain;">
 
   <script>
 
-const apiKey = "b31821aafbca2bed982cb2704491ccc0";
-
-fetch(
-"https://api.stlouisfed.org/fred/series/observations?series_id=WALCL&api_key=" +
-apiKey +
-"&file_type=json"
-)
-.then(res => res.json())
-.then(data => {
-
-    const obs = data.observations
-      .filter(x => x.value !== ".")
-      .slice(-60);
-
-    const labels = obs.map(x => x.date);
-    const values = obs.map(x => Number(x.value));
-
-    const ctx = document.getElementById("fedChart");
-
-    new Chart(ctx, {
-        type: "line",
-
-        data: {
-            labels: labels,
-
-            datasets: [{
-                data: values,
-                borderColor: "gold",
-                backgroundColor: "rgba(255,215,0,0.2)",
-                borderWidth: 2,
-                pointRadius: 0,
-                fill: true
-            }]
-        },
-
-        options: {
-
-            responsive: true,
-
-            plugins: {
-                legend: {
-                    display: false
-                }
-            },
-
-            scales: {
-                x: {
-                    display: false
-                },
-                y: {
-                    display: false
-                }
-            }
-        }
-    });
-
-})
 .catch(err => console.log(err));
 
 </script>
