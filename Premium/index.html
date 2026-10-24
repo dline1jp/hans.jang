@@ -1,1 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>프리미엄</title>
+  <script src="/Premium/gate.js"></script>
+  <style>
+    body { background: #111; color: white; font-family: Arial, sans-serif; margin: 0; padding: 30px; }
+    a { color: #D8C0FF; }
+    h1 { text-align: center; color: #D8C0FF; }
+    #gate, #menu { max-width: 480px; margin: 80px auto; text-align: center; }
+    input { font-size: 22px; padding: 8px; width: 160px; }
+    button { font-size: 20px; padding: 8px 16px; margin-left: 8px; }
+    .menu-btn { display: inline-block; margin: 8px; padding: 10px 16px; color: white; text-decoration: none; border: 2px solid #666; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div id="gate">
+    <p>비밀번호를 입력하세요</p>
+    <input id="pw" type="password" autofocus>
+    <button type="button" onclick="unlockPremium()">확인</button>
+    <p><a href="/index.html">← 홈</a></p>
+  </div>
+  <div id="menu" style="display:none">
+    <h1>프리미엄</h1>
 
+          
+    <a class="menu-btn" href="/Premium/weather/index.html">주가 방향 날씨</a>
+    <a class="menu-btn" href="/Premium/cycle/index.html">경기사이클 날씨</a>
+
+
+          
+    <p><a href="/index.html">← 홈</a></p>
+  </div>
+</body>
+</html>
