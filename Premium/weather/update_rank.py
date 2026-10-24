@@ -47,17 +47,24 @@ def score(ticker, name):
     }
 def render(rank):
     asof = rank.iloc[0]["asof"]
+    above = len(rank)
     lines = [
-        f'<p class="note">{asof} 주봉 기준. 이격도 = 종가 ÷ 200주 이동평균 × 100. 이평 위에 있는 종목 중 이격이 큰 10개입니다.</p>',
+        '<section class="rank-wrap">',
+        f'<p class="note">기준 주봉 {asof} · 200주 이평 위 {above}종목 중 이격 상위 10</p>',
+        '<p class="formula">이격도 = 주봉 종가 ÷ 200주 이동평균 × 100</p>',
         '<table class="rank">',
-        "  <tr><th>순위</th><th>종목</th><th>주봉 종가</th><th>200주 이평</th><th>이격도</th></tr>",
+        '<thead><tr><th>순위</th><th>코드</th><th>종목</th><th>주봉 종가</th><th>200주 이평</th><th>이격도</th></tr></thead>',
+        '<tbody>',
     ]
     for order, row in enumerate(rank.head(10).itertuples(index=False), start=1):
+        top = ' class="top"' if order <= 3 else ''
         lines.append(
-            f"  <tr><td>{order}</td><td>{row.ticker} {row.name}</td><td>{row.price:.2f}</td><td>{row.ma200:.2f}</td><td>{row.disparity:.1f}</td></tr>"
+            f'<tr{top}><td>{order}</td><td class="code">{row.ticker}</td><td class="name">{row.name}</td>'
+            f'<td>{row.price:.2f}</td><td>{row.ma200:.2f}</td><td class="gap">{row.disparity:.1f}</td></tr>'
         )
-    lines.append("</table>")
-    return "\n".join(lines)
+    lines.append('</tbody></table></section>')
+    return '\n'.join(lines)
+    
 def main():
     constituents = pd.read_csv(LIST_URL)
     constituents["yahoo"] = constituents["Symbol"].str.replace(".", "-", regex=False)
