@@ -1,4 +1,4 @@
-var PASS = '11';
+var PASS = '1';
 function safeNext(raw) {
   if (!raw || raw.indexOf('\\') !== -1) return '';
   try {
