@@ -59,7 +59,7 @@ def render(rank):
     for order, row in enumerate(rank.head(10).itertuples(index=False), start=1):
         top = ' class="top"' if order <= 3 else ''
         lines.append(
-            f'<tr{top}><td>{order}</td><td class="code">{row.ticker}</td><td class="name">{row.name}</td>'
+            f'<tr{top}><td>{order}</td><td class="code"><a href="https://finance.yahoo.com/chart/{row.ticker}" target="_blank">{row.ticker}</a></td><td class="name">{row.name}</td>'
             f'<td>{row.price:.2f}</td><td>{row.ma200:.2f}</td><td class="gap">{row.disparity:.1f}</td></tr>'
         )
     lines.append('</tbody></table></section>')
