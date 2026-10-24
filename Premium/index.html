@@ -2,6 +2,8 @@
 <html>
 <head>
   <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+  
   <title>프리미엄</title>
   <script src="/Premium/gate.js"></script>
   <style>
@@ -10,6 +12,23 @@
     h1 { text-align: center; color: #D8C0FF; }
     #gate, #menu { max-width: 480px; margin: 80px auto; text-align: center; }
     input { font-size: 22px; padding: 8px; width: 160px; }
+@media (max-width: 600px) {
+  #pw {
+    font-size: 66px;
+    padding: 24px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+#gate button {
+  display: block;
+  width: 100%;
+  margin: 16px 0 0;
+  font-size: 40px;
+  padding: 16px;
+}  
+    
     button { font-size: 20px; padding: 8px 16px; margin-left: 8px; }
     .menu-btn { display: inline-block; margin: 8px; padding: 10px 16px; color: white; text-decoration: none; border: 2px solid #666; border-radius: 8px; }
   </style>
