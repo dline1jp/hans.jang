@@ -1,6 +1,8 @@
 name: Update stock weather
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 1 * * 6"
 permissions:
   contents: write
 jobs:
