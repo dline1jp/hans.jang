@@ -4,6 +4,7 @@
         h1 {color: #D8C0FF;font-size: 60px;text-align: center;margin-bottom: 10px;} .subtitle-ko {text-align: center;font-size: 48px; font-weight: 700; color: #008C95; margin-bottom: 40px;} .subtitle {text-align: center;font-size: 36px;color: #E67E22;margin-bottom: 40px;}
         .grid {display: grid;grid-template-columns: repeat(2, 1fr);gap: 15px; max-width: 1400px; margin: auto;}
 .grid > a { display: block; }
+.card-title { font-size: 28px; font-weight: bold; color: #f6ead8; }
 .top-menu {
   display: flex;
   flex-wrap: nowrap;
@@ -14,11 +15,11 @@
   margin: 0 auto 40px;
 }
 .card {
-  background-color: #2a160c;
+  background-color: #140c08;
   background-image:
-    repeating-linear-gradient(92deg, rgba(0,0,0,0.18) 0 1px, transparent 1px 7px),
-    linear-gradient(180deg, #5a3018 0%, #3a1e10 42%, #1a0e08 100%);
-  border: 3px solid #8a6844;
+    repeating-linear-gradient(92deg, rgba(0,0,0,0.28) 0 1px, transparent 1px 7px),
+    linear-gradient(180deg, #3a2216 0%, #1c100c 46%, #0a0604 100%);
+  border: 3px solid #5c4030;
   border-radius: 16px;
   padding: 25px;
   text-align: center;
@@ -26,27 +27,23 @@
   min-height: 200px;
   cursor: pointer;
   box-shadow:
-    inset 0 2px 0 rgba(196,150,90,0.35),
-    inset 0 -8px 0 rgba(0,0,0,0.45),
-    0 8px 0 #120a06,
-    0 16px 18px rgba(20,8,4,0.45);
+    inset 0 2px 0 rgba(140,100,60,0.28),
+    inset 0 -8px 0 rgba(0,0,0,0.55),
+    0 8px 0 #070403,
+    0 16px 18px rgba(0,0,0,0.45);
   transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 .card:hover {
   background-image:
-    repeating-linear-gradient(92deg, rgba(0,0,0,0.14) 0 1px, transparent 1px 7px),
-    linear-gradient(180deg, #6a3c20 0%, #452414 42%, #24140c 100%);
-  border-color: #c6a15a;
+    repeating-linear-gradient(92deg, rgba(0,0,0,0.22) 0 1px, transparent 1px 7px),
+    linear-gradient(180deg, #4a2c1c 0%, #26160f 46%, #120c08 100%);
+  border-color: #8a6844;
   transform: translateY(-3px);
   box-shadow:
-    inset 0 2px 0 rgba(210,170,100,0.4),
-    inset 0 -8px 0 rgba(0,0,0,0.4),
-    0 11px 0 #120a06,
-    0 20px 22px rgba(20,8,4,0.5);
-}
-.grid > a:active .card {
-  transform: translateY(6px);
-  box-shadow: inset 0 4px 8px rgba(0,0,0,0.55), 0 2px 0 #120a06;
+    inset 0 2px 0 rgba(160,120,70,0.32),
+    inset 0 -8px 0 rgba(0,0,0,0.5),
+    0 11px 0 #070403,
+    0 20px 22px rgba(0,0,0,0.5);
 }
 .menu-btn {
   display: flex;
@@ -56,22 +53,22 @@
   white-space: nowrap;
   height: 88px;
   padding: 0 22px;
-  border: 4px solid #8a6844;
+  border: 4px solid #5c4030;
   border-radius: 12px;
-  background-color: #2a160c;
+  background-color: #140c08;
   background-image:
-    repeating-linear-gradient(92deg, rgba(0,0,0,0.18) 0 1px, transparent 1px 6px),
-    linear-gradient(180deg, #5c3218 0%, #3a1e10 40%, #180e08 100%);
+    repeating-linear-gradient(92deg, rgba(0,0,0,0.28) 0 1px, transparent 1px 6px),
+    linear-gradient(180deg, #3c2418 0%, #1c100c 40%, #0a0604 100%);
   color: #4da3ff;
   text-decoration: underline;
   font-size: 56px;
   font-weight: 700;
   cursor: pointer;
   box-shadow:
-    inset 0 3px 0 rgba(196,150,90,0.4),
-    inset 0 -6px 0 rgba(0,0,0,0.5),
-    0 9px 0 #120a06,
-    0 16px 16px rgba(20,8,4,0.45);
+    inset 0 3px 0 rgba(140,100,60,0.3),
+    inset 0 -6px 0 rgba(0,0,0,0.55),
+    0 9px 0 #070403,
+    0 16px 16px rgba(0,0,0,0.45);
 }
 .menu-btn:hover {
   border-color: #c6a15a;
