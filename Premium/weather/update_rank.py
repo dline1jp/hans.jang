@@ -84,11 +84,15 @@ def tradingview_symbol(ticker):
 def chart_url(ticker):
     if ticker.endswith(".KS") or ticker.endswith(".KQ"):
         symbol = "KRX:" + ticker.split(".")[0]
-    else:
-        symbol = tradingview_symbol(ticker)
+        return (
+            "https://www.tradingview.com/chart/?symbol="
+            + urllib.parse.quote(symbol, safe=":")
+            + "&interval=W"
+        )
+    symbol = tradingview_symbol(ticker)
     return (
         "https://www.tradingview.com/widgetembed/?symbol="
-        + urllib.parse.quote(symbol, safe=":")
+        + urllib.parse.quote(symbol, safe="")
         + "&interval=W&style=1&theme=dark&hideideas=1"
         + "&studies="
         + TV_STUDIES
