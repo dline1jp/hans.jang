@@ -18,7 +18,7 @@ TV_STUDIES = urllib.parse.quote(json.dumps([
 TV_OVERRIDES = urllib.parse.quote(json.dumps({
     "moving average.ma.color": "#E53935",
     "moving average.ma.linewidth": 2,
-    "moving average.length": 200,
+    "moving average.length": 200,HEADING
 }, separators=(",", ":")))
 WEEKS = 200
 PAGE = pathlib.Path(__file__).with_name("index.html")
