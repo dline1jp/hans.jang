@@ -355,7 +355,7 @@ for ticker, _label, _name in ETF_ROWS:
         raise SystemExit("RANK_START / RANK_END 표시가 없습니다.")
     PAGE.write_text(
         pattern.sub(
-            "<!-- RANK_START -->\n" + render(sp_above, sp_below, nq_above, nq_below, ks_above, ks_below) + "\n<!-- RANK_END -->",
+           "<!-- RANK_START -->\n" + render(sp_above, sp_below, nq_above, nq_below, ks_above, ks_below, scored) + "\n<!-- RANK_END -->",
             html_text,
         ),
         encoding="utf-8",
