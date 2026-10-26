@@ -396,6 +396,7 @@ def render(sp_above, sp_below, nq_above, nq_below, ks_above, ks_below, scored):
         block(nq_above, nq_below, NASDAQ_HIGH_HEADING, NASDAQ_LOW_HEADING, "나스닥"),
         block(ks_above, ks_below, KOSPI_HIGH_HEADING, KOSPI_LOW_HEADING, "코스피"),
         render_etf(scored),
+        render_etc(scored),
     ])
 def main():
     groups = (load_sp(), load_nasdaq(), load_kospi())
@@ -410,6 +411,10 @@ def main():
       if ticker not in seen:
          seen.add(ticker)
          tickers.append(ticker)
+      for ticker, _label, _name in ETC_ROWS:
+        if ticker not in seen:
+        seen.add(ticker)
+        tickers.append(ticker)
     
     scored = {}
     with ThreadPoolExecutor(max_workers=12) as pool:
