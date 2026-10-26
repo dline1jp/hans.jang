@@ -57,6 +57,73 @@ KOSPI_LOW_HEADING = (
     "주봉 200일 이동평균선 아래로 이격이 큰 종목 랭킹입니다. "
     "종목 링크를 클릭후 주봉 2중 혹은 3중 바닥과 RSI 상승 다이버전스가 나오면 반등 가능성이 있습니다.단 파산 가능성이 크서 전혀 매수 추천하지 않습니다. 경기사이클 EPS BPS 매출 현금흐름등 지표도 확인해야 하니 참조만 하세요. 코스피는 차트중 200이평과 RSI가 안뜨니 트레이딩뷰 무료버젼에 로그인해서 200이평과 RSI을 미리 띄워 놓으셔야 보입니다.</h1>"
 )
+
+#ETF start
+ETF_HEADING = (
+    '<h1 class="low">7. 주요 ETF 주봉기준 200일 이동평균선 이격도입니다. 매주 토요일 업데이트됩니다. '
+    "주봉 200일선 아래일때가 이격도 100이하입니다. 이 시기는 장기보유를 위해 분할 매수를 고려할수 있습니다.</h1>"
+)
+ETF_ROWS = [
+    ("QQQ", "QQQ", "Invesco QQQ"),
+    ("SPY", "SPY", "SPDR S&P 500"),
+    ("VOO", "VOO", "Vanguard S&P 500"),
+    ("^SOX", "SOX", "필라델피아 반도체"),
+    ("SMH", "SMH", "VanEck 반도체"),
+    ("SLV", "SLV", "iShares 은"),
+    ("GLD", "GLD", "SPDR 금"),
+    ("SCHD", "SCHD", "Schwab 미국배당"),
+    ("069500.KS", "069500", "KODEX 200"),
+    ("102110.KS", "102110", "TIGER 200"),
+    ("EWY", "EWY", "iShares 한국"),
+    ("FLKR", "FLKR", "Franklin 한국"),
+    ("BTC-USD", "BTC-USD", "비트코인"),
+    ("ETH-USD", "ETH-USD", "이더리움"),
+]
+def etf_chart_url(ticker):
+    if ticker == "^SOX":
+        return "https://www.tradingview.com/chart/?symbol=NASDAQ:SOX&interval=W"
+    fixed = {"BTC-USD": "BITSTAMP:BTCUSD", "ETH-USD": "BITSTAMP:ETHUSD"}
+    if ticker not in fixed:
+        return chart_url(ticker)
+    return (
+        "https://www.tradingview.com/widgetembed/?symbol="
+        + urllib.parse.quote(fixed[ticker], safe="")
+        + "&interval=W&style=1&theme=dark&hideideas=1"
+        + "&studies=" + TV_STUDIES
+        + "&studies_overrides=" + TV_OVERRIDES
+    )
+def render_etf(scored):
+    rows = []
+    for ticker, label, name in ETF_ROWS:
+        row = scored.get(ticker)
+        if not row:
+            continue
+        item = dict(row)
+        item["label"] = label
+        item["name"] = name
+        rows.append(item)
+    asof = rows[0]["asof"] if rows else ""
+    lines = [
+        ETF_HEADING,
+        '<section class="rank-wrap">',
+        f'<p class="note">기준 주봉 {asof} · 이격도 100 이하는 주봉 200일선 아래입니다.</p>',
+        '<p class="formula">이격도 = 주봉 종가 ÷ 200주 이동평균 × 100</p>',
+        '<table class="rank">',
+        '<thead><tr><th>순위</th><th>코드</th><th>종목</th><th>주봉 종가</th><th>200주 이평</th><th>이격도</th></tr></thead>',
+        '<tbody>',
+    ]
+    for order, row in enumerate(rows, start=1):
+        gap_class = "gap-low" if row["disparity"] <= 100 else "gap"
+        top = ' class="top"' if row["disparity"] <= 100 else ""
+        lines.append(
+            f'<tr{top}><td>{order}</td><td class="code"><a href="{etf_chart_url(row["ticker"])}" target="_blank">{html.escape(row["label"])}</a></td>'
+            f'<td class="name">{html.escape(row["name"])}</td><td>{row["price"]:.2f}</td><td>{row["ma200"]:.2f}</td>'
+            f'<td class="{gap_class}">{row["disparity"]:.1f}</td></tr>'
+        )
+    lines.append("</tbody></table></section>")
+    return "\n".join(lines)
+#ETF end    
+
 def tradingview_symbol(ticker):
     query = ticker.replace("-", ".")
     try:
