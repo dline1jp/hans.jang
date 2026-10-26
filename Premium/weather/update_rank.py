@@ -123,6 +123,78 @@ def render_etf(scored):
     lines.append("</tbody></table></section>")
     return "\n".join(lines)
 #ETF end    
+#etc. start
+ETC_HEADING = (
+    '<h1 class="low">8. 주요 기타종목 주봉기준 200일 이동평균선 이격도입니다. 매주 토요일 업데이트됩니다. '
+    "주봉 200일선 아래일때가 이격도 100이하입니다. 이 시기는 몇년정도 장기보유를 위해 분할 매수를 고려할수 있습니다.</h1>"
+)
+ETC_ROWS = [
+    ("UUP", "UUP", "Invesco 달러"),
+    ("SGOV", "SGOV", "iShares 초단기국채"),
+    ("SOXX", "SOXX", "iShares 반도체"),
+    ("NVDA", "NVDA", "NVIDIA"),
+    ("PLTR", "PLTR", "Palantir"),
+    ("VRT", "VRT", "Vertiv"),
+    ("CLS", "CLS", "Celestica"),
+    ("GOOG", "GOOG", "Alphabet"),
+    ("AMZN", "AMZN", "Amazon"),
+    ("MSFT", "MSFT", "Microsoft"),
+    ("QTUM", "QTUM", "Defiance Quantum"),
+    ("036930.KQ", "036930", "주성엔지니어링"),
+    ("277810.KQ", "277810", "레인보우로보틱스"),
+    ("307950.KS", "307950", "현대오토에버"),
+    ("005930.KS", "005930", "삼성전자"),
+    ("000660.KS", "000660", "SK하이닉스"),
+    ("454910.KS", "454910", "두산로보틱스"),
+    ("108490.KQ", "108490", "로보티즈"),
+    ("012450.KS", "012450", "한화에어로스페이스"),
+    ("064350.KS", "064350", "현대로템"),
+    ("079550.KS", "079550", "LIG넥스원"),
+    ("047810.KS", "047810", "한국항공우주"),
+    ("034020.KS", "034020", "두산에너빌리티"),
+    ("298040.KS", "298040", "효성중공업"),
+    ("267260.KS", "267260", "HD현대일렉트릭"),
+]
+def render_etc(scored):
+    lines = [
+        ETC_HEADING,
+        '<section class="rank-wrap">',
+        '<p class="note">기준 주봉 {asof} · 이격도 100 이하는 주봉 200일선 아래입니다. 200주가 없는 종목은 이격도를 비워 둡니다.</p>',
+        '<p class="formula">이격도 = 주봉 종가 ÷ 200주 이동평균 × 100</p>',
+        '<table class="rank">',
+        '<thead><tr><th>순위</th><th>코드</th><th>종목</th><th>주봉 종가</th><th>200주 이평</th><th>이격도</th></tr></thead>',
+        '<tbody>',
+    ]
+    body = []
+    asof = ""
+    for ticker, label, name in ETC_ROWS:
+        row = scored.get(ticker)
+        if row and not asof:
+            asof = row["asof"]
+        price = f'{row["price"]:.2f}' if row else "-"
+        ma = f'{row["ma200"]:.2f}' if row else "-"
+        if row and row["disparity"] <= 100:
+            gap = f'<td class="gap-low">{row["disparity"]:.1f}</td>'
+            top = ' class="top"'
+        elif row:
+            gap = f'<td class="gap">{row["disparity"]:.1f}</td>'
+            top = ""
+        else:
+            gap = "<td>-</td>"
+            top = ""
+            series = weekly_close(ticker)
+            if series is not None and len(series):
+                price = f"{float(series.iloc[-1]):.2f}"
+        body.append(
+            f'<tr{top}><td>{len(body)+1}</td><td class="code"><a href="{chart_url(ticker)}" target="_blank">{html.escape(label)}</a></td>'
+            f'<td class="name">{html.escape(name)}</td><td>{price}</td><td>{ma}</td>{gap}</tr>'
+        )
+    lines[2] = lines[2].format(asof=asof)
+    lines.extend(body)
+    lines.append("</tbody></table></section>")
+    return "\n".join(lines)
+
+#etc end
 
 def tradingview_symbol(ticker):
     query = ticker.replace("-", ".")
@@ -334,10 +406,10 @@ def main():
             if ticker not in seen:
                 seen.add(ticker)
                 tickers.append(ticker)
-for ticker, _label, _name in ETF_ROWS:
-    if ticker not in seen:
-        seen.add(ticker)
-        tickers.append(ticker)
+    for ticker, _label, _name in ETF_ROWS:
+      if ticker not in seen:
+         seen.add(ticker)
+         tickers.append(ticker)
     
     scored = {}
     with ThreadPoolExecutor(max_workers=12) as pool:
