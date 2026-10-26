@@ -1,12 +1,16 @@
 # -*- coding: utf-8 -*-
+import html
 import json
 import pathlib
 import re
+import time
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import pandas as pd
 import requests
-LIST_URL = "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv"
+SP_URL = "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv"
+NASDAQ_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
+KOSPI_URL = "https://m.stock.naver.com/api/stocks/marketValue/KOSPI"
 CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
 TV_SEARCH = "https://symbol-search.tradingview.com/symbol_search/v3/"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
@@ -18,21 +22,41 @@ TV_STUDIES = urllib.parse.quote(json.dumps([
 TV_OVERRIDES = urllib.parse.quote(json.dumps({
     "moving average.ma.color": "#E53935",
     "moving average.ma.linewidth": 2,
-    "moving average.length": 200
+    "moving average.length": 200,
 }, separators=(",", ":")))
 WEEKS = 200
 PAGE = pathlib.Path(__file__).with_name("index.html")
-LOW_HEADING = (
-    '<h1 class="low">2. S&P500중 과매도 종목 후보입니다. 매주 업데이트됩니다. '
-    "주봉 200일 이동평균선 아래로 이격이 큰 종목 랭킹입니다. "
-    "종목 링크를 클릭후 주봉 2중 혹은 3중 바닥과 RSI 상승 다이버전스가 나오면 반등 가능성이 큽니다.</h1>"
-)
+SKIP_NAME = ("WARRANT", " RIGHT", " UNIT", "PREFERRED", "DEBENTURE", " NOTE", "WHEN ISSUED")
 HIGH_HEADING = (
     '<h1>1. S&P500중 과매수 종목 후보입니다. 매주 업데이트됩니다. '
     "주봉 200일 이동평균선 위로 이격이 큰 종목 랭킹입니다. "
     "종목 링크를 클릭후 주봉 2중 혹은 3중 천장과 RSI 하락 다이버전스가 나오면 하락 가능성이 큽니다.</h1>"
 )
-
+LOW_HEADING = (
+    '<h1 class="low">2. S&P500중 과매도 종목 후보입니다. 매주 업데이트됩니다. '
+    "주봉 200일 이동평균선 아래로 이격이 큰 종목 랭킹입니다. "
+    "종목 링크를 클릭후 주봉 2중 혹은 3중 바닥과 RSI 상승 다이버전스가 나오면 반등 가능성이 큽니다.</h1>"
+)
+NASDAQ_HIGH_HEADING = (
+    '<h1 class="low">3. 나스닥 composite중 과매수 종목 후보입니다. 매주 업데이트됩니다. '
+    "주봉 200일 이동평균선 위로 이격이 큰 종목 랭킹입니다. "
+    "종목 링크를 클릭후 주봉 2중 혹은 3중 천장 RSI 하락 다이버전스가 나오면 하락 가능성이 큽니다.</h1>"
+)
+NASDAQ_LOW_HEADING = (
+    '<h1 class="low">4. 나스닥 composite중 과매도 종목 후보입니다. 매주 업데이트됩니다. '
+    "주봉 200일 이동평균선 아래로 이격이 큰 종목 랭킹입니다. "
+    "종목 링크를 클릭후 주봉 2중 혹은 3중 바닥과 RSI 상승 다이버전스가 나오면 반등 가능성이 큽니다.</h1>"
+)
+KOSPI_HIGH_HEADING = (
+    '<h1 class="low">5. 코스피중 과매수 종목 후보입니다. 매주 업데이트됩니다. '
+    "주봉 200일 이동평균선 위로 이격이 큰 종목 랭킹입니다. "
+    "종목 링크를 클릭후 주봉 2중 혹은 3중 천장 RSI 하락 다이버전스가 나오면 하락 가능성이 큽니다.</h1>"
+)
+KOSPI_LOW_HEADING = (
+    '<h1 class="low">6. 코스피중 과매도 종목 후보입니다. 매주 업데이트됩니다. '
+    "주봉 200일 이동평균선 아래로 이격이 큰 종목 랭킹입니다. "
+    "종목 링크를 클릭후 주봉 2중 혹은 3중 바닥과 RSI 상승 다이버전스가 나오면 반등 가능성이 큽니다.</h1>"
+)
 def tradingview_symbol(ticker):
     query = ticker.replace("-", ".")
     try:
@@ -58,10 +82,13 @@ def tradingview_symbol(ticker):
             return f"{exchange}:{symbol}"
     return query
 def chart_url(ticker):
-    symbol = urllib.parse.quote(tradingview_symbol(ticker), safe="")
+    if ticker.endswith(".KS") or ticker.endswith(".KQ"):
+        symbol = "KRX:" + ticker.split(".")[0]
+    else:
+        symbol = tradingview_symbol(ticker)
     return (
         "https://www.tradingview.com/widgetembed/?symbol="
-        + symbol
+        + urllib.parse.quote(symbol, safe=":")
         + "&interval=W&style=1&theme=dark&hideideas=1"
         + "&studies="
         + TV_STUDIES
@@ -69,42 +96,125 @@ def chart_url(ticker):
         + TV_OVERRIDES
     )
 def weekly_close(ticker):
-    response = requests.get(
-        CHART_URL.format(ticker=ticker),
-        params={"interval": "1wk", "range": "10y", "events": "div,splits", "includeAdjustedClose": "true"},
-        headers=HEADERS,
-        timeout=30,
-    )
-    response.raise_for_status()
-    result = response.json()["chart"]["result"]
-    if not result:
-        return None
-    indicators = result[0]["indicators"]
-    stamps = result[0].get("timestamp") or []
-    adjusted = (indicators.get("adjclose") or [{}])[0].get("adjclose")
-    raw = (indicators.get("quote") or [{}])[0].get("close")
-    closes = adjusted or raw
-    if not closes or not stamps:
-        return None
-    series = pd.Series(closes, index=pd.to_datetime(stamps, unit="s")).dropna()
-    return series[~series.index.duplicated(keep="last")].sort_index()
-def score(ticker, name):
+    for attempt in range(3):
+        try:
+            response = requests.get(
+                CHART_URL.format(ticker=ticker),
+                params={"interval": "1wk", "range": "10y", "events": "div,splits", "includeAdjustedClose": "true"},
+                headers=HEADERS,
+                timeout=30,
+            )
+            if response.status_code in (429, 500, 502, 503):
+                time.sleep(1.2 * (attempt + 1))
+                continue
+            response.raise_for_status()
+            result = response.json()["chart"]["result"]
+            if not result:
+                return None
+            indicators = result[0]["indicators"]
+            stamps = result[0].get("timestamp") or []
+            adjusted = (indicators.get("adjclose") or [{}])[0].get("adjclose")
+            raw = (indicators.get("quote") or [{}])[0].get("close")
+            closes = adjusted or raw
+            if not closes or not stamps:
+                return None
+            series = pd.Series(closes, index=pd.to_datetime(stamps, unit="s")).dropna()
+            return series[~series.index.duplicated(keep="last")].sort_index()
+        except (requests.RequestException, ValueError, KeyError, TypeError):
+            time.sleep(0.6 * (attempt + 1))
+    return None
+def score(ticker):
     series = weekly_close(ticker)
     if series is None or len(series) < WEEKS:
+        return None
+    last4 = series.tail(4)
+    if len(last4) == 4 and float(last4.max()) == float(last4.min()):
         return None
     price = float(series.iloc[-1])
     ma200 = float(series.tail(WEEKS).mean())
     if ma200 <= 0 or price == ma200:
         return None
+    disparity = price / ma200 * 100
+    if disparity < 5 or disparity > 3000:
+        band = series[(series >= price / 40) & (series <= price * 40)]
+        if len(band) < WEEKS:
+            return None
+        ma200 = float(band.tail(WEEKS).mean())
+        if ma200 <= 0 or price == ma200:
+            return None
+        disparity = price / ma200 * 100
     return {
         "ticker": ticker,
-        "name": name,
         "price": round(price, 2),
         "ma200": round(ma200, 2),
-        "disparity": round(price / ma200 * 100, 1),
+        "disparity": round(disparity, 1),
         "asof": series.index[-1].date().isoformat(),
         "side": "below" if price < ma200 else "above",
     }
+def load_sp():
+    constituents = pd.read_csv(SP_URL)
+    constituents["yahoo"] = constituents["Symbol"].str.replace(".", "-", regex=False)
+    return list(zip(constituents["yahoo"], constituents["Security"]))
+def load_nasdaq():
+    text = requests.get(NASDAQ_URL, headers=HEADERS, timeout=30).text
+    rows = []
+    seen = set()
+    for line in text.splitlines()[1:]:
+        if line.startswith("File Creation Time"):
+            continue
+        parts = line.split("|")
+        if len(parts) < 7:
+            continue
+        symbol, name, _market, test, _fin, _lot, etf = parts[:7]
+        if test == "Y" or etf == "Y" or symbol in seen:
+            continue
+        if not re.fullmatch(r"[A-Z]{1,5}", symbol):
+            continue
+        upper = name.upper()
+        if " ETF" in f" {upper}" or any(key in upper for key in SKIP_NAME):
+            continue
+        seen.add(symbol)
+        rows.append((symbol, name.split(" - ", 1)[0].strip()))
+    return rows
+def load_kospi():
+    rows = []
+    seen = set()
+    page = 1
+    while True:
+        response = requests.get(
+            KOSPI_URL,
+            params={"page": page, "pageSize": 100},
+            headers={**HEADERS, "Referer": "https://m.stock.naver.com/"},
+            timeout=30,
+        )
+        response.raise_for_status()
+        stocks = response.json().get("stocks") or []
+        if not stocks:
+            break
+        for item in stocks:
+            if item.get("stockEndType") != "stock":
+                continue
+            code = item.get("itemCode") or ""
+            if not code.isdigit() or len(code) != 6 or not code.endswith("0") or code in seen:
+                continue
+            seen.add(code)
+            rows.append((f"{code}.KS", item.get("stockName") or code))
+        page += 1
+    return rows
+def ranked(pairs, scored):
+    rows = []
+    for ticker, name in pairs:
+        row = scored.get(ticker)
+        if not row:
+            continue
+        item = dict(row)
+        item["name"] = name
+        item["label"] = ticker.split(".")[0] if ticker.endswith(".KS") else ticker
+        rows.append(item)
+    frame = pd.DataFrame(rows)
+    above = frame[frame["side"] == "above"].sort_values(["disparity", "ticker"], ascending=[False, True])
+    below = frame[frame["side"] == "below"].sort_values(["disparity", "ticker"], ascending=[True, True])
+    return above, below
 def render_table(rank, note, gap_class):
     lines = [
         '<section class="rank-wrap">',
@@ -117,49 +227,68 @@ def render_table(rank, note, gap_class):
     for order, row in enumerate(rank.head(10).itertuples(index=False), start=1):
         top = ' class="top"' if order <= 3 else ""
         lines.append(
-            f'<tr{top}><td>{order}</td><td class="code"><a href="{chart_url(row.ticker)}" target="_blank">{row.ticker}</a></td><td class="name">{row.name}</td>'
-            f'<td>{row.price:.2f}</td><td>{row.ma200:.2f}</td><td class="{gap_class}">{row.disparity:.1f}</td></tr>'
+            f'<tr{top}><td>{order}</td><td class="code"><a href="{chart_url(row.ticker)}" target="_blank">{html.escape(row.label)}</a></td>'
+            f'<td class="name">{html.escape(str(row.name))}</td><td>{row.price:.2f}</td><td>{row.ma200:.2f}</td>'
+            f'<td class="{gap_class}">{row.disparity:.1f}</td></tr>'
         )
     lines.append("</tbody></table></section>")
     return "\n".join(lines)
-def render(above, below):
+def block(above, below, high, low, market):
     asof = above.iloc[0]["asof"]
-    above_html = render_table(
-        above,
-        f"기준 주봉 {asof} · 200주 이평 위 {len(above)}종목 중 이격 상위 10",
-        "gap",
+    prefix = f"{market} " if market else ""
+    above_note = f"기준 주봉 {asof} · {prefix}200주 이평 위 {len(above)}종목 중 이격 상위 10"
+    below_note = (
+        f"기준 주봉 {asof} · {prefix}200주 이평 아래 {len(below)}종목 중 아래로 이격이 큰 10. "
+        "이격도가 작을수록 이평선 아래로 더 멀리 있습니다."
     )
-    below_html = render_table(
-        below,
-        f"기준 주봉 {asof} · 200주 이평 아래 {len(below)}종목 중 아래로 이격이 큰 10. 이격도가 작을수록 이평선 아래로 더 멀리 있습니다.",
-        "gap-low",
-    )
-    return HIGH_HEADING + "\n" + above_html + "\n" + LOW_HEADING + "\n" + below_html
+    return "\n".join([
+        high,
+        render_table(above, above_note, "gap"),
+        low,
+        render_table(below, below_note, "gap-low"),
+    ])
+def render(sp_above, sp_below, nq_above, nq_below, ks_above, ks_below):
+    return "\n".join([
+        block(sp_above, sp_below, HIGH_HEADING, LOW_HEADING, ""),
+        block(nq_above, nq_below, NASDAQ_HIGH_HEADING, NASDAQ_LOW_HEADING, "나스닥"),
+        block(ks_above, ks_below, KOSPI_HIGH_HEADING, KOSPI_LOW_HEADING, "코스피"),
+    ])
 def main():
-    constituents = pd.read_csv(LIST_URL)
-    constituents["yahoo"] = constituents["Symbol"].str.replace(".", "-", regex=False)
-    rows = []
-    with ThreadPoolExecutor(max_workers=8) as pool:
-        futures = [
-            pool.submit(score, ticker, name)
-            for ticker, name in zip(constituents["yahoo"], constituents["Security"])
-        ]
+    groups = (load_sp(), load_nasdaq(), load_kospi())
+    seen = set()
+    tickers = []
+    for pairs in groups:
+        for ticker, _name in pairs:
+            if ticker not in seen:
+                seen.add(ticker)
+                tickers.append(ticker)
+    scored = {}
+    with ThreadPoolExecutor(max_workers=12) as pool:
+        futures = [pool.submit(score, ticker) for ticker in tickers]
         for future in as_completed(futures):
             row = future.result()
             if row:
-                rows.append(row)
-    frame = pd.DataFrame(rows)
-    above = frame[frame["side"] == "above"].sort_values(["disparity", "ticker"], ascending=[False, True])
-    below = frame[frame["side"] == "below"].sort_values(["disparity", "ticker"], ascending=[True, True])
-    html = PAGE.read_text(encoding="utf-8")
+                scored[row["ticker"]] = row
+    sp_above, sp_below = ranked(groups[0], scored)
+    nq_above, nq_below = ranked(groups[1], scored)
+    ks_above, ks_below = ranked(groups[2], scored)
+    html_text = PAGE.read_text(encoding="utf-8")
     pattern = re.compile(r"<!-- RANK_START -->.*?<!-- RANK_END -->", re.S)
-    if not pattern.search(html):
+    if not pattern.search(html_text):
         raise SystemExit("RANK_START / RANK_END 표시가 없습니다.")
     PAGE.write_text(
-        pattern.sub("<!-- RANK_START -->\n" + render(above, below) + "\n<!-- RANK_END -->", html),
+        pattern.sub(
+            "<!-- RANK_START -->\n" + render(sp_above, sp_below, nq_above, nq_below, ks_above, ks_below) + "\n<!-- RANK_END -->",
+            html_text,
+        ),
         encoding="utf-8",
     )
-    print(above.head(10).to_string(index=False))
-    print(below.head(10).to_string(index=False))
+    for title, frame in (
+        ("SP ABOVE", sp_above), ("SP BELOW", sp_below),
+        ("NQ ABOVE", nq_above), ("NQ BELOW", nq_below),
+        ("KS ABOVE", ks_above), ("KS BELOW", ks_below),
+    ):
+        print(title)
+        print(frame.head(10).to_string(index=False))
 if __name__ == "__main__":
     main()
