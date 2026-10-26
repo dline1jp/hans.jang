@@ -318,11 +318,12 @@ def block(above, below, high, low, market):
         low,
         render_table(below, below_note, "gap-low"),
     ])
-def render(sp_above, sp_below, nq_above, nq_below, ks_above, ks_below):
+def render(sp_above, sp_below, nq_above, nq_below, ks_above, ks_below, scored):
     return "\n".join([
         block(sp_above, sp_below, HIGH_HEADING, LOW_HEADING, ""),
         block(nq_above, nq_below, NASDAQ_HIGH_HEADING, NASDAQ_LOW_HEADING, "나스닥"),
         block(ks_above, ks_below, KOSPI_HIGH_HEADING, KOSPI_LOW_HEADING, "코스피"),
+        render_etf(scored),
     ])
 def main():
     groups = (load_sp(), load_nasdaq(), load_kospi())
