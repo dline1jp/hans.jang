@@ -134,7 +134,7 @@ def render(above, below):
         f"기준 주봉 {asof} · 200주 이평 아래 {len(below)}종목 중 아래로 이격이 큰 10. 이격도가 작을수록 이평선 아래로 더 멀리 있습니다.",
         "gap-low",
     )
-    return above_html + "\n" + LOW_HEADING + "\n" + below_html
+    return HIGH_HEADING + "\n" + above_html + "\n" + LOW_HEADING + "\n" + below_html
 def main():
     constituents = pd.read_csv(LIST_URL)
     constituents["yahoo"] = constituents["Symbol"].str.replace(".", "-", regex=False)
