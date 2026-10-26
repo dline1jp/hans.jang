@@ -22,6 +22,11 @@ TV_OVERRIDES = urllib.parse.quote(json.dumps({
 }, separators=(",", ":")))
 WEEKS = 200
 PAGE = pathlib.Path(__file__).with_name("index.html")
+LOW_HEADING = (
+    '<h1 class="low">2. S&P500중 과매도 종목 후보입니다. 매주 업데이트됩니다. '
+    "주봉 200일 이동평균선 아래로 이격이 큰 종목 랭킹입니다. "
+    "종목 링크를 클릭하여 주봉 2중 혹은 3중 바닥과 RSI 상승 다이버전스가 나오면 반등 가능성이 큽니다.</h1>"
+)
 def tradingview_symbol(ticker):
     query = ticker.replace("-", ".")
     try:
@@ -83,7 +88,7 @@ def score(ticker, name):
         return None
     price = float(series.iloc[-1])
     ma200 = float(series.tail(WEEKS).mean())
-    if ma200 <= 0 or price <= ma200:
+    if ma200 <= 0 or price == ma200:
         return None
     return {
         "ticker": ticker,
@@ -92,26 +97,38 @@ def score(ticker, name):
         "ma200": round(ma200, 2),
         "disparity": round(price / ma200 * 100, 1),
         "asof": series.index[-1].date().isoformat(),
+        "side": "below" if price < ma200 else "above",
     }
-def render(rank):
-    asof = rank.iloc[0]["asof"]
-    above = len(rank)
+def render_table(rank, note, gap_class):
     lines = [
         '<section class="rank-wrap">',
-        f'<p class="note">기준 주봉 {asof} · 200주 이평 위 {above}종목 중 이격 상위 10</p>',
+        f'<p class="note">{note}</p>',
         '<p class="formula">이격도 = 주봉 종가 ÷ 200주 이동평균 × 100</p>',
         '<table class="rank">',
         '<thead><tr><th>순위</th><th>코드</th><th>종목</th><th>주봉 종가</th><th>200주 이평</th><th>이격도</th></tr></thead>',
         '<tbody>',
     ]
     for order, row in enumerate(rank.head(10).itertuples(index=False), start=1):
-        top = ' class="top"' if order <= 3 else ''
+        top = ' class="top"' if order <= 3 else ""
         lines.append(
             f'<tr{top}><td>{order}</td><td class="code"><a href="{chart_url(row.ticker)}" target="_blank">{row.ticker}</a></td><td class="name">{row.name}</td>'
-            f'<td>{row.price:.2f}</td><td>{row.ma200:.2f}</td><td class="gap">{row.disparity:.1f}</td></tr>'
+            f'<td>{row.price:.2f}</td><td>{row.ma200:.2f}</td><td class="{gap_class}">{row.disparity:.1f}</td></tr>'
         )
-    lines.append('</tbody></table></section>')
-    return '\n'.join(lines)
+    lines.append("</tbody></table></section>")
+    return "\n".join(lines)
+def render(above, below):
+    asof = above.iloc[0]["asof"]
+    above_html = render_table(
+        above,
+        f"기준 주봉 {asof} · 200주 이평 위 {len(above)}종목 중 이격 상위 10",
+        "gap",
+    )
+    below_html = render_table(
+        below,
+        f"기준 주봉 {asof} · 200주 이평 아래 {len(below)}종목 중 아래로 이격이 큰 10. 이격도가 작을수록 이평선 아래로 더 멀리 있습니다.",
+        "gap-low",
+    )
+    return above_html + "\n" + LOW_HEADING + "\n" + below_html
 def main():
     constituents = pd.read_csv(LIST_URL)
     constituents["yahoo"] = constituents["Symbol"].str.replace(".", "-", regex=False)
@@ -125,15 +142,18 @@ def main():
             row = future.result()
             if row:
                 rows.append(row)
-    rank = pd.DataFrame(rows).sort_values(["disparity", "ticker"], ascending=[False, True])
+    frame = pd.DataFrame(rows)
+    above = frame[frame["side"] == "above"].sort_values(["disparity", "ticker"], ascending=[False, True])
+    below = frame[frame["side"] == "below"].sort_values(["disparity", "ticker"], ascending=[True, True])
     html = PAGE.read_text(encoding="utf-8")
     pattern = re.compile(r"<!-- RANK_START -->.*?<!-- RANK_END -->", re.S)
     if not pattern.search(html):
         raise SystemExit("RANK_START / RANK_END 표시가 없습니다.")
     PAGE.write_text(
-        pattern.sub("<!-- RANK_START -->\n" + render(rank) + "\n<!-- RANK_END -->", html),
+        pattern.sub("<!-- RANK_START -->\n" + render(above, below) + "\n<!-- RANK_END -->", html),
         encoding="utf-8",
     )
-    print(rank.head(10).to_string(index=False))
+    print(above.head(10).to_string(index=False))
+    print(below.head(10).to_string(index=False))
 if __name__ == "__main__":
     main()
