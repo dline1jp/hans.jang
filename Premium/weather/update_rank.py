@@ -18,7 +18,7 @@ TV_STUDIES = urllib.parse.quote(json.dumps([
 TV_OVERRIDES = urllib.parse.quote(json.dumps({
     "moving average.ma.color": "#E53935",
     "moving average.ma.linewidth": 2,
-    "moving average.length": 200,HEADING
+    "moving average.length": 200
 }, separators=(",", ":")))
 WEEKS = 200
 PAGE = pathlib.Path(__file__).with_name("index.html")
@@ -27,6 +27,12 @@ LOW_HEADING = (
     "주봉 200일 이동평균선 아래로 이격이 큰 종목 랭킹입니다. "
     "종목 링크를 클릭하여 주봉 2중 혹은 3중 바닥과 RSI 상승 다이버전스가 나오면 반등 가능성이 큽니다.</h1>"
 )
+HIGH_HEADING = (
+    '<h1>1. S&P500중 과매수 종목 후보입니다. 매주 업데이트됩니다. '
+    "주봉 200일 이동평균선 위로 이격이 큰 종목 랭킹입니다. "
+    "종목 링크를 클릭하여 주봉 2중 혹은 3중 천장과 RSI 하락 다이버전스가 나오면 하락 가능성이 큽니다.</h1>"
+)
+
 def tradingview_symbol(ticker):
     query = ticker.replace("-", ".")
     try:
