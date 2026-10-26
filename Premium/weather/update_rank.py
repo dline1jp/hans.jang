@@ -334,6 +334,11 @@ def main():
             if ticker not in seen:
                 seen.add(ticker)
                 tickers.append(ticker)
+for ticker, _label, _name in ETF_ROWS:
+    if ticker not in seen:
+        seen.add(ticker)
+        tickers.append(ticker)
+    
     scored = {}
     with ThreadPoolExecutor(max_workers=12) as pool:
         futures = [pool.submit(score, ticker) for ticker in tickers]
