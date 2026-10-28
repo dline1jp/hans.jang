@@ -74,12 +74,62 @@ h1.low { margin-top: 80px; }
     0 2px 0 #120a06;
 }
 
+.핫이슈-menu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 240px;
+  height: 72px;
+  padding: 0 22px;
+  margin: 6px 0 20px;
+  border: 4px solid #5c4030;
+  border-radius: 12px;
+  background-color: #140c08;
+  background-image:
+    repeating-linear-gradient(92deg, rgba(0,0,0,0.28) 0 1px, transparent 1px 6px),
+    linear-gradient(180deg, #3c2418 0%, #1c100c 40%, #0a0604 100%);
+  color: #4da3ff;
+  font-size: 47px;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow:
+    inset 0 3px 0 rgba(140,100,60,0.35),
+    inset 0 -6px 0 rgba(0,0,0,0.55),
+    0 8px 0 #070403,
+    0 14px 16px rgba(0,0,0,0.45);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.핫이슈-menu:hover {
+  border-color: #c6a15a;
+  color: #8ec8ff;
+  background-image:
+    repeating-linear-gradient(92deg, rgba(0,0,0,0.14) 0 1px, transparent 1px 6px),
+    linear-gradient(180deg, #6e4022 0%, #452414 40%, #22140c 100%);
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 3px 0 rgba(210,170,100,0.45),
+    inset 0 -6px 0 rgba(0,0,0,0.45),
+    0 11px 0 #120a06,
+    0 18px 18px rgba(20,8,4,0.5);
+}
+.핫이슈-menu:active {
+  border-color: #e6c85a;
+  color: #ffffff;
+  transform: translateY(6px);
+  box-shadow:
+    inset 0 4px 8px rgba(0,0,0,0.55),
+    0 2px 0 #120a06;
+}
+
  </style> </head> <body>
 
 <div class="topbar">
   <a class="home" href="../../index.html" target="_blank">← 홈</a>
   <a class="chart-menu" href="chart/index.html">차트보는법</a>
-    <a class="핫이슈-menu" href="핫이슈/index.html">핫이슈</a>
+  <a class="핫이슈-menu" href="핫이슈/index.html">핫이슈</a>
 </div>
 
 <h1 class="high">1. S&P500주봉기준 과매수 종목 후보입니다. 매주 토요일 업데이트됩니다. 주봉 200일 이동평균선 위로 이격이 큰 종목 랭킹입니다. 종목 링크를 클릭후 주봉 2중 혹은 3중 천장 RSI 하락 다이버전스가 나오면 하락 가능성이 큽니다.</h1>
