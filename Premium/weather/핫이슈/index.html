@@ -1,22 +1,362 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
+  <script src="/Premium/gate.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script src="/Premium/gate.js"></script>
-  <title>차트보는법</title>
+  <title>미국증시 핫이슈</title>
   <style>
-    body { background: #111; color: white; font-family: Arial, sans-serif; margin: 0; padding: 27px; }
-    a { color: #4da3ff; font-size: 32px; }
-    h1 { color: #3C9DDE; font-size: 40px; }
-    .charts { max-width: 1100px; margin: 0 auto; }
-    .charts img { width: 100%; height: auto; display: block; margin: 0 0 28px; background: #fff; }
+    body {
+      background: #111;
+      color: white;
+      font-family: "Malgun Gothic", Arial, sans-serif;
+      margin: 0;
+      padding: 27px;
+    }
+    a { color: #D8C0FF; }
+    .topbar { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+    .home { font-size: 32px; }
+    h1 {
+      text-align: center;
+      color: #3C9DDE;
+      font-size: 40px;
+      line-height: 1.35;
+      margin: 18px 0 8px;
+    }
+    .note {
+      text-align: center;
+      color: #ccc;
+      font-size: 22px;
+      margin: 0 0 18px;
+    }
+    .toolbar {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    #reload, .rank button {
+      min-height: 64px;
+      padding: 0 22px;
+      border: 4px solid #5c4030;
+      border-radius: 12px;
+      background: #1c100c;
+      color: #4da3ff;
+      font-size: 26px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    #reload:disabled { opacity: 0.55; cursor: default; }
+    .status { color: #8a8a8a; font-size: 20px; }
+    .cloud-wrap {
+      position: relative;
+      width: min(1100px, 100%);
+      height: 720px;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+    .word {
+      position: absolute;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      font-weight: 800;
+      line-height: 1.05;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+    }
+    .word.on { text-decoration: underline; text-underline-offset: 6px; }
+    .panel {
+      width: min(1100px, 100%);
+      margin: 8px auto 0;
+    }
+    .panel h2 {
+      color: #ffd76a;
+      font-size: 32px;
+      margin: 8px 0;
+    }
+    .rank {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      margin: 0 0 18px;
+      padding: 0;
+      list-style: none;
+    }
+    .rank button {
+      min-height: 52px;
+      font-size: 22px;
+      color: #fff;
+    }
+    .heads { margin: 0; padding: 0; list-style: none; }
+    .heads li {
+      border-bottom: 1px solid #333;
+      padding: 14px 4px;
+      font-size: 24px;
+      line-height: 1.4;
+    }
+    .heads a { color: #8ec8ff; }
+    .error { color: #f1948a; text-align: center; font-size: 26px; }
+    @media (max-width: 700px) {
+      body { padding: 16px; }
+      h1 { font-size: 30px; }
+      .cloud-wrap { height: 560px; }
+      .heads li { font-size: 20px; }
+    }
   </style>
 </head>
 <body>
-  <p><a href="../index.html">← 주가 방향 날씨</a></p>
-  <h1>차트보는법</h1>
-
+  <div class="topbar">
+    <a class="home" href="../../../index.html">← 홈</a>
+    <a class="home" href="../index.html">날씨</a>
+  </div>
+  <h1>미국증시 핫이슈</h1>
+  <p class="note">미국 증시 기사에 많이 나온 이슈일수록 글자가 큽니다. 글을 누르면 관련 제목이 나옵니다.</p>
+  <div class="toolbar">
+    <button id="reload" type="button">다시 불러오기</button>
+    <span class="status" id="status">불러오는 중</span>
+  </div>
+  <div class="cloud-wrap" id="cloud"></div>
+  <section class="panel">
+    <h2 id="picked"></h2>
+    <ol class="rank" id="rank"></ol>
+    <ul class="heads" id="heads"></ul>
+    <p class="error" id="error" hidden></p>
+  </section>
+  <script>
+    var TERMS = [
+      { label: "연준", keys: [/federal reserve/i, /\bfed\b/i, /\bfomc\b/i, /연준/, /파월/, /\bwarsh\b/i, /워시/] },
+      { label: "금리", keys: [/interest rates?/i, /rate hike/i, /rate cut/i, /rate decision/i, /금리/] },
+      { label: "인공지능", keys: [/artificial intelligence/i, /\bAI\b/, /인공지능/, /앤트로픽/, /anthropic/i, /openai/i] },
+      { label: "반도체", keys: [/semiconductor/i, /chip/i, /반도체/, /파운드리/] },
+      { label: "엔비디아", keys: [/nvidia/i, /\bnvda\b/i, /엔비디아/] },
+      { label: "SK하이닉스", keys: [/hynix/i, /하이닉스/] },
+      { label: "브로드컴", keys: [/broadcom/i, /\bavgo\b/i, /브로드컴/] },
+      { label: "마이크론", keys: [/micron/i, /마이크론/] },
+      { label: "메타", keys: [/\bmeta\b/i, /메타/] },
+      { label: "마이크로소프트", keys: [/microsoft/i, /\bmsft\b/i, /마이크로소프트/, /\bazure\b/i] },
+      { label: "구글", keys: [/alphabet/i, /\bgoogle\b/i, /\bgoogl\b/i, /구글/, /알파벳/] },
+      { label: "아마존", keys: [/\bamazon\b/i, /\bamzn\b/i, /아마존/] },
+      { label: "애플", keys: [/\bapple\b/i, /\baapl\b/i, /애플/] },
+      { label: "테슬라", keys: [/\btesla\b/i, /\btsla\b/i, /테슬라/] },
+      { label: "팔란티어", keys: [/palantir/i, /\bpltr\b/i, /팔란티어/] },
+      { label: "버티브", keys: [/vertiv/i, /버티브/] },
+      { label: "GM", keys: [/general motors/i, /\bGM\b/] },
+      { label: "삼성전자", keys: [/samsung electronics/i, /삼성전자/] },
+      { label: "실적", keys: [/earnings/i, /실적/, /호실적/] },
+      { label: "국채", keys: [/treasury/i, /bond yield/i, /국채/] },
+      { label: "유가", keys: [/\boil\b/i, /\bcrude\b/i, /유가/, /원유/] },
+      { label: "달러", keys: [/\bdollar\b/i, /\bdxy\b/i, /달러/] },
+      { label: "비트코인", keys: [/bitcoin/i, /비트코인/] },
+      { label: "고용", keys: [/payroll/i, /unemployment/i, /jobless/i, /고용/, /실업/] },
+      { label: "물가", keys: [/inflation/i, /\bcpi\b/i, /물가/, /인플레/] },
+      { label: "관세", keys: [/tariff/i, /관세/] },
+      { label: "빅테크", keys: [/big tech/i, /빅테크/, /기술주/] },
+      { label: "중국", keys: [/\bchina\b/i, /\bchinese\b/i, /중국/] },
+      { label: "이란", keys: [/\biran\b/i, /이란/] }
+    ];
+    var COLORS = ["#ffd76a", "#7ec8ff", "#d8c0ff", "#7dcea0", "#ff9b8a", "#ffffff", "#f5c16c", "#9ad1ff"];
+    var issues = [];
+    var selected = "";
+    var FEEDS = [
+      "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US",
+      "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EIXIC&region=US&lang=en-US",
+      "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EDJI&region=US&lang=en-US"
+    ];
+    function titlesFrom(text) {
+      var out = [];
+      var seen = {};
+      var re = /^#{2,3} \[(.+?)\]\((https?:\/\/[^)\s]+)\)/gm;
+      var m;
+      while ((m = re.exec(text))) {
+        var title = m[1].replace(/\s+/g, " ").trim();
+        if (!title || seen[title]) continue;
+        seen[title] = 1;
+        out.push({ title: title, url: m[2] });
+      }
+      return out;
+    }
+    function score(articles) {
+      return TERMS.map(function (term) {
+        var headlines = [];
+        articles.forEach(function (article) {
+          var hit = term.keys.some(function (key) { return key.test(article.title); });
+          if (hit) headlines.push(article);
+        });
+        return { label: term.label, count: headlines.length, headlines: headlines.slice(0, 8) };
+      }).filter(function (item) {
+        return item.count >= 2;
+      }).sort(function (a, b) {
+        return b.count - a.count;
+      }).slice(0, 16);
+    }
+    function overlaps(a, b) {
+      return !(a.x + a.w + 10 < b.x || b.x + b.w + 10 < a.x || a.y + a.h + 8 < b.y || b.y + b.h + 8 < a.y);
+    }
+    function drawCloud() {
+      var box = document.getElementById("cloud");
+      box.innerHTML = "";
+      if (!issues.length) return;
+      var width = box.clientWidth;
+      var height = box.clientHeight;
+      var maxCount = issues[0].count;
+      var maxFont = Math.max(46, Math.min(104, width / 8));
+      var placed = [];
+      issues.forEach(function (issue, index) {
+        var el = document.createElement("button");
+        el.type = "button";
+        el.className = "word" + (issue.label === selected ? " on" : "");
+        el.textContent = issue.label;
+        el.style.color = COLORS[index % COLORS.length];
+        el.style.fontSize = Math.round(28 + Math.sqrt(issue.count / maxCount) * (maxFont - 28)) + "px";
+        el.style.background = "transparent";
+        el.style.border = "0";
+        el.style.padding = "0";
+        el.style.minHeight = "0";
+        box.appendChild(el);
+        var rect = el.getBoundingClientRect();
+        var w = rect.width;
+        var h = rect.height;
+        var guard = 0;
+        while (w > width - 20 && guard < 20) {
+          var next = parseFloat(el.style.fontSize) - 4;
+          if (next < 22) break;
+          el.style.fontSize = next + "px";
+          rect = el.getBoundingClientRect();
+          w = rect.width;
+          h = rect.height;
+          guard += 1;
+        }
+        var spot = null;
+        var t;
+        for (t = 0; t < 900; t += 1) {
+          var angle = t * 0.45;
+          var radius = t * 1.15;
+          var x = width / 2 + Math.cos(angle) * radius - w / 2;
+          var y = height / 2 + Math.sin(angle) * radius * 0.72 - h / 2;
+          if (x < 4 || y < 4 || x + w > width - 4 || y + h > height - 4) continue;
+          var candidate = { x: x, y: y, w: w, h: h };
+          var blocked = placed.some(function (old) { return overlaps(candidate, old); });
+          if (!blocked) {
+            spot = candidate;
+            break;
+          }
+        }
+        if (!spot) {
+          el.remove();
+          return;
+        }
+        el.style.left = spot.x + "px";
+        el.style.top = spot.y + "px";
+        el.addEventListener("click", function () { choose(issue.label); });
+        placed.push(spot);
+      });
+      if (!placed.length) return;
+      var minX = placed[0].x;
+      var minY = placed[0].y;
+      var maxX = placed[0].x + placed[0].w;
+      var maxY = placed[0].y + placed[0].h;
+      placed.forEach(function (p) {
+        minX = Math.min(minX, p.x);
+        minY = Math.min(minY, p.y);
+        maxX = Math.max(maxX, p.x + p.w);
+        maxY = Math.max(maxY, p.y + p.h);
+      });
+      var dx = (width - (maxX - minX)) / 2 - minX;
+      var dy = (height - (maxY - minY)) / 2 - minY;
+      Array.prototype.forEach.call(box.children, function (el) {
+        el.style.left = (parseFloat(el.style.left) + dx) + "px";
+        el.style.top = (parseFloat(el.style.top) + dy) + "px";
+      });
+    }
+    function showLists() {
+      var rank = document.getElementById("rank");
+      var heads = document.getElementById("heads");
+      var picked = document.getElementById("picked");
+      rank.innerHTML = "";
+      heads.innerHTML = "";
+      issues.forEach(function (issue) {
+        var li = document.createElement("li");
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = issue.label + " " + issue.count;
+        if (issue.label === selected) btn.style.borderColor = "#ffd76a";
+        btn.addEventListener("click", function () { choose(issue.label); });
+        li.appendChild(btn);
+        rank.appendChild(li);
+      });
+      var current = issues.filter(function (issue) { return issue.label === selected; })[0];
+      if (!current) {
+        picked.textContent = "";
+        return;
+      }
+      picked.textContent = current.label + " · 기사 " + current.count + "건";
+      current.headlines.forEach(function (article) {
+        var li = document.createElement("li");
+        var a = document.createElement("a");
+        a.href = article.url;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.textContent = article.title;
+        li.appendChild(a);
+        heads.appendChild(li);
+      });
+    }
+    function choose(label) {
+      selected = label;
+      drawCloud();
+      showLists();
+    }
+    function setBusy(busy) {
+      document.getElementById("reload").disabled = busy;
+    }
+    async function loadIssues() {
+      var status = document.getElementById("status");
+      var error = document.getElementById("error");
+      error.hidden = true;
+      setBusy(true);
+      status.textContent = "미국 증시 기사를 모으는 중";
+      try {
+        var feeds = await Promise.all(FEEDS.map(function (url) {
+          return fetch("https://r.jina.ai/" + url).then(function (r) { return r.text(); }).catch(function () { return ""; });
+        }));
+        var seen = {};
+        var articles = [];
+        feeds.forEach(function (text) {
+          titlesFrom(text).forEach(function (article) {
+            if (seen[article.title]) return;
+            seen[article.title] = 1;
+            articles.push(article);
+          });
+        });
+        if (articles.length < 8) throw new Error("empty");
+        issues = score(articles);
+        if (!issues.length) throw new Error("empty");
+        if (!issues.some(function (issue) { return issue.label === selected; })) selected = issues[0].label;
+        var now = new Date();
+        status.textContent = "기사 " + articles.length + "건 · " + now.toLocaleString("ko-KR");
+        drawCloud();
+        showLists();
+      } catch (e) {
+        status.textContent = "불러오지 못함";
+        error.hidden = false;
+        error.textContent = "지금 뉴스를 가져오지 못했습니다. 잠시 후 다시 불러오기를 눌러 주세요.";
+      } finally {
+        setBusy(false);
+      }
+    }
+    document.getElementById("reload").addEventListener("click", loadIssues);
+    var resizeTimer;
+    window.addEventListener("resize", function () {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(drawCloud, 200);
+    });
+    loadIssues();
+  </script>
 </body>
 </html>
