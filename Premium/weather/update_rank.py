@@ -3,6 +3,7 @@ import html
 import json
 import pathlib
 import re
+import sys
 import time
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -33,9 +34,11 @@ HIGH_HEADING = (
     "종목 링크를 클릭후 주봉 2중 혹은 3중 천장과 RSI 하락 다이버전스가 나오면 하락 가능성이 큽니다.매도 추천이 아닙니다. 참조만 하세요.</h1>"
 )
 LOW_HEADING = (
-    '<h1 class="low">2. S&P500 주봉기준 과매도 종목 후보입니다. 매주 토요일 업데이트됩니다. '
+    '<h1 class="low">2. S&P500주봉기준 과매도 종목 후보입니다. 매주 토요일 업데이트됩니다. '
     "주봉 200일 이동평균선 아래로 이격이 큰 종목 랭킹입니다. "
-    "종목 링크를 클릭후 주봉 2중 혹은 3중 바닥과 RSI 상승 다이버전스가 나오면 반등 가능성이 있습니다.단 파산 가능성이 크서 전혀 매수 추천하지 않습니다. 경기사이클 EPS BPS 매출 현금흐름등 지표도 확인해야 하니 참조만 하세요.</h1>"
+    "종목 링크를 클릭후 주봉 2중 혹은 3중 바닥과 RSI 상승 다이버전스가 나오면 반등 가능성이 있습니다. "
+    "단 파산 가능성이 크서 전혀 매수 추천하지 않습니다. 경기사이클 EPS BPS 매출 현금흐름등 지표도 확인해야 하니 참조만 하세요. "
+    "직전 분기 EPS가 플러스인 종목만 보여 줍니다.</h1>"
 )
 NASDAQ_HIGH_HEADING = (
     '<h1 class="low">3. 나스닥 composite 주봉기준 과매수 종목 후보입니다. 매주 토요일 업데이트됩니다. '
@@ -45,7 +48,9 @@ NASDAQ_HIGH_HEADING = (
 NASDAQ_LOW_HEADING = (
     '<h1 class="low">4. 나스닥 composite주봉기준 과매도 종목 후보입니다. 매주 토요일 업데이트됩니다. '
     "주봉 200일 이동평균선 아래로 이격이 큰 종목 랭킹입니다. "
-    "종목 링크를 클릭후 주봉 2중 혹은 3중 바닥과 RSI 상승 다이버전스가 나오면 반등 가능성이 있습니다.단 파산 가능성이 크서 전혀 매수 추천하지 않습니다. 경기사이클 EPS BPS 매출 현금흐름등 지표도 확인해야 하니 참조만 하세요.</h1>"
+    "종목 링크를 클릭후 주봉 2중 혹은 3중 바닥과 RSI 상승 다이버전스가 나오면 반등 가능성이 있습니다. "
+    "단 파산 가능성이 크서 전혀 매수 추천하지 않습니다. 경기사이클 EPS BPS 매출 현금흐름등 지표도 확인해야 하니 참조만 하세요. "
+    "직전 분기 EPS가 플러스인 종목만 보여 줍니다.</h1>"
 )
 KOSPI_HIGH_HEADING = (
     '<h1 class="low">5. 코스피 주봉기준 과매수 종목 후보입니다. 매주 토요일 업데이트됩니다. '
@@ -55,7 +60,10 @@ KOSPI_HIGH_HEADING = (
 KOSPI_LOW_HEADING = (
     '<h1 class="low">6. 코스피 주봉기준 과매도 종목 후보입니다. 매주 토요일 업데이트됩니다. '
     "주봉 200일 이동평균선 아래로 이격이 큰 종목 랭킹입니다. "
-    "종목 링크를 클릭후 주봉 2중 혹은 3중 바닥과 RSI 상승 다이버전스가 나오면 반등 가능성이 있습니다.단 파산 가능성이 크서 전혀 매수 추천하지 않습니다. 경기사이클 EPS BPS 매출 현금흐름등 지표도 확인해야 하니 참조만 하세요. 코스피는 차트중 200이평과 RSI가 안뜨니 트레이딩뷰 무료버젼에 로그인해서 200이평과 RSI을 미리 띄워 놓으셔야 보입니다.</h1>"
+    "종목 링크를 클릭후 주봉 2중 혹은 3중 바닥과 RSI 상승 다이버전스가 나오면 반등 가능성이 있습니다. "
+    "단 파산 가능성이 크서 전혀 매수 추천하지 않습니다. 경기사이클 EPS BPS 매출 현금흐름등 지표도 확인해야 하니 참조만 하세요. "
+    "직전 분기 EPS가 플러스인 종목만 보여 줍니다. "
+    "코스피는 차트중 200이평과 RSI가 안뜨니 트레이딩뷰 무료버젼에 로그인해서 200이평과 RSI을 미리 띄워 놓으셔야 보입니다.</h1>"
 )
 
 #ETF start
@@ -376,19 +384,76 @@ def render_table(rank, note, gap_class):
         )
     lines.append("</tbody></table></section>")
     return "\n".join(lines)
+def yahoo_auth():
+    session = requests.Session()
+    session.headers["User-Agent"] = "Mozilla/5.0"
+    session.get("https://fc.yahoo.com", timeout=20)
+    crumb = session.get("https://query1.finance.yahoo.com/v1/test/getcrumb", timeout=20).text.strip()
+    if not crumb or crumb.startswith("{"):
+        raise RuntimeError("Yahoo crumb failed")
+    cookie = "; ".join(f"{cookie.name}={cookie.value}" for cookie in session.cookies)
+    return crumb, cookie
+def latest_quarter_eps(crumb, cookie, ticker):
+    headers = {"User-Agent": "Mozilla/5.0", "Cookie": cookie}
+    for attempt in range(3):
+        try:
+            response = requests.get(
+                "https://query1.finance.yahoo.com/v10/finance/quoteSummary/" + urllib.parse.quote(ticker),
+                params={"modules": "earnings", "crumb": crumb},
+                headers=headers,
+                timeout=30,
+            )
+            if response.status_code in (429, 500, 502, 503):
+                time.sleep(1.2 * (attempt + 1))
+                continue
+            result = ((response.json().get("quoteSummary") or {}).get("result") or [{}])[0]
+            quarters = ((result.get("earnings") or {}).get("earningsChart") or {}).get("quarterly") or []
+            last = None
+            for quarter in quarters:
+                raw = ((quarter or {}).get("actual") or {}).get("raw")
+                if isinstance(raw, (int, float)):
+                    last = float(raw)
+            return last
+        except (requests.RequestException, ValueError, KeyError, TypeError, IndexError):
+            time.sleep(0.6 * (attempt + 1))
+    return None
+def positive_eps_rank(frame, limit=10):
+    if frame.empty:
+        return frame.iloc[0:0]
+    crumb, cookie = yahoo_auth()
+    picked = []
+    rows = frame.to_dict("records")
+    index = 0
+    while len(picked) < limit and index < len(rows):
+        chunk = rows[index:index + 12]
+        index += 12
+        with ThreadPoolExecutor(max_workers=6) as pool:
+            eps_values = list(pool.map(lambda row: latest_quarter_eps(crumb, cookie, row["ticker"]), chunk))
+        for row, eps in zip(chunk, eps_values):
+            if eps is not None and eps > 0:
+                picked.append(row)
+                if len(picked) >= limit:
+                    break
+        print(f"  EPS scan {index}/{len(rows)} kept {len(picked)}", flush=True)
+    if not picked:
+        return frame.iloc[0:0]
+    return pd.DataFrame(picked)
 def block(above, below, high, low, market):
     asof = above.iloc[0]["asof"]
     prefix = f"{market} " if market else ""
     above_note = f"기준 주봉 {asof} · {prefix}200주 이평 위 {len(above)}종목 중 이격 상위 10"
+    qualified = positive_eps_rank(below, 10)
+    below_asof = below.iloc[0]["asof"] if len(below) else asof
     below_note = (
-        f"기준 주봉 {asof} · {prefix}200주 이평 아래 {len(below)}종목 중 아래로 이격이 큰 10. "
+        f"기준 주봉 {below_asof} · {prefix}200주 이평 아래 {len(below)}종목 가운데 "
+        f"직전 분기 EPS가 플러스인 종목만, 아래로 이격이 큰 {len(qualified)}종목입니다. "
         "이격도가 작을수록 이평선 아래로 더 멀리 있습니다."
     )
     return "\n".join([
         high,
         render_table(above, above_note, "gap"),
         low,
-        render_table(below, below_note, "gap-low"),
+        render_table(qualified, below_note, "gap-low"),
     ])
 def render(sp_above, sp_below, nq_above, nq_below, ks_above, ks_below, scored):
     return "\n".join([
@@ -408,13 +473,13 @@ def main():
                 seen.add(ticker)
                 tickers.append(ticker)
     for ticker, _label, _name in ETF_ROWS:
-      if ticker not in seen:
-         seen.add(ticker)
-         tickers.append(ticker)
-      for ticker, _label, _name in ETC_ROWS:
         if ticker not in seen:
-        seen.add(ticker)
-        tickers.append(ticker)
+            seen.add(ticker)
+            tickers.append(ticker)
+    for ticker, _label, _name in ETC_ROWS:
+        if ticker not in seen:
+            seen.add(ticker)
+            tickers.append(ticker)
     
     scored = {}
     with ThreadPoolExecutor(max_workers=12) as pool:
@@ -444,5 +509,60 @@ def main():
     ):
         print(title)
         print(frame.head(10).to_string(index=False))
+def patch_oversold_sections():
+    groups, scored = load_scored()
+    sp_above, sp_below = ranked(groups[0], scored)
+    nq_above, nq_below = ranked(groups[1], scored)
+    ks_above, ks_below = ranked(groups[2], scored)
+    pieces = [
+        (2, LOW_HEADING, sp_below, ""),
+        (4, NASDAQ_LOW_HEADING, nq_below, "나스닥"),
+        (6, KOSPI_LOW_HEADING, ks_below, "코스피"),
+    ]
+    html_text = PAGE.read_text(encoding="utf-8")
+    for number, heading, below, market in pieces:
+        asof = below.iloc[0]["asof"] if len(below) else ""
+        qualified = positive_eps_rank(below, 10)
+        prefix = f"{market} " if market else ""
+        note = (
+            f"기준 주봉 {asof} · {prefix}200주 이평 아래 {len(below)}종목 가운데 "
+            f"직전 분기 EPS가 플러스인 종목만, 아래로 이격이 큰 {len(qualified)}종목입니다. "
+            "이격도가 작을수록 이평선 아래로 더 멀리 있습니다."
+        )
+        piece = heading + "\n" + render_table(qualified, note, "gap-low")
+        pattern = re.compile(
+            rf'<h1 class="low">{number}\..*?</h1>\s*<section class="rank-wrap">.*?</section>',
+            re.S,
+        )
+        html_text, count = pattern.subn(piece, html_text, count=1)
+        if count != 1:
+            raise SystemExit(f"section {number} not replaced")
+        print(number, qualified[["label", "name", "disparity"]].to_string(index=False) if len(qualified) else "none")
+    PAGE.write_text(html_text, encoding="utf-8")
+def load_scored():
+    groups = (load_sp(), load_nasdaq(), load_kospi())
+    seen = set()
+    tickers = []
+    for pairs in groups:
+        for ticker, _name in pairs:
+            if ticker not in seen:
+                seen.add(ticker)
+                tickers.append(ticker)
+    print(f"scoring {len(tickers)} tickers", flush=True)
+    scored = {}
+    done = 0
+    with ThreadPoolExecutor(max_workers=12) as pool:
+        futures = [pool.submit(score, ticker) for ticker in tickers]
+        for future in as_completed(futures):
+            done += 1
+            row = future.result()
+            if row:
+                scored[row["ticker"]] = row
+            if done % 200 == 0 or done == len(tickers):
+                print(f"  scored {done}/{len(tickers)}", flush=True)
+    return groups, scored
 if __name__ == "__main__":
-    main()
+    if "--oversold-only" in sys.argv:
+        patch_oversold_sections()
+    else:
+        main()
