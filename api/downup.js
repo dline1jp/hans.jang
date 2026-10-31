@@ -70,8 +70,10 @@ async function screen(session, { region, direction, minCap, exchanges }) {
     },
     { operator: "EQ", operands: ["region", region] },
     { operator: "GT", operands: ["intradaymarketcap", minCap] },
-    { operator: "GT", operands: ["netepsdiluted.lasttwelvemonths", 0] },
   ];
+  if (region !== "us") {
+    ops.push({ operator: "GT", operands: ["netepsdiluted.lasttwelvemonths", 0] });
+  }
   if (exchanges) ops.push(exchangeOr(exchanges));
   const quotes = [];
   let total = 0;
@@ -197,19 +199,21 @@ async function buildSection(session, spec, fx) {
     const floor = spec.region === "kr" ? KR_MIN_CAP_USD : US_MIN_CAP;
     if (marketCapUsd < floor) continue;
     if (spec.region === "kr" && isPreferredKorea(quote.symbol, quote.shortName || quote.longName)) continue;
-    if (spec.region === "us") {
-      const eps = Number(quote.epsTrailingTwelveMonths);
-      if (!Number.isFinite(eps) || eps <= 0) continue;
-      rows.push(toRow(quote, marketCapUsd, eps, "ttm"));
+    const ttm = Number(quote.epsTrailingTwelveMonths);
+    if (spec.region === "us" && Number.isFinite(ttm) && ttm > 0) {
+      rows.push(toRow(quote, marketCapUsd, ttm, "ttm"));
     } else {
-      rows.push(toRow(quote, marketCapUsd, null, "ttm"));
+      rows.push(toRow(quote, marketCapUsd, null, "pending"));
     }
   }
-  if (spec.region === "kr" && rows.length) {
-    const epsList = await mapPool(rows, 6, (row) => latestQuarterEps(session, row.symbol));
-    rows = rows.filter((row, index) => {
-      const eps = epsList[index];
-      if (eps == null) return true;
+  if (rows.some((row) => row.epsKind === "pending")) {
+    const pending = rows.filter((row) => row.epsKind === "pending");
+    const epsList = await mapPool(pending, 8, (row) => latestQuarterEps(session, row.symbol));
+    const quarterEps = new Map(pending.map((row, index) => [row.symbol, epsList[index]]));
+    rows = rows.filter((row) => {
+      if (row.epsKind !== "pending") return true;
+      const eps = quarterEps.get(row.symbol);
+      if (eps == null) return spec.region === "kr";
       if (eps <= 0) return false;
       row.eps = eps;
       row.epsKind = "quarter";
@@ -243,7 +247,7 @@ async function buildPayload() {
       region: "us",
       direction: "down",
       title: "1. 미국 10% 이상 급락주",
-      note: "시가총액 10억 달러 이상, 최근 12개월 EPS가 플러스인 뉴욕·나스닥 종목입니다.",
+      note: "시가총액 10억 달러 이상. 최근 분기 EPS가 플러스인 뉴욕·나스닥 종목입니다. 분기 EPS가 없으면 최근 12개월 EPS가 플러스인 종목을 넣습니다.",
     },
     {
       id: "kr-down",
@@ -257,7 +261,7 @@ async function buildPayload() {
       region: "us",
       direction: "up",
       title: "3. 미국 10% 이상 급등주",
-      note: "시가총액 10억 달러 이상, 최근 12개월 EPS가 플러스인 뉴욕·나스닥 종목입니다.",
+      note: "시가총액 10억 달러 이상. 최근 분기 EPS가 플러스인 뉴욕·나스닥 종목입니다. 분기 EPS가 없으면 최근 12개월 EPS가 플러스인 종목을 넣습니다.",
     },
     {
       id: "kr-up",
