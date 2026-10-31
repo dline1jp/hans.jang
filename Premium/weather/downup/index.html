@@ -82,7 +82,7 @@
       table.className = "rank";
       var thead = document.createElement("thead");
       var head = document.createElement("tr");
-      ["순위", "코드", "종목", "현재가", "등락률", "시가총액", "직전 분기 EPS"].forEach(function (label, index) {
+      ["순위", "코드", "종목", "현재가", "등락률", "시가총액", "직전 분기 EPS(주당순이익)"].forEach(function (label, index) {
         var th = text("th", label);
         if (index === 1) th.className = "code";
         if (index === 2) th.className = "name";
