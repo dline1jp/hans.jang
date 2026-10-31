@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <script src="/Premium/gate.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>급등주 급락주</title>
+  <style>
+    body { background: #111; color: white; font-family: Arial, sans-serif; margin: 0; padding: 27px; }
+    a { color: #D8C0FF; }
+    .home { font-size: 40px; text-decoration: none; }
+    h1 { text-align: center; color: #3C9DDE; font-size: 36px; line-height: 1.35; }
+    h1.low { margin-top: 80px; }
+    .note { margin: 18px 0 8px; color: #ccc; font-size: 22px; line-height: 1.45; }
+    .status { color: #e6c85a; font-size: 24px; }
+    .rank-wrap { max-width: 1180px; margin: 10px auto 30px; overflow-x: auto; }
+    table.rank { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    table.rank th, table.rank td { border-bottom: 1px solid #444; padding: 16px 12px; text-align: right; white-space: nowrap; }
+    table.rank td { font-size: 22px; }
+    table.rank th { color: #D8C0FF; font-size: 22px; }
+    table.rank td.code, table.rank th.code,
+    table.rank td.name, table.rank th.name { text-align: left; }
+    table.rank td.code a { color: #4da3ff; text-decoration: underline; font-weight: 700; }
+    table.rank td.up { color: #7dcea0; font-weight: 700; }
+    table.rank td.down { color: #f1948a; font-weight: 700; }
+    table.rank tr.top { background: #1c1c1c; }
+    .empty { color: #aaa; font-size: 22px; }
+  </style>
+</head>
+<body>
+  <a class="home" href="../index.html">← 주가 방향 날씨</a>
+  <p class="note" id="status">목록을 불러오는 중입니다.</p>
+
+  <h1>1. 미국 10% 이상 급락주</h1>
+  <section class="rank-wrap" id="us-down"></section>
+  <h1 class="low">2. 한국 10% 이상 급락주</h1>
+  <section class="rank-wrap" id="kr-down"></section>
+  <h1 class="low">3. 미국 10% 이상 급등주</h1>
+  <section class="rank-wrap" id="us-up"></section>
+  <h1 class="low">4. 한국 10% 이상 급등주</h1>
+  <section class="rank-wrap" id="kr-up"></section>
+
+  <script>
+    function text(tag, value, className) {
+      var el = document.createElement(tag);
+      if (className) el.className = className;
+      el.textContent = value;
+      return el;
+    }
+
+    function money(row) {
+      var n = Number(row.price);
+      if (!isFinite(n)) return "-";
+      if (row.currency === "KRW") return Math.round(n).toLocaleString("ko-KR") + "원";
+      return "$" + n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function cap(usd) {
+      var n = Number(usd);
+      if (!isFinite(n)) return "-";
+      return (n / 100000000).toLocaleString("ko-KR", { maximumFractionDigits: 1 }) + "억$";
+    }
+
+    function eps(row) {
+      if (row.eps == null || !isFinite(Number(row.eps))) return "플러스";
+      var n = Number(row.eps);
+      var digits = Math.abs(n) >= 100 ? 0 : 2;
+      var label = n.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+      return row.epsKind === "quarter" ? label + " (분기)" : label;
+    }
+
+    function render(section) {
+      var box = document.getElementById(section.id);
+      box.innerHTML = "";
+      var note = text("p", section.note, "note");
+      box.appendChild(note);
+      if (!section.rows.length) {
+        box.appendChild(text("p", "조건에 맞는 종목이 없습니다.", "empty"));
+        return;
+      }
+      var table = document.createElement("table");
+      table.className = "rank";
+      var thead = document.createElement("thead");
+      var head = document.createElement("tr");
+      ["순위", "코드", "종목", "현재가", "등락률", "시가총액", "최근 EPS"].forEach(function (label, index) {
+        var th = text("th", label);
+        if (index === 1) th.className = "code";
+        if (index === 2) th.className = "name";
+        head.appendChild(th);
+      });
+      thead.appendChild(head);
+      table.appendChild(thead);
+      var tbody = document.createElement("tbody");
+      section.rows.forEach(function (row, index) {
+        var tr = document.createElement("tr");
+        if (index < 3) tr.className = "top";
+        tr.appendChild(text("td", String(index + 1)));
+        var code = document.createElement("td");
+        code.className = "code";
+        var link = document.createElement("a");
+        link.href = row.chart;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.textContent = row.code;
+        code.appendChild(link);
+        tr.appendChild(code);
+        tr.appendChild(text("td", row.name, "name"));
+        tr.appendChild(text("td", money(row)));
+        var pct = Number(row.changePercent);
+        var pctCell = text("td", (pct > 0 ? "+" : "") + pct.toFixed(2) + "%", pct >= 0 ? "up" : "down");
+        tr.appendChild(pctCell);
+        tr.appendChild(text("td", cap(row.marketCapUsd)));
+        tr.appendChild(text("td", eps(row)));
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      box.appendChild(table);
+    }
+
+    fetch("/api/downup", { cache: "no-store" })
+      .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+      .then(function (result) {
+        var status = document.getElementById("status");
+        if (!result.ok) {
+          status.textContent = result.data.error || "시세를 가져오지 못했습니다.";
+          return;
+        }
+        var when = new Date(result.data.updatedAt);
+        var stamp = when.toLocaleString("ko-KR", { timeZone: "Asia/Seoul", hour12: false });
+        status.textContent = "이 화면을 열 때 다시 불러왔습니다. 기준 시각 " + stamp + " (한국시간). 휴장일에는 마지막 거래일 등락률입니다. 매수·매도 추천이 아닙니다.";
+        result.data.sections.forEach(render);
+      })
+      .catch(function () {
+        document.getElementById("status").textContent = "시세를 가져오지 못했습니다. 잠시 후 새로고침해 주세요.";
+      });
+  </script>
+</body>
+</html>
