@@ -66,7 +66,7 @@
       var n = Number(row.eps);
       var digits = Math.abs(n) >= 100 ? 0 : 2;
       var label = n.toLocaleString("en-US", { minimumFractionDigits: digits, maximumFractionDigits: digits });
-      return row.epsKind === "quarter" ? label + " (분기)" : label;
+      return row.period ? label + " (" + row.period + ")" : label;
     }
 
     function render(section) {
@@ -82,7 +82,7 @@
       table.className = "rank";
       var thead = document.createElement("thead");
       var head = document.createElement("tr");
-      ["순위", "코드", "종목", "현재가", "등락률", "시가총액", "최근 EPS"].forEach(function (label, index) {
+      ["순위", "코드", "종목", "현재가", "등락률", "시가총액", "직전 분기 EPS"].forEach(function (label, index) {
         var th = text("th", label);
         if (index === 1) th.className = "code";
         if (index === 2) th.className = "name";

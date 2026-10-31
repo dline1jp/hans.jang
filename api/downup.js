@@ -71,9 +71,6 @@ async function screen(session, { region, direction, minCap, exchanges }) {
     { operator: "EQ", operands: ["region", region] },
     { operator: "GT", operands: ["intradaymarketcap", minCap] },
   ];
-  if (region !== "us") {
-    ops.push({ operator: "GT", operands: ["netepsdiluted.lasttwelvemonths", 0] });
-  }
   if (exchanges) ops.push(exchangeOr(exchanges));
   const quotes = [];
   let total = 0;
@@ -154,17 +151,21 @@ async function latestQuarterEps(session, symbol) {
     const quarters =
       (((data.quoteSummary || {}).result || [])[0] || {}).earnings?.earningsChart?.quarterly || [];
     let last = null;
+    let period = "";
     for (const quarter of quarters) {
       const raw = quarter && quarter.actual && quarter.actual.raw;
-      if (raw != null && Number.isFinite(raw)) last = raw;
+      if (raw != null && Number.isFinite(raw)) {
+        last = raw;
+        period = quarter.date || "";
+      }
     }
-    return last;
+    return { eps: last, period };
   } catch (e) {
-    return null;
+    return { eps: null, period: "" };
   }
 }
 
-function toRow(quote, marketCapUsd, eps, epsKind) {
+function toRow(quote, marketCapUsd, eps) {
   return {
     symbol: quote.symbol,
     code: String(quote.symbol).replace(/\.(KS|KQ)$/, ""),
@@ -174,7 +175,7 @@ function toRow(quote, marketCapUsd, eps, epsKind) {
     changePercent: quote.regularMarketChangePercent,
     marketCapUsd,
     eps,
-    epsKind,
+    period: "",
     chart: chartUrl(quote),
   };
 }
@@ -199,24 +200,15 @@ async function buildSection(session, spec, fx) {
     const floor = spec.region === "kr" ? KR_MIN_CAP_USD : US_MIN_CAP;
     if (marketCapUsd < floor) continue;
     if (spec.region === "kr" && isPreferredKorea(quote.symbol, quote.shortName || quote.longName)) continue;
-    const ttm = Number(quote.epsTrailingTwelveMonths);
-    if (spec.region === "us" && Number.isFinite(ttm) && ttm > 0) {
-      rows.push(toRow(quote, marketCapUsd, ttm, "ttm"));
-    } else {
-      rows.push(toRow(quote, marketCapUsd, null, "pending"));
-    }
+    rows.push(toRow(quote, marketCapUsd, null));
   }
-  if (rows.some((row) => row.epsKind === "pending")) {
-    const pending = rows.filter((row) => row.epsKind === "pending");
-    const epsList = await mapPool(pending, 8, (row) => latestQuarterEps(session, row.symbol));
-    const quarterEps = new Map(pending.map((row, index) => [row.symbol, epsList[index]]));
-    rows = rows.filter((row) => {
-      if (row.epsKind !== "pending") return true;
-      const eps = quarterEps.get(row.symbol);
-      if (eps == null) return spec.region === "kr";
-      if (eps <= 0) return false;
-      row.eps = eps;
-      row.epsKind = "quarter";
+  if (rows.length) {
+    const epsList = await mapPool(rows, 8, (row) => latestQuarterEps(session, row.symbol));
+    rows = rows.filter((row, index) => {
+      const found = epsList[index] || {};
+      if (found.eps == null || found.eps <= 0) return false;
+      row.eps = found.eps;
+      row.period = found.period || "";
       return true;
     });
   }
@@ -247,32 +239,31 @@ async function buildPayload() {
       region: "us",
       direction: "down",
       title: "1. 미국 10% 이상 급락주",
-      note: "시가총액 10억 달러 이상. 최근 분기 EPS가 플러스인 뉴욕·나스닥 종목입니다. 분기 EPS가 없으면 최근 12개월 EPS가 플러스인 종목을 넣습니다.",
+      note: "시가총액 10억 달러 이상, 직전 분기 EPS가 플러스인 뉴욕·나스닥 종목입니다.",
     },
     {
       id: "kr-down",
       region: "kr",
       direction: "down",
       title: "2. 한국 10% 이상 급락주",
-      note: "시가총액 5억 달러 이상, 최근 EPS가 플러스인 코스피·코스닥 종목입니다. 우선주는 빼었습니다.",
+      note: "시가총액 5억 달러 이상, 직전 분기 EPS가 플러스인 코스피·코스닥 종목입니다. 우선주는 빼었습니다.",
     },
     {
       id: "us-up",
       region: "us",
       direction: "up",
       title: "3. 미국 10% 이상 급등주",
-      note: "시가총액 10억 달러 이상. 최근 분기 EPS가 플러스인 뉴욕·나스닥 종목입니다. 분기 EPS가 없으면 최근 12개월 EPS가 플러스인 종목을 넣습니다.",
+      note: "시가총액 10억 달러 이상, 직전 분기 EPS가 플러스인 뉴욕·나스닥 종목입니다.",
     },
     {
       id: "kr-up",
       region: "kr",
       direction: "up",
       title: "4. 한국 10% 이상 급등주",
-      note: "시가총액 5억 달러 이상, 최근 EPS가 플러스인 코스피·코스닥 종목입니다. 우선주는 빼었습니다.",
+      note: "시가총액 5억 달러 이상, 직전 분기 EPS가 플러스인 코스피·코스닥 종목입니다. 우선주는 빼었습니다.",
     },
   ];
-  const sections = [];
-  for (const spec of specs) sections.push(await buildSection(session, spec, fx));
+  const sections = await Promise.all(specs.map((spec) => buildSection(session, spec, fx)));
   return {
     updatedAt: new Date().toISOString(),
     fxKrw: fx,
