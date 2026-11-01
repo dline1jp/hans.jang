@@ -76,7 +76,7 @@
       Korea: "#2457d6", Brazil: "#7a45e6", "United States": "#1b1b1b", Japan: "#e39b12", India: "#b86a1d",
       China: "#8a8f98", Indonesia: "#12867d", France: "#3c8c45", Germany: "#2f6f34", Italy: "#67a85a",
       "United Kingdom": "#1d5fbf", Spain: "#e07a1f", Mexico: "#0e8f86", Canada: "#c4473a", Australia: "#7a5644",
-      "South Africa": "#6a45b0", Trkiye: "#b43333", G20: "#5c6b7a", G7: "#3e4c59", NAFTA: "#1b7eab",
+      "South Africa": "#6a45b0", Trkiye: "#b43333", G20: "#5c6b7a", G7: "#7c3aed", NAFTA: "#1b7eab",
       "Major five Asia economies": "#0e7c8a", "Major four European countries": "#5d8a32"
     };
 
@@ -169,7 +169,7 @@ var cy = yOf(0);
         svg.appendChild(svgEl("rect", { x: zone.x, y: zone.y, width: zone.w, height: zone.h, fill: zone.fill }));
       });
 
-    var plant = svgEl("text", { x: plot.left + 18, y: plot.top + 58, fill: "#2f7a38", "font-size": "26", "font-weight": "700" });
+    var plant = svgEl("text", { x: plot.left + 18, y: plot.top + 28, fill: "#2f7a38", "font-size": "26", "font-weight": "700" });
 plant.textContent = "회복";
 svg.appendChild(plant);
 
@@ -201,8 +201,8 @@ svg.appendChild(plant);
             points: path,
             fill: "none",
             stroke: item.color,
-            "stroke-width": "1.7",
-            "stroke-dasharray": "1.5 4.5",
+            "stroke-width": item.area === "G7" ? "2.4" : "1.7",
+            "stroke-dasharray": item.area === "G7" ? "7 4" : "1.5 4.5",
             "stroke-linecap": "round",
             "stroke-linejoin": "round"
           }));
@@ -228,16 +228,26 @@ svg.appendChild(plant);
       labels.sort(function (a, b) { return a.y - b.y; });
       var occupied = [];
       labels.forEach(function (item) {
-        var width = item.name.length * 20;
+        var width = item.name.length * 24;
         var x = item.x + 12;
         var y = item.y + 6;
         if (x + width > plot.right - 6) x = item.x - width - 10;
         var guard = 0;
-        while (guard < 24 && occupied.some(function (box) {
-          return x < box.x + box.w && x + width > box.x && y - 12 < box.y && y + 4 > box.y - 12;
-        })) {
-          y += 22;
+        function hits(px, py) {
+          return occupied.some(function (box) {
+            return px < box.x + box.w && px + width > box.x && py - 26 < box.y && py + 6 > box.y - 26;
+          });
+        }
+        while (guard < 24 && hits(x, y)) {
+          y += 30;
           guard += 1;
+        }
+        if (hits(x, y)) {
+          var otherX = x > item.x ? item.x - width - 10 : item.x + 12;
+          if (!hits(otherX, item.y + 6)) {
+            x = otherX;
+            y = item.y + 6;
+          }
         }
         occupied.push({ x: x, y: y, w: width });
         var text = svgEl("text", {
