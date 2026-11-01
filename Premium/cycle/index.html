@@ -64,8 +64,7 @@
   </section>
   <script>
     var SUPABASE_URL = "https://vlvblacfffkalojefjwp.supabase.co";
-    var SUPABASE_ANON_KEY = "";
-    var WANT = { 202606: true, 202608: true, 202609: true };
+    var SUPABASE_ANON_KEY = "sb_publishable_C4BZUGCN_QyMZkVe3PIysQ_ZkqosPCL";
     var MONTH = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
     var LABEL = {
       Australia: "호주", Brazil: "브라질", Canada: "캐나다", China: "중국", France: "프랑스",
@@ -112,26 +111,23 @@
       return isNaN(value) ? null : value;
     }
 
-    function parseCsv(text) {
-      var lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter(function (line) { return line.trim(); });
-      var header = lines.shift().split(",");
-      return lines.map(function (line) {
-        var cells = line.split(",");
-        var row = {};
-        header.forEach(function (name, index) { row[name.trim()] = cells[index]; });
-        return row;
-      });
-    }
-
     function seriesFrom(rows) {
       var grouped = {};
+      var seen = {};
+      rows.forEach(function (row) {
+        var period = parsePeriod(row.time_period);
+        if (period) seen[period.key] = true;
+      });
+      var latest = Object.keys(seen).map(Number).sort(function (a, b) { return b - a; }).slice(0, 3);
+      var allow = {};
+      latest.forEach(function (key) { allow[key] = true; });
       rows.forEach(function (row) {
         var area = String(row.reference_area || "").trim();
         if (area === "Australia" || area === "Spain" || area === "Canada" || area === "Mexico" || area === "Brazil" || area === "South Africa" || area === "NAFTA" || area === "Germany" || area === "Italy") return;
         var period = parsePeriod(row.time_period);
         var obs = parseFloat(row.obs_value);
         var mom = parseMom(row.mom);
-        if (!area || !period || !WANT[period.key] || isNaN(obs) || mom === null) return;
+        if (!area || !period || !allow[period.key] || isNaN(obs) || mom === null) return;
         if (!grouped[area]) grouped[area] = [];
         grouped[area].push({ key: period.key, month: period.month, year: period.year, obs: obs, mom: mom });
       });
@@ -295,13 +291,6 @@ svg.appendChild(plant);
       });
     }
 
-    function loadCsv() {
-      return fetch("oecd.csv").then(function (res) {
-        if (!res.ok) throw new Error("csv");
-        return res.text();
-      }).then(parseCsv);
-    }
-
     function show(rows, message) {
       var series = seriesFrom(rows);
       if (!series.length) throw new Error("empty");
@@ -315,31 +304,25 @@ svg.appendChild(plant);
       if (!status || !updateBtn || updateBtn.dataset.bound === "1") return;
       updateBtn.dataset.bound = "1";
 
-      var touched = false;
-      loadCsv().then(function (rows) {
-        if (touched) return;
-        show(rows, "");
-      }).catch(function () {
-        if (!touched) status.textContent = "로컬 CSV를 읽지 못했습니다.";
-      });
-
-      updateBtn.addEventListener("click", function () {
-        touched = true;
-        var note = document.getElementById("clock-status");
-        if (!SUPABASE_ANON_KEY) {
-          note.textContent = "Supabase anon 키가 없습니다. 페이지의 SUPABASE_ANON_KEY에 키를 넣은 뒤 다시 눌러 주세요.";
-          return;
-        }
+      function refresh(note) {
         updateBtn.disabled = true;
         note.textContent = "Supabase에서 불러오는 중…";
-        loadSupabase().then(function (rows) {
+        return loadSupabase().then(function (rows) {
           if (!rows || !rows.length) throw new Error("empty");
-          show(rows, "Supabase hangjang-table에서 갱신했습니다.");
+          show(rows, "");
         }).catch(function (err) {
-          note.textContent = "Supabase에서 읽지 못했습니다 (" + (err && err.message ? err.message : "오류") + "). 차트는 그대로 둡니다.";
+          var reason = err && err.message ? err.message : "오류";
+          note.textContent = reason === "empty"
+            ? "Supabase 표에 읽을 수 있는 행이 없습니다. 표 권한(RLS)에서 anon 읽기를 허용해 주세요."
+            : "Supabase에서 읽지 못했습니다 (" + reason + ").";
         }).then(function () {
           updateBtn.disabled = false;
         });
+      }
+
+      refresh(status);
+      updateBtn.addEventListener("click", function () {
+        refresh(document.getElementById("clock-status"));
       });
     }
 
