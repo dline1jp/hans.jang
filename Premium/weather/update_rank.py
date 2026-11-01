@@ -267,6 +267,80 @@ def render_new(scored):
     return render_fixed(NEW_HEADING, NEW_ROWS, scored)
 
 #etc end
+GAUGE_MAX = 700
+US_GAUGE_HEADING = (
+    '<h1 class="low">10. 미국 종목 200주 이평 이격도 현황 이격도가 낮으면 매수후보. '
+    "이격도가 높으면 매도후보로 검토할수 있다.</h1>"
+)
+KR_GAUGE_HEADING = (
+    '<h1 class="low">11. 한국 종목 200주 이평 이격도 현황 이격도가 낮으면 매수후보. '
+    "이격도가 높으면 매도후보로 검토할수 있다.</h1>"
+)
+GAUGE_SKIP = {"BTC-USD", "ETH-USD", "^SOX"}
+def gauge_market(ticker):
+    if ticker in GAUGE_SKIP or ticker.endswith((".HK", ".T", ".SS")):
+        return None
+    if ticker.endswith((".KS", ".KQ")):
+        return "KR"
+    return "US"
+def render_gauge_section(heading, rows):
+    ordered = sorted(rows, key=lambda row: (row["disparity"], row["label"]))
+    ticks = "".join(f"<i>{n}</i>" for n in range(0, GAUGE_MAX + 1, 100))
+    lines = [
+        heading,
+        '<section class="gauge-wrap">',
+        '<p class="gauge-note">초록 점은 이격도 100 이하, 200주선 아래입니다. 빨간 점은 200주선 위이며 오른쪽으로 갈수록 이격이 큽니다. 눈금은 0부터 700입니다.</p>',
+        '<div class="gauge-board">',
+        f'<div class="ticks">{ticks}</div>',
+    ]
+    for order, row in enumerate(ordered, start=1):
+        pct = max(0.0, min(100.0, float(row["disparity"]) / GAUGE_MAX * 100))
+        tone = "buy" if row["disparity"] <= 100 else "sell"
+        lines.append(
+            '<div class="gauge-row">'
+            f'<span>{order}</span>'
+            f'<span><a href="{html.escape(row["href"], quote=True)}" target="_blank">{html.escape(row["label"])}</a></span>'
+            f'<span>{html.escape(row["name"])}</span>'
+            f'<span class="gauge-val {tone}">{row["disparity"]:.1f}</span>'
+            f'<span class="track"><span class="line"></span><span class="dot {tone}" style="left:{pct:.2f}%"></span></span>'
+            "</div>"
+        )
+    lines.append("</div></section>")
+    return "\n".join(lines)
+def collect_gauge_rows(scored, frames):
+    seen = set()
+    rows = []
+    def add(ticker, label, name):
+        if ticker in seen:
+            return
+        market = gauge_market(ticker)
+        row = scored.get(ticker)
+        if not market or not row:
+            return
+        seen.add(ticker)
+        href = etf_chart_url(ticker) if any(ticker == item[0] for item in ETF_ROWS) else chart_url(ticker)
+        rows.append({
+            "ticker": ticker,
+            "label": label,
+            "name": name,
+            "disparity": float(row["disparity"]),
+            "href": href,
+            "market": market,
+        })
+    for frame in frames:
+        if frame is None or len(frame) == 0:
+            continue
+        for item in frame.head(10).itertuples(index=False):
+            add(item.ticker, item.label, str(item.name))
+    for ticker, label, name in ETF_ROWS + ETC_ROWS + NEW_ROWS:
+        add(ticker, label, name)
+    return rows
+def render_gauges(scored, frames):
+    rows = collect_gauge_rows(scored, frames)
+    return "\n".join([
+        render_gauge_section(US_GAUGE_HEADING, [row for row in rows if row["market"] == "US"]),
+        render_gauge_section(KR_GAUGE_HEADING, [row for row in rows if row["market"] == "KR"]),
+    ])
 
 def tradingview_symbol(ticker):
     query = ticker.replace("-", ".")
@@ -539,6 +613,7 @@ def render(sp_above, sp_below, nq_above, nq_below, ks_above, ks_below, scored):
         render_etf(scored),
         render_etc(scored),
         render_new(scored),
+        render_gauges(scored, (sp_above, nq_above, ks_above)),
     ])
 def main():
     groups = (load_sp(), load_nasdaq(), load_kospi())
