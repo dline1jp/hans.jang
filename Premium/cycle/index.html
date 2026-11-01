@@ -200,12 +200,7 @@ var plantSub = svgEl("text", { x: plot.left + 32, y: plot.top + 94, fill: "#2f7a
         tickText.textContent = (rounded > 0 ? "+" : "") + rounded.toFixed(1);
         svg.appendChild(tickText);
       }
-      }
-        var levelText = svgEl("text", { x: plot.left - 8, y: yOf(level) + 4, fill: "#8b939c", "font-size": "11", "text-anchor": "end" });
-        levelText.textContent = String(level);
-        svg.appendChild(levelText);
-      }
-
+            
       var labels = [];
       series.forEach(function (item) {
         var group = svgEl("g", { class: "series" });
@@ -231,7 +226,7 @@ var plantSub = svgEl("text", { x: plot.left + 32, y: plot.top + 94, fill: "#2f7a
             fill: item.color
           });
           var tip = svgEl("title");
-          tip.textContent = item.name + " " + point.year + "." + point.month +  point.obs.toFixed(2) + "  전월비 " + (point.mom > 0 ? "+" : "") + point.mom.toFixed(2) + "%";
+         tip.textContent = item.name + " " + point.year + "." + point.month + "  전월비 " + (point.mom > 0 ? "+" : "") + point.mom.toFixed(2) + "%";
           dot.appendChild(tip);
           group.appendChild(dot);
         });
