@@ -45,7 +45,7 @@ function unlockPremium() {
     var next = safeNext(new URLSearchParams(location.search).get("next"));
     location.href = next || "/Premium/";
   }).catch(function () {
-    alert("비밀번호 표를 읽지 못했습니다. premium_pass 표와 읽기 권한을 확인해 주세요.");
+    alert("비밀번호가 틀립니다");
   });
 }
 (function () {
@@ -75,7 +75,7 @@ function unlockPremium() {
     loadPass().then(function (pass) {
       if (localStorage.getItem("hans-premium") === pass) showMenu();
     }).catch(function () {
-      alert("비밀번호 표를 읽지 못했습니다. premium_pass 표와 읽기 권한을 확인해 주세요.");
+      alert("비밀번호가 틀립니다");
     });
   });
 })();
