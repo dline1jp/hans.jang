@@ -127,7 +127,7 @@
       var grouped = {};
       rows.forEach(function (row) {
         var area = String(row.reference_area || "").trim();
-        if (area === "Australia" || area === "Spain" || area === "Canada") return;
+        if (area === "Australia" || area === "Spain" || area === "Canada" || area === "Mexico" || area === "Brazil" || area === "South Africa" || area === "NAFTA" || area === "Germany" || area === "Italy") return;
         var period = parsePeriod(row.time_period);
         var obs = parseFloat(row.obs_value);
         var mom = parseMom(row.mom);
@@ -165,10 +165,10 @@ var cx = xOf(100);
 var cy = yOf(0);
 
     var zones = [
-  { x: plot.left, y: plot.top, w: cx - plot.left, h: cy - plot.top, fill: "#e7f3df", title: "회복", tx: plot.left + 16, ty: plot.top + 28, anchor: "start", fillText: "#2f7a38" },
-  { x: cx, y: plot.top, w: plot.right - cx, h: cy - plot.top, fill: "#e7eef8", title: "확장", tx: plot.right - 16, ty: plot.top + 28, anchor: "end", fillText: "#5d6d86" },
-  { x: plot.left, y: cy, w: cx - plot.left, h: plot.bottom - cy, fill: "#e6e8ea", title: "수축", tx: plot.left + 16, ty: plot.bottom - 18, anchor: "start", fillText: "#5e656c" },
-  { x: cx, y: cy, w: plot.right - cx, h: plot.bottom - cy, fill: "#f3e2cb", title: "둔화", tx: plot.right - 16, ty: plot.bottom - 18, anchor: "end", fillText: "#8a6240" }
+  { x: plot.left, y: plot.top, w: cx - plot.left, h: cy - plot.top, fill: "#d4edc4", title: "회복", tx: plot.left + 16, ty: plot.top + 28, anchor: "start", fillText: "#1f7a32" },
+  { x: cx, y: plot.top, w: plot.right - cx, h: cy - plot.top, fill: "#d5e4f7", title: "확장", tx: plot.right - 16, ty: plot.top + 28, anchor: "end", fillText: "#3d5678" },
+  { x: plot.left, y: cy, w: cx - plot.left, h: plot.bottom - cy, fill: "#e4e6ea", title: "수축", tx: plot.left + 16, ty: plot.bottom - 18, anchor: "start", fillText: "#4e555c" },
+  { x: cx, y: cy, w: plot.right - cx, h: plot.bottom - cy, fill: "#f8e6c4", title: "둔화", tx: plot.right - 16, ty: plot.bottom - 18, anchor: "end", fillText: "#8a5a28" }
 ];
       zones.forEach(function (zone) {
         svg.appendChild(svgEl("rect", { x: zone.x, y: zone.y, width: zone.w, height: zone.h, fill: zone.fill }));
