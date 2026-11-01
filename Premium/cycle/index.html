@@ -49,8 +49,8 @@
       <span id="clock-asof">2026.09 기준</span>
       <button type="button" id="update-btn">업데이트</button>
     </div>
-    <div class="clock-layout">
-      <svg id="clock" viewBox="0 0 860 700" role="img" aria-label="OECD 경기 시계. 가로는 전월비, 세로는 100을 중심으로 한 CLI"></svg>
+    <div class="clock-layout">    <div class="chart-scroll">
+      <svg id="clock" viewBox="0 0 860 1240" role="img" aria-label="OECD 경기 시계. 가로는 전월비, 세로는 100을 중심으로 한 CLI"></svg> </div>
       <ul class="legend" id="legend"></ul>
     </div>
     <p class="clock-note">가로 = 전월비, 오른쪽이 플러스 · 세로는 위가 높음 · 점선 = 최근 3개월</p>
@@ -137,7 +137,7 @@
     function draw(series) {
       var svg = document.getElementById("clock");
       while (svg.firstChild) svg.removeChild(svg.firstChild);
-      var plot = { left: 58, top: 28, right: 820, bottom: 660 };
+      var plot = { left: 58, top: 28, right: 820, bottom: 1180 };
       plot.w = plot.right - plot.left;
       plot.h = plot.bottom - plot.top;
       var moms = [];
@@ -179,9 +179,6 @@ svg.appendChild(box);
 var plant = svgEl("text", { x: plot.left + 32, y: plot.top + 74, fill: "#2f7a38", "font-size": "15", "font-weight": "700" });
 plant.textContent = "회복";
 svg.appendChild(plant);
-var plantSub = svgEl("text", { x: plot.left + 32, y: plot.top + 94, fill: "#2f7a38", "font-size": "13" });
-      plantSub.textContent = "씨 뿌리기 좋은 자리";
-      svg.appendChild(plantSub);
 
       zones.forEach(function (zone) {
         if (zone.title === "회복") return;
@@ -254,7 +251,7 @@ var plantSub = svgEl("text", { x: plot.left + 32, y: plot.top + 94, fill: "#2f7a
           x: x.toFixed(1),
           y: y.toFixed(1),
           fill: item.color,
-          "font-size": "13",
+          "font-size": "16",
           "font-weight": "700",
           "paint-order": "stroke",
           stroke: "#f6f5f1",
