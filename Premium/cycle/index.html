@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html>xOf(point.obs)
 <html>
 <head>
   <meta charset="UTF-8">
@@ -203,8 +203,8 @@ svg.appendChild(plant);
         item.points.forEach(function (point, index) {
           var last = index === item.points.length - 1;
           var dot = svgEl("circle", {
-            cx: xOf(point.obs).toFixed(1),
-            cy: yOf(point.mom).toFixed(1),
+            cx: xOf(point.mon).toFixed(1),
+            cy: yOf(point.obs).toFixed(1),
             r: last ? "6.5" : "3.2",
             fill: item.color
           });
@@ -214,7 +214,7 @@ svg.appendChild(plant);
           group.appendChild(dot);
         });
         var latest = item.points[item.points.length - 1];
-        labels.push({ group: group, name: item.name, color: item.color, x: xOf(latest.mom), y: yOf(latest.obs) });
+        labels.push({ group: group, name: item.name, color: item.color, x: xOf(latest.obs), y: yOf(latest.mon) });
         svg.appendChild(group);
       });
 
