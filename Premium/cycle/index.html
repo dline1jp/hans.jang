@@ -1,1 +1,367 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="/Premium/gate.js"></script>
+  <title>경기사이클 날씨</title>
+  <style>
+    body { background: #111; color: white; font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; margin: 0; padding: 30px; }
+    a { color: #D8C0FF; }
+    .home { font-size: 42px; }
+    h1 { text-align: center; color: #D8C0FF; }
+    .clock {
+      max-width: 1100px;
+      margin: 24px auto;
+      background: #f6f5f1;
+      color: #243041;
+      border-radius: 18px;
+      padding: 22px 22px 14px;
+    }
+    .clock-top { display: flex; align-items: center; gap: 10px; margin: 0 4px 8px; }
+    .clock-top h2 { margin: 0; font-size: 22px; font-weight: 700; }
+    .clock-top span { color: #6d7682; font-size: 14px; }
+    #update-btn { margin-left: auto; background: #243041; color: #fff; border: 0; border-radius: 8px; font-size: 15px; padding: 8px 14px; cursor: pointer; }
+    #update-btn:disabled { opacity: 0.6; cursor: default; }
+    .clock-layout { display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 8px; align-items: start; }
+    #clock { width: 100%; height: auto; display: block; }
+    .legend { list-style: none; margin: 8px 0 0; padding: 0; max-height: 640px; overflow: auto; }
+    .legend li { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 4px; border-radius: 6px; cursor: pointer; }
+    .legend li.on, .legend li:hover { background: rgba(36, 48, 65, 0.06); }
+    .swatch { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+    .clock-note, #clock-status { margin: 10px 4px 0; color: #6d7682; font-size: 12px; line-height: 1.5; }
+    #clock-status { color: #8a5a2a; }
+    .shot { width: 100%; max-width: 1100px; display: block; margin: 24px auto; background: #fff; }
+    @media (max-width: 800px) {
+      body { padding: 16px; }
+      .home { font-size: 28px; }
+      .clock-layout { grid-template-columns: 1fr; }
+      .legend { max-height: none; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+    }
+  </style>
+</head>
+<body>
+  <p><a class="home" href="../../index.html" target="_blank">← 홈</a></p>
+  <h1>경기사이클 날씨</h1>
+  <section class="clock">
+    <div class="clock-top">
+      <h2>경기 시계</h2>
+      <span id="clock-asof">2026.09 기준</span>
+      <button type="button" id="update-btn">업데이트</button>
+    </div>
+    <div class="clock-layout">
+      <svg id="clock" viewBox="0 0 860 700" role="img" aria-label="OECD 경기 시계. 가로는 전월비, 세로는 100을 중심으로 한 CLI"></svg>
+      <ul class="legend" id="legend"></ul>
+    </div>
+    <p class="clock-note">가로 = 전월비(mom), 오른쪽이 플러스 · 세로 = CLI(obs_value), 가운데가 100, 위가 100 초과 · 점선 = 2026.6 → 2026.8 → 2026.9</p>
+    <p id="clock-status"></p>
+  </section>
+  <img class="shot" src="kitchin.png" alt="키친사이클 정점 전후 나스닥 조정 사례">
+  <script>
+    var SUPABASE_URL = "https://vlvblacfffkalojefjwp.supabase.co";
+    var SUPABASE_ANON_KEY = "";
+    var WANT = { 202606: true, 202608: true, 202609: true };
+    var MONTH = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+    var LABEL = {
+      Australia: "호주", Brazil: "브라질", Canada: "캐나다", China: "중국", France: "프랑스",
+      Germany: "독일", India: "인도", Indonesia: "인도네시아", Italy: "이탈리아", Japan: "일본",
+      Korea: "한국", Mexico: "멕시코", Spain: "스페인", "South Africa": "남아공", Trkiye: "튀르키예",
+      "United Kingdom": "영국", "United States": "미국",
+      "Major five Asia economies": "아시아 5개국", "Major four European countries": "유럽 4개국"
+    };
+    var COLOR = {
+      Korea: "#2457d6", Brazil: "#7a45e6", "United States": "#1b1b1b", Japan: "#e39b12", India: "#b86a1d",
+      China: "#8a8f98", Indonesia: "#12867d", France: "#3c8c45", Germany: "#2f6f34", Italy: "#67a85a",
+      "United Kingdom": "#1d5fbf", Spain: "#e07a1f", Mexico: "#0e8f86", Canada: "#c4473a", Australia: "#7a5644",
+      "South Africa": "#6a45b0", Trkiye: "#b43333", G20: "#5c6b7a", G7: "#3e4c59", NAFTA: "#1b7eab",
+      "Major five Asia economies": "#0e7c8a", "Major four European countries": "#5d8a32"
+    };
 
+    function svgEl(name, attrs) {
+      var node = document.createElementNS("http://www.w3.org/2000/svg", name);
+      Object.keys(attrs || {}).forEach(function (key) { node.setAttribute(key, attrs[key]); });
+      return node;
+    }
+
+    function parsePeriod(raw) {
+      var text = String(raw || "").trim();
+      var yearFirst = text.match(/^(\d{2,4})-([A-Za-z]{3})$/);
+      var monthFirst = text.match(/^([A-Za-z]{3})-(\d{2,4})$/);
+      var year;
+      var month;
+      if (yearFirst) {
+        year = Number(yearFirst[1]);
+        month = MONTH[yearFirst[2].toLowerCase()];
+      } else if (monthFirst) {
+        month = MONTH[monthFirst[1].toLowerCase()];
+        year = Number(monthFirst[2]);
+      }
+      if (!month) return null;
+      if (year < 100) year += 2000;
+      return { year: year, month: month, key: year * 100 + month };
+    }
+
+    function parseMom(raw) {
+      if (raw === null || raw === undefined || String(raw).trim() === "") return null;
+      var value = parseFloat(String(raw).replace("%", "").replace(/,/g, ""));
+      return isNaN(value) ? null : value;
+    }
+
+    function parseCsv(text) {
+      var lines = text.replace(/^\uFEFF/, "").split(/\r?\n/).filter(function (line) { return line.trim(); });
+      var header = lines.shift().split(",");
+      return lines.map(function (line) {
+        var cells = line.split(",");
+        var row = {};
+        header.forEach(function (name, index) { row[name.trim()] = cells[index]; });
+        return row;
+      });
+    }
+
+    function seriesFrom(rows) {
+      var grouped = {};
+      rows.forEach(function (row) {
+        var area = String(row.reference_area || "").trim();
+        var period = parsePeriod(row.time_period);
+        var obs = parseFloat(row.obs_value);
+        var mom = parseMom(row.mom);
+        if (!area || !period || !WANT[period.key] || isNaN(obs) || mom === null) return;
+        if (!grouped[area]) grouped[area] = [];
+        grouped[area].push({ key: period.key, month: period.month, year: period.year, obs: obs, mom: mom });
+      });
+      return Object.keys(grouped).sort().map(function (area) {
+        var points = grouped[area].sort(function (a, b) { return a.key - b.key; });
+        return { area: area, name: LABEL[area] || area, color: COLOR[area] || "#445566", points: points };
+      });
+    }
+
+    function draw(series) {
+      var svg = document.getElementById("clock");
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      var plot = { left: 58, top: 28, right: 820, bottom: 660 };
+      plot.w = plot.right - plot.left;
+      plot.h = plot.bottom - plot.top;
+      var moms = [];
+      var obs = [];
+      series.forEach(function (item) {
+        item.points.forEach(function (point) { moms.push(Math.abs(point.mom)); obs.push(Math.abs(point.obs - 100)); });
+      });
+      var xAbs = Math.max(0.4, Math.ceil((Math.max.apply(null, moms) * 1.18) * 10) / 10);
+      var yAbs = Math.max(4, Math.ceil(Math.max.apply(null, obs) * 1.18));
+      function xOf(mom) { return plot.left + ((mom + xAbs) / (xAbs * 2)) * plot.w; }
+      function yOf(value) { return plot.top + ((100 + yAbs - value) / (yAbs * 2)) * plot.h; }
+      var cx = xOf(0);
+      var cy = yOf(100);
+
+      var zones = [
+        { x: plot.left, y: plot.top, w: cx - plot.left, h: cy - plot.top, fill: "#f3e2cb", title: "둔화", tx: plot.left + 16, ty: plot.top + 28, anchor: "start", fillText: "#8a6240" },
+        { x: cx, y: plot.top, w: plot.right - cx, h: cy - plot.top, fill: "#e7eef8", title: "확장", tx: plot.right - 16, ty: plot.top + 28, anchor: "end", fillText: "#5d6d86" },
+        { x: plot.left, y: cy, w: cx - plot.left, h: plot.bottom - cy, fill: "#e6e8ea", title: "수축", tx: plot.left + 16, ty: plot.bottom - 18, anchor: "start", fillText: "#5e656c" },
+        { x: cx, y: cy, w: plot.right - cx, h: plot.bottom - cy, fill: "#e7f3df", title: "회복", tx: plot.right - 16, ty: plot.bottom - 18, anchor: "end", fillText: "#2f7a38" }
+      ];
+      zones.forEach(function (zone) {
+        svg.appendChild(svgEl("rect", { x: zone.x, y: zone.y, width: zone.w, height: zone.h, fill: zone.fill }));
+      });
+
+      var boxW = Math.min(280, (plot.right - cx) - 36);
+      var boxH = Math.min(150, (plot.bottom - cy) - 56);
+      var box = svgEl("rect", {
+        x: plot.right - boxW - 18,
+        y: plot.bottom - boxH - 36,
+        width: boxW,
+        height: boxH,
+        fill: "none",
+        stroke: "#2f7a38",
+        "stroke-width": "1.4",
+        "stroke-dasharray": "5 4",
+        rx: "2"
+      });
+      svg.appendChild(box);
+      var plant = svgEl("text", { x: plot.right - boxW - 4, y: plot.bottom - boxH - 16, fill: "#2f7a38", "font-size": "15", "font-weight": "700" });
+      plant.textContent = "회복";
+      svg.appendChild(plant);
+      var plantSub = svgEl("text", { x: plot.right - boxW - 4, y: plot.bottom - boxH + 4, fill: "#2f7a38", "font-size": "13" });
+      plantSub.textContent = "씨 뿌리기 좋은 자리";
+      svg.appendChild(plantSub);
+
+      zones.forEach(function (zone) {
+        if (zone.title === "회복") return;
+        var label = svgEl("text", { x: zone.tx, y: zone.ty, fill: zone.fillText, "font-size": "18", "font-weight": "700", "text-anchor": zone.anchor });
+        label.textContent = zone.title;
+        svg.appendChild(label);
+      });
+
+      svg.appendChild(svgEl("line", { x1: cx, y1: plot.top, x2: cx, y2: plot.bottom, stroke: "#c5c9ce", "stroke-width": "1.2" }));
+      svg.appendChild(svgEl("line", { x1: plot.left, y1: cy, x2: plot.right, y2: cy, stroke: "#c5c9ce", "stroke-width": "1.2" }));
+
+      for (var tick = -xAbs; tick <= xAbs + 0.001; tick += xAbs > 0.6 ? 0.2 : 0.1) {
+        var rounded = Math.round(tick * 10) / 10;
+        if (Math.abs(rounded) < 0.001) continue;
+        var tickText = svgEl("text", { x: xOf(rounded), y: cy + 16, fill: "#8b939c", "font-size": "11", "text-anchor": "middle" });
+        tickText.textContent = (rounded > 0 ? "+" : "") + rounded.toFixed(1);
+        svg.appendChild(tickText);
+      }
+      for (var level = 100 - yAbs; level <= 100 + yAbs + 0.001; level += 2) {
+        if (Math.abs(level - 100) < 0.001) {
+          var mid = svgEl("text", { x: plot.left - 8, y: yOf(100) + 4, fill: "#243041", "font-size": "12", "font-weight": "700", "text-anchor": "end" });
+          mid.textContent = "100";
+          svg.appendChild(mid);
+          continue;
+        }
+        var levelText = svgEl("text", { x: plot.left - 8, y: yOf(level) + 4, fill: "#8b939c", "font-size": "11", "text-anchor": "end" });
+        levelText.textContent = String(level);
+        svg.appendChild(levelText);
+      }
+
+      var labels = [];
+      series.forEach(function (item) {
+        var group = svgEl("g", { class: "series" });
+        group.dataset.area = item.area;
+        var path = item.points.map(function (point) { return xOf(point.mom).toFixed(1) + "," + yOf(point.obs).toFixed(1); }).join(" ");
+        if (item.points.length > 1) {
+          group.appendChild(svgEl("polyline", {
+            points: path,
+            fill: "none",
+            stroke: item.color,
+            "stroke-width": "1.7",
+            "stroke-dasharray": "1.5 4.5",
+            "stroke-linecap": "round",
+            "stroke-linejoin": "round"
+          }));
+        }
+        item.points.forEach(function (point, index) {
+          var last = index === item.points.length - 1;
+          var dot = svgEl("circle", {
+            cx: xOf(point.mom).toFixed(1),
+            cy: yOf(point.obs).toFixed(1),
+            r: last ? "6.5" : "3.2",
+            fill: item.color
+          });
+          var tip = svgEl("title");
+          tip.textContent = item.name + " " + point.year + "." + point.month + "  CLI " + point.obs.toFixed(2) + "  전월비 " + (point.mom > 0 ? "+" : "") + point.mom.toFixed(2) + "%";
+          dot.appendChild(tip);
+          group.appendChild(dot);
+        });
+        var latest = item.points[item.points.length - 1];
+        labels.push({ group: group, name: item.name, color: item.color, x: xOf(latest.mom), y: yOf(latest.obs) });
+        svg.appendChild(group);
+      });
+
+      labels.sort(function (a, b) { return a.y - b.y; });
+      var occupied = [];
+      labels.forEach(function (item) {
+        var width = item.name.length * 13;
+        var x = item.x + 10;
+        var y = item.y + 4;
+        if (x + width > plot.right - 6) x = item.x - width - 10;
+        var guard = 0;
+        while (guard < 24 && occupied.some(function (box) {
+          return x < box.x + box.w && x + width > box.x && y - 12 < box.y && y + 4 > box.y - 12;
+        })) {
+          y += 14;
+          guard += 1;
+        }
+        occupied.push({ x: x, y: y, w: width });
+        var text = svgEl("text", {
+          x: x.toFixed(1),
+          y: y.toFixed(1),
+          fill: item.color,
+          "font-size": "13",
+          "font-weight": "700",
+          "paint-order": "stroke",
+          stroke: "#f6f5f1",
+          "stroke-width": "4",
+          "stroke-linejoin": "round"
+        });
+        text.textContent = item.name;
+        item.group.appendChild(text);
+      });
+
+      var latestKey = 0;
+      series.forEach(function (item) {
+        item.points.forEach(function (point) { if (point.key > latestKey) latestKey = point.key; });
+      });
+      document.getElementById("clock-asof").textContent = String(Math.floor(latestKey / 100)) + "." + String(latestKey % 100).padStart(2, "0") + " 기준";
+
+      var legend = document.getElementById("legend");
+      legend.innerHTML = "";
+      series.slice().sort(function (a, b) { return a.name.localeCompare(b.name, "ko"); }).forEach(function (item) {
+        var latest = item.points[item.points.length - 1];
+        var row = document.createElement("li");
+        row.innerHTML = '<i class="swatch"></i><span></span>';
+        row.querySelector(".swatch").style.background = item.color;
+        row.querySelector("span").textContent = item.name + "  " + (latest.mom > 0 ? "+" : "") + latest.mom.toFixed(2) + "%";
+        row.addEventListener("mouseenter", function () { highlight(item.area); row.classList.add("on"); });
+        row.addEventListener("mouseleave", function () { highlight(""); row.classList.remove("on"); });
+        legend.appendChild(row);
+      });
+
+      function highlight(area) {
+        Array.prototype.forEach.call(svg.querySelectorAll(".series"), function (node) {
+          node.style.opacity = !area || node.dataset.area === area ? "1" : "0.08";
+        });
+      }
+    }
+
+    function loadSupabase() {
+      return fetch(SUPABASE_URL + "/rest/v1/hangjang-table?select=reference_area,time_period,obs_value,mom", {
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY }
+      }).then(function (res) {
+        if (!res.ok) throw new Error(String(res.status));
+        return res.json();
+      });
+    }
+
+    function loadCsv() {
+      return fetch("oecd.csv").then(function (res) {
+        if (!res.ok) throw new Error("csv");
+        return res.text();
+      }).then(parseCsv);
+    }
+
+    function show(rows, message) {
+      var series = seriesFrom(rows);
+      if (!series.length) throw new Error("empty");
+      draw(series);
+      document.getElementById("clock-status").textContent = message || "";
+    }
+
+    function bindUpdate() {
+      var status = document.getElementById("clock-status");
+      var updateBtn = document.getElementById("update-btn");
+      if (!status || !updateBtn || updateBtn.dataset.bound === "1") return;
+      updateBtn.dataset.bound = "1";
+
+      var touched = false;
+      loadCsv().then(function (rows) {
+        if (touched) return;
+        show(rows, "");
+      }).catch(function () {
+        if (!touched) status.textContent = "로컬 CSV를 읽지 못했습니다.";
+      });
+
+      updateBtn.addEventListener("click", function () {
+        touched = true;
+        var note = document.getElementById("clock-status");
+        if (!SUPABASE_ANON_KEY) {
+          note.textContent = "Supabase anon 키가 없습니다. 페이지의 SUPABASE_ANON_KEY에 키를 넣은 뒤 다시 눌러 주세요.";
+          return;
+        }
+        updateBtn.disabled = true;
+        note.textContent = "Supabase에서 불러오는 중…";
+        loadSupabase().then(function (rows) {
+          if (!rows || !rows.length) throw new Error("empty");
+          show(rows, "Supabase hangjang-table에서 갱신했습니다.");
+        }).catch(function (err) {
+          note.textContent = "Supabase에서 읽지 못했습니다 (" + (err && err.message ? err.message : "오류") + "). 차트는 그대로 둡니다.";
+        }).then(function () {
+          updateBtn.disabled = false;
+        });
+      });
+    }
+
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindUpdate);
+    else bindUpdate();
+  </script>
+</body>
+</html>
