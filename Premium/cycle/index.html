@@ -24,8 +24,7 @@
     #update-btn { margin-left: auto; background: #243041; color: #fff; border: 0; border-radius: 8px; font-size: 15px; padding: 8px 14px; cursor: pointer; }
     #update-btn:disabled { opacity: 0.6; cursor: default; }
     .clock-layout { display: grid; grid-template-columns: minmax(0, 1fr) 210px; gap: 8px; align-items: start; }
-    .chart-scroll { overflow-x: auto; }
-#clock { width: 100%; min-width: 980px; height: auto; display: block; }
+#clock { width: 100%; height: auto; display: block; }
     .legend { list-style: none; margin: 8px 0 0; padding: 0; max-height: 640px; overflow: auto; }
     .legend li { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 4px; border-radius: 6px; cursor: pointer; }
     .legend li.on, .legend li:hover { background: rgba(36, 48, 65, 0.06); }
@@ -51,11 +50,10 @@
       <button type="button" id="update-btn">업데이트</button>
     </div>
     <div class="clock-layout">    <div class="chart-scroll">
-      <svg id="clock" viewBox="0 0 860 1240" role="img" aria-label="OECD 경기 시계. 가로는 전월비, 세로는 100을 중심으로 한 CLI"></svg> </div>
+      <svg id="clock" viewBox="0 0 860 900" role="img" aria-label="OECD 경기 시계. 가로는 전월비, 세로는 100을 중심으로 한 CLI"></svg> </div>
       <ul class="legend" id="legend"></ul>
     </div>
-    <p class="clock-note">가로는 가운데가 기준, 오른쪽이 위 · 세로 = 전월비, 위가 플러스 · 점선 = 최근 3개월</p>
-    <p id="clock-status"></p>
+        <p id="clock-status"></p>
   </section>
   <script>
     var SUPABASE_URL = "https://vlvblacfffkalojefjwp.supabase.co";
@@ -138,7 +136,7 @@
     function draw(series) {
       var svg = document.getElementById("clock");
       while (svg.firstChild) svg.removeChild(svg.firstChild);
-      var plot = { left: 58, top: 28, right: 820, bottom: 1180 };
+      var plot = { left: 58, top: 28, right: 820, bottom: 840 };
       plot.w = plot.right - plot.left;
       plot.h = plot.bottom - plot.top;
       var moms = [];
