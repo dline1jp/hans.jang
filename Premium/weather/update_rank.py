@@ -267,7 +267,7 @@ def render_new(scored):
     return render_fixed(NEW_HEADING, NEW_ROWS, scored)
 
 #etc end
-GAUGE_MAX = 700
+GAUGE_MAX = 500
 US_GAUGE_HEADING = (
     '<h1 class="low">10. 미국 종목 200주 이평 이격도 현황 이격도가 낮으면 매수후보. '
     "이격도가 높으면 매도후보로 검토할수 있다.</h1>"
@@ -289,7 +289,7 @@ def render_gauge_section(heading, rows):
     lines = [
         heading,
         '<section class="gauge-wrap">',
-        '<p class="gauge-note">초록 점은 이격도 100 이하, 200주선 아래입니다. 빨간 점은 200주선 위이며 오른쪽으로 갈수록 이격이 큽니다. 눈금은 0부터 700입니다.</p>',
+        f'<p class="gauge-note">초록 점은 이격도 100 이하, 200주선 아래입니다. 빨간 점은 200주선 위이며 오른쪽으로 갈수록 이격이 큽니다. 눈금은 0부터 {GAUGE_MAX}입니다.</p>',
         '<div class="gauge-board">',
         f'<div class="ticks">{ticks}</div>',
     ]
