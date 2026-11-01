@@ -1,4 +1,4 @@
-<!DOCTYPE html>xOf(point.obs)
+<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -188,7 +188,7 @@ svg.appendChild(plant);
       series.forEach(function (item) {
         var group = svgEl("g", { class: "series" });
         group.dataset.area = item.area;
-        var path = item.points.map(function (point) { return xOf(point.mom).toFixed(1) + "," + yOf(point.obs).toFixed(1); }).join(" ");
+        var path = item.points.map(function (point) { return xOf(point.obs).toFixed(1) + "," + yOf(point.mom).toFixed(1); }).join(" ");
         if (item.points.length > 1) {
           group.appendChild(svgEl("polyline", {
             points: path,
@@ -214,7 +214,7 @@ svg.appendChild(plant);
           group.appendChild(dot);
         });
         var latest = item.points[item.points.length - 1];
-        labels.push({ group: group, name: item.name, color: item.color, x: xOf(latest.obs), y: yOf(latest.mon) });
+        labels.push({ group: group, name: item.name, color: item.color, x: xOf(latest.obs), y: yOf(latest.mom) });
         svg.appendChild(group);
       });
 
