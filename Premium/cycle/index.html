@@ -162,21 +162,7 @@
         svg.appendChild(svgEl("rect", { x: zone.x, y: zone.y, width: zone.w, height: zone.h, fill: zone.fill }));
       });
 
-    var boxW = Math.min(280, (cx - plot.left) - 36);
-var boxH = Math.min(150, (cy - plot.top) - 56);
-var box = svgEl("rect", {
-  x: plot.left + 18,
-  y: plot.top + 46,
-  width: boxW,
-  height: boxH,
-  fill: "none",
-  stroke: "#2f7a38",
-  "stroke-width": "1.4",
-  "stroke-dasharray": "5 4",
-  rx: "2"
-});
-svg.appendChild(box);
-var plant = svgEl("text", { x: plot.left + 32, y: plot.top + 74, fill: "#2f7a38", "font-size": "15", "font-weight": "700" });
+    var plant = svgEl("text", { x: plot.left + 32, y: plot.top + 74, fill: "#2f7a38", "font-size": "15", "font-weight": "700" });
 plant.textContent = "회복";
 svg.appendChild(plant);
 
