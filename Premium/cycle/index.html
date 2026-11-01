@@ -53,7 +53,7 @@
       <svg id="clock" viewBox="0 0 860 1240" role="img" aria-label="OECD 경기 시계. 가로는 전월비, 세로는 100을 중심으로 한 CLI"></svg> </div>
       <ul class="legend" id="legend"></ul>
     </div>
-    <p class="clock-note">가로 = 전월비, 오른쪽이 플러스 · 세로는 위가 높음 · 점선 = 최근 3개월</p>
+    <p class="clock-note">가로는 가운데가 기준, 오른쪽이 위 · 세로 = 전월비, 위가 플러스 · 점선 = 최근 3개월</p>
     <p id="clock-status"></p>
   </section>
   <script>
@@ -145,12 +145,12 @@
       series.forEach(function (item) {
         item.points.forEach(function (point) { moms.push(Math.abs(point.mom)); obs.push(Math.abs(point.obs - 100)); });
       });
-      var xAbs = Math.max(0.4, Math.ceil((Math.max.apply(null, moms) * 1.18) * 10) / 10);
-      var yAbs = Math.max(4, Math.ceil(Math.max.apply(null, obs) * 1.18));
-      function xOf(mom) { return plot.left + ((mom + xAbs) / (xAbs * 2)) * plot.w; }
-      function yOf(value) { return plot.top + ((100 + yAbs - value) / (yAbs * 2)) * plot.h; }
-      var cx = xOf(0);
-      var cy = yOf(100);
+      var momAbs = Math.max(0.4, Math.ceil((Math.max.apply(null, moms) * 1.18) * 10) / 10);
+var obsAbs = Math.max(4, Math.ceil(Math.max.apply(null, obs) * 1.18));
+function xOf(value) { return plot.left + ((value - (100 - obsAbs)) / (obsAbs * 2)) * plot.w; }
+function yOf(mom) { return plot.top + ((momAbs - mom) / (momAbs * 2)) * plot.h; }
+var cx = xOf(100);
+var cy = yOf(0);
 
     var zones = [
   { x: plot.left, y: plot.top, w: cx - plot.left, h: cy - plot.top, fill: "#e7f3df", title: "회복", tx: plot.left + 16, ty: plot.top + 28, anchor: "start", fillText: "#2f7a38" },
@@ -176,13 +176,13 @@ svg.appendChild(plant);
       svg.appendChild(svgEl("line", { x1: cx, y1: plot.top, x2: cx, y2: plot.bottom, stroke: "#c5c9ce", "stroke-width": "1.2" }));
       svg.appendChild(svgEl("line", { x1: plot.left, y1: cy, x2: plot.right, y2: cy, stroke: "#c5c9ce", "stroke-width": "1.2" }));
 
-      for (var tick = -xAbs; tick <= xAbs + 0.001; tick += xAbs > 0.6 ? 0.2 : 0.1) {
-        var rounded = Math.round(tick * 10) / 10;
-        if (Math.abs(rounded) < 0.001) continue;
-        var tickText = svgEl("text", { x: xOf(rounded), y: cy + 16, fill: "#8b939c", "font-size": "11", "text-anchor": "middle" });
-        tickText.textContent = (rounded > 0 ? "+" : "") + rounded.toFixed(1);
-        svg.appendChild(tickText);
-      }
+      for (var tick = -momAbs; tick <= momAbs + 0.001; tick += momAbs > 0.6 ? 0.2 : 0.1) {
+  var rounded = Math.round(tick * 10) / 10;
+  if (Math.abs(rounded) < 0.001) continue;
+  var tickText = svgEl("text", { x: plot.left - 8, y: yOf(rounded) + 4, fill: "#8b939c", "font-size": "11", "text-anchor": "end" });
+  tickText.textContent = (rounded > 0 ? "+" : "") + rounded.toFixed(1);
+  svg.appendChild(tickText);
+}
             
       var labels = [];
       series.forEach(function (item) {
@@ -203,8 +203,8 @@ svg.appendChild(plant);
         item.points.forEach(function (point, index) {
           var last = index === item.points.length - 1;
           var dot = svgEl("circle", {
-            cx: xOf(point.mom).toFixed(1),
-            cy: yOf(point.obs).toFixed(1),
+            cx: xOf(point.obs).toFixed(1),
+            cy: yOf(point.mom).toFixed(1),
             r: last ? "6.5" : "3.2",
             fill: item.color
           });
