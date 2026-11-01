@@ -45,7 +45,7 @@
   <h1>경기사이클 날씨</h1>
   <section class="clock">
     <div class="clock-top">
-      <h2>경기 시계</h2>
+      <h2>경기사이클</h2>
       <span id="clock-asof">2026.09 기준</span>
       <button type="button" id="update-btn">업데이트</button>
     </div>
@@ -53,10 +53,9 @@
       <svg id="clock" viewBox="0 0 860 700" role="img" aria-label="OECD 경기 시계. 가로는 전월비, 세로는 100을 중심으로 한 CLI"></svg>
       <ul class="legend" id="legend"></ul>
     </div>
-    <p class="clock-note">가로 = 전월비(mom), 오른쪽이 플러스 · 세로 = CLI(obs_value), 가운데가 100, 위가 100 초과 · 점선 = 2026.6 → 2026.8 → 2026.9</p>
+    <p class="clock-note">가로 = 전월비, 오른쪽이 플러스 · 세로는 위가 높음 · 점선 = 최근 3개월</p>
     <p id="clock-status"></p>
   </section>
-  <img class="shot" src="kitchin.png" alt="키친사이클 정점 전후 나스닥 조정 사례">
   <script>
     var SUPABASE_URL = "https://vlvblacfffkalojefjwp.supabase.co";
     var SUPABASE_ANON_KEY = "";
@@ -153,34 +152,34 @@
       var cx = xOf(0);
       var cy = yOf(100);
 
-      var zones = [
-        { x: plot.left, y: plot.top, w: cx - plot.left, h: cy - plot.top, fill: "#f3e2cb", title: "둔화", tx: plot.left + 16, ty: plot.top + 28, anchor: "start", fillText: "#8a6240" },
-        { x: cx, y: plot.top, w: plot.right - cx, h: cy - plot.top, fill: "#e7eef8", title: "확장", tx: plot.right - 16, ty: plot.top + 28, anchor: "end", fillText: "#5d6d86" },
-        { x: plot.left, y: cy, w: cx - plot.left, h: plot.bottom - cy, fill: "#e6e8ea", title: "수축", tx: plot.left + 16, ty: plot.bottom - 18, anchor: "start", fillText: "#5e656c" },
-        { x: cx, y: cy, w: plot.right - cx, h: plot.bottom - cy, fill: "#e7f3df", title: "회복", tx: plot.right - 16, ty: plot.bottom - 18, anchor: "end", fillText: "#2f7a38" }
-      ];
+    var zones = [
+  { x: plot.left, y: plot.top, w: cx - plot.left, h: cy - plot.top, fill: "#e7f3df", title: "회복", tx: plot.left + 16, ty: plot.top + 28, anchor: "start", fillText: "#2f7a38" },
+  { x: cx, y: plot.top, w: plot.right - cx, h: cy - plot.top, fill: "#e7eef8", title: "확장", tx: plot.right - 16, ty: plot.top + 28, anchor: "end", fillText: "#5d6d86" },
+  { x: plot.left, y: cy, w: cx - plot.left, h: plot.bottom - cy, fill: "#e6e8ea", title: "수축", tx: plot.left + 16, ty: plot.bottom - 18, anchor: "start", fillText: "#5e656c" },
+  { x: cx, y: cy, w: plot.right - cx, h: plot.bottom - cy, fill: "#f3e2cb", title: "둔화", tx: plot.right - 16, ty: plot.bottom - 18, anchor: "end", fillText: "#8a6240" }
+];
       zones.forEach(function (zone) {
         svg.appendChild(svgEl("rect", { x: zone.x, y: zone.y, width: zone.w, height: zone.h, fill: zone.fill }));
       });
 
-      var boxW = Math.min(280, (plot.right - cx) - 36);
-      var boxH = Math.min(150, (plot.bottom - cy) - 56);
-      var box = svgEl("rect", {
-        x: plot.right - boxW - 18,
-        y: plot.bottom - boxH - 36,
-        width: boxW,
-        height: boxH,
-        fill: "none",
-        stroke: "#2f7a38",
-        "stroke-width": "1.4",
-        "stroke-dasharray": "5 4",
-        rx: "2"
-      });
-      svg.appendChild(box);
-      var plant = svgEl("text", { x: plot.right - boxW - 4, y: plot.bottom - boxH - 16, fill: "#2f7a38", "font-size": "15", "font-weight": "700" });
-      plant.textContent = "회복";
-      svg.appendChild(plant);
-      var plantSub = svgEl("text", { x: plot.right - boxW - 4, y: plot.bottom - boxH + 4, fill: "#2f7a38", "font-size": "13" });
+    var boxW = Math.min(280, (cx - plot.left) - 36);
+var boxH = Math.min(150, (cy - plot.top) - 56);
+var box = svgEl("rect", {
+  x: plot.left + 18,
+  y: plot.top + 46,
+  width: boxW,
+  height: boxH,
+  fill: "none",
+  stroke: "#2f7a38",
+  "stroke-width": "1.4",
+  "stroke-dasharray": "5 4",
+  rx: "2"
+});
+svg.appendChild(box);
+var plant = svgEl("text", { x: plot.left + 32, y: plot.top + 74, fill: "#2f7a38", "font-size": "15", "font-weight": "700" });
+plant.textContent = "회복";
+svg.appendChild(plant);
+var plantSub = svgEl("text", { x: plot.left + 32, y: plot.top + 94, fill: "#2f7a38", "font-size": "13" });
       plantSub.textContent = "씨 뿌리기 좋은 자리";
       svg.appendChild(plantSub);
 
@@ -201,13 +200,7 @@
         tickText.textContent = (rounded > 0 ? "+" : "") + rounded.toFixed(1);
         svg.appendChild(tickText);
       }
-      for (var level = 100 - yAbs; level <= 100 + yAbs + 0.001; level += 2) {
-        if (Math.abs(level - 100) < 0.001) {
-          var mid = svgEl("text", { x: plot.left - 8, y: yOf(100) + 4, fill: "#243041", "font-size": "12", "font-weight": "700", "text-anchor": "end" });
-          mid.textContent = "100";
-          svg.appendChild(mid);
-          continue;
-        }
+      }
         var levelText = svgEl("text", { x: plot.left - 8, y: yOf(level) + 4, fill: "#8b939c", "font-size": "11", "text-anchor": "end" });
         levelText.textContent = String(level);
         svg.appendChild(levelText);
@@ -238,7 +231,7 @@
             fill: item.color
           });
           var tip = svgEl("title");
-          tip.textContent = item.name + " " + point.year + "." + point.month + "  CLI " + point.obs.toFixed(2) + "  전월비 " + (point.mom > 0 ? "+" : "") + point.mom.toFixed(2) + "%";
+          tip.textContent = item.name + " " + point.year + "." + point.month +  point.obs.toFixed(2) + "  전월비 " + (point.mom > 0 ? "+" : "") + point.mom.toFixed(2) + "%";
           dot.appendChild(tip);
           group.appendChild(dot);
         });
