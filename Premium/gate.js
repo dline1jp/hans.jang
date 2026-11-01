@@ -38,7 +38,7 @@ function unlockPremium() {
   var input = document.getElementById("pw");
   loadPass().then(function (pass) {
     if (!input || input.value !== pass) {
-      alert("비밀번호가 틀립니다");
+      alert("잠시 후 다시 입력해 주세요.");
       return;
     }
     localStorage.setItem("hans-premium", pass);
@@ -75,7 +75,7 @@ function unlockPremium() {
     loadPass().then(function (pass) {
       if (localStorage.getItem("hans-premium") === pass) showMenu();
     }).catch(function () {
-      alert("비밀번호가 틀립니다");
+      alert("잠시 후 다시 입력해 주세요.");
     });
   });
 })();
