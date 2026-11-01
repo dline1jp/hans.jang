@@ -163,9 +163,69 @@ ETC_ROWS = [
     ("298040.KS", "298040", "효성중공업"),
     ("267260.KS", "267260", "HD현대일렉트릭"),
 ]
-def render_etc(scored):
+NEW_HEADING = (
+    '<h1 class="low">9. 신규 관심종목 주봉기준 200일 이동평균선 이격도입니다. 매주 토요일 업데이트됩니다. '
+    "주봉 200일선 아래일때가 이격도 100이하입니다. 이 시기는 몇년정도 장기보유를 위해 분할 매수를 고려할수 있습니다.</h1>"
+)
+NEW_ROWS = [
+    ("PANW", "PANW", "Palo Alto"),
+    ("IBM", "IBM", "IBM"),
+    ("AMD", "AMD", "AMD"),
+    ("EUO", "EUO", "UltraShort Euro"),
+    ("SPCX", "SPCX", "SpaceX"),
+    ("CEG", "CEG", "Constellation Energy"),
+    ("VST", "VST", "Vistra"),
+    ("EQIX", "EQIX", "Equinix"),
+    ("DLR", "DLR", "Digital Realty"),
+    ("GEV", "GEV", "GE Vernova"),
+    ("IONQ", "IONQ", "IonQ"),
+    ("QBTS", "QBTS", "D-Wave"),
+    ("RGTI", "RGTI", "Rigetti"),
+    ("QNT", "QNT", "Quantinuum"),
+    ("MXL", "MXL", "MaxLinear"),
+    ("APLD", "APLD", "Applied Digital"),
+    ("SMR", "SMR", "NuScale"),
+    ("OKLO", "OKLO", "Oklo"),
+    ("CRCL", "CRCL", "Circle"),
+    ("APP", "APP", "AppLovin"),
+    ("NBIS", "NBIS", "Nebius"),
+    ("CRDO", "CRDO", "Credo"),
+    ("STX", "STX", "Seagate"),
+    ("GCT", "GCT", "GigaCloud"),
+    ("CRWV", "CRWV", "CoreWeave"),
+    ("IREN", "IREN", "IREN"),
+    ("MARA", "MARA", "MARA"),
+    ("RIOT", "RIOT", "Riot"),
+    ("WULF", "WULF", "TeraWulf"),
+    ("CORZ", "CORZ", "Core Scientific"),
+    ("RKLB", "RKLB", "Rocket Lab"),
+    ("AEHR", "AEHR", "Aehr Test"),
+    ("ALAB", "ALAB", "Astera Labs"),
+    ("688825.SS", "688825", "CXMT"),
+    ("0981.HK", "0981", "SMIC"),
+    ("BE", "BE", "Bloom Energy"),
+    ("285A.T", "285A", "키옥시아"),
+    ("SNDK", "SNDK", "Sandisk"),
+    ("058470.KQ", "058470", "리노공업"),
+    ("067310.KQ", "067310", "하나마이크론"),
+    ("007660.KS", "007660", "이수페타시스"),
+    ("089030.KQ", "089030", "테크윙"),
+    ("042700.KS", "042700", "한미반도체"),
+    ("010120.KS", "010120", "LS일렉트릭"),
+    ("017670.KS", "017670", "SK텔레콤"),
+    ("006400.KS", "006400", "삼성SDI"),
+    ("009150.KS", "009150", "삼성전기"),
+    ("402340.KS", "402340", "SK스퀘어"),
+    ("053800.KQ", "053800", "안랩"),
+    ("310210.KQ", "310210", "보로노이"),
+    ("030200.KS", "030200", "KT"),
+    ("094480.KQ", "094480", "갤럭시아머니트리"),
+    ("041190.KQ", "041190", "우리기술투자"),
+    ("353200.KS", "353200", "대덕전자"),
+]
+def render_fixed(heading, rows, scored):
     lines = [
-        ETC_HEADING,
+        heading,
         '<section class="rank-wrap">',
         '<p class="note">기준 주봉 {asof} · 이격도 100 이하는 주봉 200일선 아래입니다. 200주가 없는 종목은 이격도를 비워 둡니다.</p>',
         '<p class="formula">이격도 = 주봉 종가 ÷ 200주 이동평균 × 100</p>',
@@ -175,7 +235,7 @@ def render_etc(scored):
     ]
     body = []
     asof = ""
-    for ticker, label, name in ETC_ROWS:
+    for ticker, label, name in rows:
         row = scored.get(ticker)
         if row and not asof:
             asof = row["asof"]
@@ -201,41 +261,57 @@ def render_etc(scored):
     lines.extend(body)
     lines.append("</tbody></table></section>")
     return "\n".join(lines)
+def render_etc(scored):
+    return render_fixed(ETC_HEADING, ETC_ROWS, scored)
+def render_new(scored):
+    return render_fixed(NEW_HEADING, NEW_ROWS, scored)
 
 #etc end
 
 def tradingview_symbol(ticker):
     query = ticker.replace("-", ".")
-    try:
-        response = requests.get(
-            TV_SEARCH,
-            params={"text": query, "lang": "en", "search_type": "stocks", "domain": "production"},
-            headers={**HEADERS, "Origin": "https://www.tradingview.com"},
-            timeout=20,
-        )
-        response.raise_for_status()
-    except requests.RequestException:
-        return query
     cleaned = []
-    for item in response.json().get("symbols") or []:
-        symbol = re.sub(r"</?em>", "", item.get("symbol") or "")
-        exchange = (item.get("exchange") or "").upper()
-        cleaned.append((exchange, symbol))
-    for exchange, symbol in cleaned:
-        if symbol == query and exchange in TV_EXCHANGES:
-            return f"{exchange}:{symbol}"
+    for search_type in ("stocks", None):
+        params = {"text": query, "lang": "en", "domain": "production"}
+        if search_type:
+            params["search_type"] = search_type
+        try:
+            response = requests.get(
+                TV_SEARCH,
+                params=params,
+                headers={**HEADERS, "Origin": "https://www.tradingview.com"},
+                timeout=20,
+            )
+            response.raise_for_status()
+        except requests.RequestException:
+            continue
+        for item in response.json().get("symbols") or []:
+            symbol = re.sub(r"</?em>", "", item.get("symbol") or "")
+            exchange = (item.get("exchange") or "").upper()
+            cleaned.append((exchange, symbol))
+        for exchange, symbol in cleaned:
+            if symbol == query and exchange in TV_EXCHANGES:
+                return f"{exchange}:{symbol}"
     for exchange, symbol in cleaned:
         if symbol == query and exchange:
             return f"{exchange}:{symbol}"
     return query
+def plain_chart(symbol):
+    return (
+        "https://www.tradingview.com/chart/?symbol="
+        + urllib.parse.quote(symbol, safe=":")
+        + "&interval=W"
+    )
 def chart_url(ticker):
     if ticker.endswith(".KS") or ticker.endswith(".KQ"):
-        symbol = "KRX:" + ticker.split(".")[0]
-        return (
-            "https://www.tradingview.com/chart/?symbol="
-            + urllib.parse.quote(symbol, safe=":")
-            + "&interval=W"
-        )
+        return plain_chart("KRX:" + ticker.split(".")[0])
+    if ticker.endswith(".HK"):
+        code = ticker.split(".")[0].lstrip("0") or "0"
+        return plain_chart("HKEX:" + code)
+    if ticker.endswith(".T"):
+        return plain_chart("TSE:" + ticker.split(".")[0])
+    if ticker.endswith(".SS"):
+        return plain_chart("SSE:" + ticker.split(".")[0])
     symbol = tradingview_symbol(ticker)
     return (
         "https://www.tradingview.com/widgetembed/?symbol="
@@ -462,6 +538,7 @@ def render(sp_above, sp_below, nq_above, nq_below, ks_above, ks_below, scored):
         block(ks_above, ks_below, KOSPI_HIGH_HEADING, KOSPI_LOW_HEADING, "코스피"),
         render_etf(scored),
         render_etc(scored),
+        render_new(scored),
     ])
 def main():
     groups = (load_sp(), load_nasdaq(), load_kospi())
@@ -476,7 +553,7 @@ def main():
         if ticker not in seen:
             seen.add(ticker)
             tickers.append(ticker)
-    for ticker, _label, _name in ETC_ROWS:
+    for ticker, _label, _name in ETC_ROWS + NEW_ROWS:
         if ticker not in seen:
             seen.add(ticker)
             tickers.append(ticker)
