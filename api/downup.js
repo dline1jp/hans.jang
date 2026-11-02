@@ -246,7 +246,7 @@ async function buildPayload() {
       region: "kr",
       direction: "down",
       title: "2. 한국 10% 이상 급락주",
-      note: "시가총액 5억 달러 이상, 직전 분기 EPS(주당순이익)가 플러스인 코스피·코스닥 종목입니다. 우선주는 빼었습니다.",
+      note: "시가총액 5억 달러 이상, 직전 분기 EPS(주당순이익)가 플러스인 코스피·코스닥 종목입니다. 우선주는 뺐습니다.",
     },
     {
       id: "us-up",
@@ -260,7 +260,7 @@ async function buildPayload() {
       region: "kr",
       direction: "up",
       title: "4. 한국 10% 이상 급등주",
-      note: "시가총액 5억 달러 이상, 직전 분기 EPS(주당순이익)가 플러스인 코스피·코스닥 종목입니다. 우선주는 빼었습니다.",
+      note: "시가총액 5억 달러 이상, 직전 분기 EPS(주당순이익)가 플러스인 코스피·코스닥 종목입니다. 우선주는 뺐습니다.",
     },
   ];
   const sections = await Promise.all(specs.map((spec) => buildSection(session, spec, fx)));
