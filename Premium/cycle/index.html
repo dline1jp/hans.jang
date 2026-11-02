@@ -74,18 +74,42 @@
     };
     var COLOR = {
       Korea: "#2457d6", Brazil: "#7a45e6", "United States": "#1b1b1b", Japan: "#e39b12", India: "#b86a1d",
-      China: "#8a8f98", Indonesia: "#12867d", France: "#3c8c45", Germany: "#2f6f34", Italy: "#67a85a",
-      "United Kingdom": "#1d5fbf", Spain: "#e07a1f", Mexico: "#0e8f86", Canada: "#c4473a", Australia: "#7a5644",
+      China: "#8a8f98", Indonesia: "#12867d", France: "#3c8c45", Germany: "#4f46e5", Italy: "#0891b2",
+      "United Kingdom": "#1d5fbf", Spain: "#e07a1f", Mexico: "#0e8f86", Canada: "#db2777", Australia: "#c2410c",
       "South Africa": "#6a45b0", Trkiye: "#b43333", G20: "#5c6b7a", G7: "#7c3aed", NAFTA: "#1b7eab",
       "Major five Asia economies": "#0e7c8a", "Major four European countries": "#5d8a32"
     };
-
     function svgEl(name, attrs) {
       var node = document.createElementNS("http://www.w3.org/2000/svg", name);
       Object.keys(attrs || {}).forEach(function (key) { node.setAttribute(key, attrs[key]); });
       return node;
     }
-
+    function directionArrow(x1, y1, x2, y2, color, mom) {
+      var dx = x2 - x1;
+      var dy = y2 - y1;
+      var len = Math.sqrt(dx * dx + dy * dy);
+      var ux = 0;
+      var uy = mom >= 0 ? -1 : 1;
+      if (len >= 1) {
+        ux = dx / len;
+        uy = dy / len;
+      }
+      var size = 22;
+      var half = 9;
+      var bx = x2 - ux * size;
+      var by = y2 - uy * size;
+      return svgEl("polygon", {
+        points: [
+          x2.toFixed(1) + "," + y2.toFixed(1),
+          (bx - uy * half).toFixed(1) + "," + (by + ux * half).toFixed(1),
+          (bx + uy * half).toFixed(1) + "," + (by - ux * half).toFixed(1)
+        ].join(" "),
+        fill: color,
+        stroke: "#f6f5f1",
+        "stroke-width": "1.6",
+        "stroke-linejoin": "round"
+      });
+    }
     function parsePeriod(raw) {
       var text = String(raw || "").trim();
       var yearFirst = text.match(/^(\d{2,4})-([A-Za-z]{3})$/);
@@ -103,13 +127,11 @@
       if (year < 100) year += 2000;
       return { year: year, month: month, key: year * 100 + month };
     }
-
     function parseMom(raw) {
       if (raw === null || raw === undefined || String(raw).trim() === "") return null;
       var value = parseFloat(String(raw).replace("%", "").replace(/,/g, ""));
       return isNaN(value) ? null : value;
     }
-
     function seriesFrom(rows) {
       var grouped = {};
       var seen = {};
@@ -122,7 +144,7 @@
       latest.forEach(function (key) { allow[key] = true; });
       rows.forEach(function (row) {
         var area = String(row.reference_area || "").trim();
-        if (area === "Australia" || area === "Spain" || area === "Canada" || area === "Mexico" || area === "Brazil" || area === "South Africa" || area === "NAFTA" || area === "Germany" || area === "Italy") return;
+        if (area === "Spain" || area === "Mexico" || area === "Brazil" || area === "South Africa" || area === "NAFTA") return;
         var period = parsePeriod(row.time_period);
         var obs = parseFloat(row.obs_value);
         var mom = parseMom(row.mom);
@@ -135,7 +157,6 @@
         return { area: area, name: LABEL[area] || area, color: COLOR[area] || "#445566", points: points };
       });
     }
-
     function draw(series) {
       var svg = document.getElementById("clock");
       while (svg.firstChild) svg.removeChild(svg.firstChild);
@@ -158,7 +179,6 @@
 function yOf(mom) { return plot.top + ((momAbs - mom) / (momAbs * 2)) * plot.h; }
 var cx = xOf(100);
 var cy = yOf(0);
-
     var zones = [
   { x: plot.left, y: plot.top, w: cx - plot.left, h: cy - plot.top, fill: "#d4edc4", title: "회복", tx: plot.left + 16, ty: plot.top + 28, anchor: "start", fillText: "#1f7a32" },
   { x: cx, y: plot.top, w: plot.right - cx, h: cy - plot.top, fill: "#d5e4f7", title: "확장", tx: plot.right - 16, ty: plot.top + 28, anchor: "end", fillText: "#3d5678" },
@@ -168,21 +188,17 @@ var cy = yOf(0);
       zones.forEach(function (zone) {
         svg.appendChild(svgEl("rect", { x: zone.x, y: zone.y, width: zone.w, height: zone.h, fill: zone.fill }));
       });
-
     var plant = svgEl("text", { x: plot.left + 18, y: plot.top + 28, fill: "#2f7a38", "font-size": "26", "font-weight": "700" });
 plant.textContent = "회복";
 svg.appendChild(plant);
-
       zones.forEach(function (zone) {
         if (zone.title === "회복") return;
         var label = svgEl("text", { x: zone.tx, y: zone.ty, fill: zone.fillText, "font-size": "26", "font-weight": "700", "text-anchor": zone.anchor });
         label.textContent = zone.title;
         svg.appendChild(label);
       });
-
       svg.appendChild(svgEl("line", { x1: cx, y1: plot.top, x2: cx, y2: plot.bottom, stroke: "#c5c9ce", "stroke-width": "1.2" }));
       svg.appendChild(svgEl("line", { x1: plot.left, y1: cy, x2: plot.right, y2: cy, stroke: "#c5c9ce", "stroke-width": "1.2" }));
-
       for (var tick = -momAbs; tick <= momAbs + 0.001; tick += momAbs > 0.6 ? 0.2 : 0.1) {
   var rounded = Math.round(tick * 10) / 10;
   if (Math.abs(rounded) < 0.001) continue;
@@ -209,14 +225,21 @@ svg.appendChild(plant);
         }
         item.points.forEach(function (point, index) {
           var last = index === item.points.length - 1;
+          var tip = svgEl("title");
+          tip.textContent = item.name + " " + point.year + "." + point.month + "  전월비 " + (point.mom > 0 ? "+" : "") + point.mom.toFixed(2) + "%";
+          if (last) {
+            var prev = item.points[index - 1] || point;
+            var arrow = directionArrow(xOf(prev.obs), yOf(prev.mom), xOf(point.obs), yOf(point.mom), item.color, point.mom);
+            arrow.appendChild(tip);
+            group.appendChild(arrow);
+            return;
+          }
           var dot = svgEl("circle", {
             cx: xOf(point.obs).toFixed(1),
             cy: yOf(point.mom).toFixed(1),
-            r: last ? "6.5" : "3.2",
+            r: "3.2",
             fill: item.color
           });
-          var tip = svgEl("title");
-         tip.textContent = item.name + " " + point.year + "." + point.month + "  전월비 " + (point.mom > 0 ? "+" : "") + point.mom.toFixed(2) + "%";
           dot.appendChild(tip);
           group.appendChild(dot);
         });
@@ -224,7 +247,6 @@ svg.appendChild(plant);
         labels.push({ group: group, name: item.name, color: item.color, x: xOf(latest.obs), y: yOf(latest.mom) });
         svg.appendChild(group);
       });
-
       labels.sort(function (a, b) { return a.y - b.y; });
       var occupied = [];
       labels.forEach(function (item) {
@@ -264,13 +286,27 @@ svg.appendChild(plant);
         text.textContent = item.name;
         item.group.appendChild(text);
       });
-
+      var watermark = svgEl("g", { "pointer-events": "none" });
+      [260, 620, 980, 1340].forEach(function (markY) {
+        var mark = svgEl("text", {
+          x: "260",
+          y: String(markY),
+          fill: "#243041",
+          "fill-opacity": "0.22",
+          "font-size": "18",
+          "font-weight": "700",
+          "text-anchor": "middle",
+          transform: "rotate(-24 260 " + markY + ")"
+        });
+        mark.textContent = "출처 네이버 프리미엄 콘텐츠 버핏2배랩";
+        watermark.appendChild(mark);
+      });
+      svg.appendChild(watermark);
       var latestKey = 0;
       series.forEach(function (item) {
         item.points.forEach(function (point) { if (point.key > latestKey) latestKey = point.key; });
       });
       document.getElementById("clock-asof").textContent = String(Math.floor(latestKey / 100)) + "." + String(latestKey % 100).padStart(2, "0") + " 기준";
-
       var legend = document.getElementById("legend");
       legend.innerHTML = "";
       series.slice().sort(function (a, b) { return a.name.localeCompare(b.name, "ko"); }).forEach(function (item) {
@@ -283,14 +319,12 @@ svg.appendChild(plant);
         row.addEventListener("mouseleave", function () { highlight(""); row.classList.remove("on"); });
         legend.appendChild(row);
       });
-
       function highlight(area) {
         Array.prototype.forEach.call(svg.querySelectorAll(".series"), function (node) {
           node.style.opacity = !area || node.dataset.area === area ? "1" : "0.08";
         });
       }
     }
-
     function loadSupabase() {
       return fetch(SUPABASE_URL + "/rest/v1/hangjang-table?select=reference_area,time_period,obs_value,mom", {
         headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY }
@@ -299,20 +333,17 @@ svg.appendChild(plant);
         return res.json();
       });
     }
-
     function show(rows, message) {
       var series = seriesFrom(rows);
       if (!series.length) throw new Error("empty");
       draw(series);
       document.getElementById("clock-status").textContent = message || "";
     }
-
     function bindUpdate() {
       var status = document.getElementById("clock-status");
       var updateBtn = document.getElementById("update-btn");
       if (!status || !updateBtn || updateBtn.dataset.bound === "1") return;
       updateBtn.dataset.bound = "1";
-
       function refresh(note) {
         updateBtn.disabled = true;
         note.textContent = "Supabase에서 불러오는 중…";
@@ -328,13 +359,11 @@ svg.appendChild(plant);
           updateBtn.disabled = false;
         });
       }
-
       refresh(status);
       updateBtn.addEventListener("click", function () {
         refresh(document.getElementById("clock-status"));
       });
     }
-
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindUpdate);
     else bindUpdate();
   </script>
