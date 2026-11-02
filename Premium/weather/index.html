@@ -2,7 +2,7 @@
 
   <script src="/Premium/gate.js"></script>
 
- <meta charset="UTF-8">   <title> 주가 방향  날씨 </title> <style> body { background: #111; color: white; font-family: Arial, sans-serif; margin: 0; padding: 27px; } a { color: #D8C0FF; } .home { font-size: 40px; } h1 { text-align: center; color: #FFFFE0; font-size: 40px; }
+ <meta charset="UTF-8">   <title> 주가 방향  날씨 </title> <style> body { background: #111; color: white; font-family: Arial, sans-serif; margin: 0; padding: 27px; } a { color: #D8C0FF; } .home { font-size: 40px; } h1 { text-align: center; color: #3C9DDE; font-size: 40px; }
 <meta name="viewport" content="width=device-width, initial-scale=1">
 .rank-wrap { max-width: 980px; margin: 27px auto; }
 .note, .formula { margin: 27px 0; color: #ccc; }
@@ -176,11 +176,21 @@ h1.low { margin-top: 80px; }
 .gauge-val.sell { color: #f1948a; }
 @media (max-width: 800px) {
   .gauge-row {
-    grid-template-columns: 32px 78px minmax(0, 1fr) 58px;
-    gap: 4px 8px;
-    font-size: 16px;
+    grid-template-columns: 42px minmax(0, 1fr) auto;
+    gap: 2px 10px;
+    font-size: 23px;
+    line-height: 1.25;
   }
-  .gauge-note, .ticks { font-size: 14px; }
+  .gauge-row > span:nth-child(1) { grid-column: 1; grid-row: 1; }
+  .gauge-row > span:nth-child(2) { grid-column: 2; grid-row: 1; }
+  .gauge-row > span:nth-child(3) { grid-column: 2; grid-row: 2; }
+  .gauge-row > span:nth-child(4) {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+  .gauge-note { font-size: 20px; }
+  .ticks { font-size: 18px; }
 }
 
  </style> </head> <body>
