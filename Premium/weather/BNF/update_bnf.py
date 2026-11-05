@@ -65,22 +65,22 @@ SHELL = """<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>BNF 50일선 매수점</title>
   <style>
-    body { background: #111; color: white; font-family: Arial, sans-serif; margin: 0; padding: 27px; }
+    html { overflow-x: hidden; }
+    body { background: #111; color: white; font-family: Arial, sans-serif; margin: 0; padding: 12px 8px; overflow-x: hidden; }
+    * { box-sizing: border-box; }
     a { color: #D8C0FF; }
-    .home { font-size: 40px; }
-    h1 { text-align: center; color: #FFFFE0; font-size: 40px; line-height: 1.35; }
-    h1.low { margin-top: 80px; }
-    .rank-wrap { max-width: 1400px; margin: 27px auto; }
-    .note, .formula { margin: 27px 0; color: #ccc; font-size: 27px; line-height: 1.45; }
+    .home { font-size: clamp(20px, 2vw, 32px); }
+    h1 { text-align: center; color: #FFFFE0; font-size: clamp(20px, 2vw, 32px); line-height: 1.3; margin: 8px 0; }
+    h1.low { margin-top: 28px; }
+    .rank-wrap { width: 100%; max-width: none; margin: 8px auto; }
+    .note, .formula { margin: 8px 0; color: #ccc; font-size: clamp(13px, 1.15vw, 18px); line-height: 1.4; }
     .formula { color: #8a8a8a; }
-    .table-scroll { overflow-x: auto; }
-    table.rank { width: 100%; border-collapse: collapse; margin-top: 27px; }
-    table.rank th, table.rank td { border-bottom: 1px solid #444; padding: 16px 12px; text-align: right; white-space: nowrap; }
-    table.rank td { font-size: 22px; }
-    table.rank th { color: #D8C0FF; font-size: 22px; }
-    table.rank td.code, table.rank th.code,
-    table.rank td.name, table.rank th.name,
-    table.rank td.flag, table.rank th.flag { text-align: left; }
+    .table-scroll { overflow: visible; width: 100%; }
+    table.rank { width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 8px; }
+    table.rank th, table.rank td { border-bottom: 1px solid #444; padding: 5px 2px; text-align: center; white-space: normal; word-break: break-word; overflow-wrap: anywhere; vertical-align: middle; line-height: 1.2; }
+    table.rank td, table.rank th { font-size: clamp(11px, 0.78vw, 15px); }
+    table.rank th { color: #D8C0FF; }
+    table.rank td.name, table.rank th.name { text-align: left; }
     table.rank td.code { color: gold; font-weight: 700; }
     table.rank td.code a { color: #4da3ff; text-decoration: underline; }
     table.rank td.gap-low { color: #f1948a; font-weight: 700; }
@@ -89,6 +89,52 @@ SHELL = """<!DOCTYPE html>
     table.rank tr.buy { background: #143024; }
     table.rank td.signal { color: #7dcea0; font-weight: 700; }
     table.rank td.wait { color: #f5cba7; }
+    @media (max-width: 860px) {
+      body { padding: 8px 6px; }
+      .note, .formula { font-size: 14px; }
+      table.rank { table-layout: auto; }
+      table.rank colgroup { display: none; }
+      table.rank thead { display: none; }
+      table.rank, table.rank tbody { display: block; width: 100%; }
+      table.rank tr {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        column-gap: 8px;
+        row-gap: 4px;
+        border: 1px solid #444;
+        border-radius: 10px;
+        margin: 0 0 10px;
+        padding: 8px;
+        background: #161616;
+      }
+      table.rank tr.buy { background: #143024; }
+      table.rank td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+        width: calc(50% - 4px);
+        border: none;
+        padding: 1px 0;
+        text-align: right;
+        font-size: 14px;
+        white-space: nowrap;
+        word-break: keep-all;
+        overflow-wrap: normal;
+      }
+      table.rank td:nth-child(1) { order: 1; width: 1.8rem; justify-content: flex-start; font-weight: 700; }
+      table.rank td:nth-child(2) { order: 2; width: auto; justify-content: flex-start; }
+      table.rank td:nth-child(14) { order: 3; width: auto; margin-left: auto; justify-content: flex-end; font-size: 13px; }
+      table.rank td:nth-child(3) { order: 4; width: 100%; flex: none; justify-content: flex-start; text-align: left; white-space: normal; word-break: break-word; }
+      table.rank td:nth-child(n+4):not(:nth-child(14)) { order: 5; }
+      table.rank td:nth-child(n+4):not(:nth-child(14))::before {
+        content: attr(data-label);
+        color: #D8C0FF;
+        font-size: 12px;
+        font-weight: 700;
+      }
+    }
   </style>
 </head>
 <body>
@@ -512,9 +558,9 @@ def collect(seeds):
     return picked
 
 
-def cell_flag(flag):
+def cell_flag(flag, label):
     kind = "yes" if flag else "no"
-    return f'<td class="{kind}">{yn(flag)}</td>'
+    return f'<td class="{kind}" data-label="{label}">{yn(flag)}</td>'
 
 
 def render_table(title, rows):
@@ -528,11 +574,20 @@ def render_table(title, rows):
         '<section class="rank-wrap">',
         f'<p class="note">기준 일봉 {html.escape(asof)} · 시가총액 상위 {len(rows)}종목 · 매수 시그널 {len(signals)}종목. 출처: {html.escape(source)}. 매수 시그널이 위로 올라옵니다. 시그널이 없어도 조건표는 모두 보여 줍니다.</p>',
         '<div class="table-scroll"><table class="rank">',
+        "<colgroup>"
+        '<col style="width:4%"><col style="width:7%"><col style="width:14%"><col style="width:8%">'
+        '<col style="width:8%"><col style="width:8%"><col style="width:6%"><col style="width:6%">'
+        '<col style="width:5%"><col style="width:5%"><col style="width:5%">'
+        '<col style="width:6%"><col style="width:5%"><col style="width:13%">'
+        "</colgroup>",
         "<thead><tr>"
-        "<th>시총</th><th class=\"code\">코드</th><th class=\"name\">종목</th><th>시가총액</th>"
-        "<th>종가</th><th>50일선</th><th>이격도</th><th>10일 저점</th>"
-        "<th class=\"flag\">이격추락</th><th class=\"flag\">추락정지</th><th class=\"flag\">하락정지</th>"
-        "<th>거래량배수</th><th class=\"flag\">첫양봉</th><th class=\"flag\">판정</th>"
+        '<th title="시가총액 순위">시총</th><th class="code">코드</th><th class="name">종목</th><th>시총액</th>'
+        '<th>종가</th><th title="50일 단순이동평균">50일</th><th title="50일선 이격도">이격</th><th title="최근 10거래일 이격도 저점">저점</th>'
+        '<th class="flag" title="이격도 3일 이상 연속 하락, 10일 저점 -10% 이하">추락</th>'
+        '<th class="flag" title="오늘 이격도 ≥ 어제 이격도">정지</th>'
+        '<th class="flag" title="오늘 저가 ≥ 어제 저가">하락</th>'
+        '<th title="거래량이 20일 평균의 몇 배인지">거래</th>'
+        '<th class="flag" title="오늘 첫 양봉">양봉</th><th class="flag">판정</th>'
         "</tr></thead><tbody>",
     ]
     for row in rows:
@@ -541,20 +596,20 @@ def render_table(title, rows):
         tr = ' class="buy"' if row["signal"] else ""
         lines.append(
             f"<tr{tr}>"
-            f"<td>{row['cap_rank']}</td>"
-            f'<td class="code"><a href="{html.escape(chart_url(row))}" target="_blank">{html.escape(row["ticker"].split(".")[0])}</a></td>'
-            f'<td class="name">{html.escape(str(row["name"]))}</td>'
-            f"<td>{html.escape(fmt_market_cap(row.get('market_cap'), row.get('currency') or ''))}</td>"
-            f"<td>{fmt_number(row['price'], row.get('currency') or '')}</td>"
-            f"<td>{fmt_number(row['sma'], row.get('currency') or '')}</td>"
-            f'<td class="gap-low">{row["disparity"]:.1f}%</td>'
-            f'<td class="gap-low">{row["trough"]:.1f}%</td>'
-            f'{cell_flag(row["falling"])}'
-            f'{cell_flag(row["disparity_stop"])}'
-            f'{cell_flag(row["price_stop"])}'
-            f"<td>{row['volume_multiple']:.1f}x</td>"
-            f'{cell_flag(row["first_yang"])}'
-            f'<td class="{verdict_class}">{verdict}</td>'
+            f'<td data-label="시총">{row["cap_rank"]}</td>'
+            f'<td class="code" data-label="코드"><a href="{html.escape(chart_url(row))}" target="_blank">{html.escape(row["ticker"].split(".")[0])}</a></td>'
+            f'<td class="name" data-label="종목">{html.escape(str(row["name"]))}</td>'
+            f'<td data-label="시총액">{html.escape(fmt_market_cap(row.get("market_cap"), row.get("currency") or ""))}</td>'
+            f'<td data-label="종가">{fmt_number(row["price"], row.get("currency") or "")}</td>'
+            f'<td data-label="50일">{fmt_number(row["sma"], row.get("currency") or "")}</td>'
+            f'<td class="gap-low" data-label="이격">{row["disparity"]:.1f}%</td>'
+            f'<td class="gap-low" data-label="저점">{row["trough"]:.1f}%</td>'
+            f'{cell_flag(row["falling"], "추락")}'
+            f'{cell_flag(row["disparity_stop"], "정지")}'
+            f'{cell_flag(row["price_stop"], "하락")}'
+            f'<td data-label="거래">{row["volume_multiple"]:.1f}x</td>'
+            f'{cell_flag(row["first_yang"], "양봉")}'
+            f'<td class="{verdict_class}" data-label="판정">{verdict}</td>'
             "</tr>"
         )
     lines.append("</tbody></table></div></section>")
@@ -610,3 +665,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
