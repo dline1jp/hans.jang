@@ -1,1 +1,612 @@
+# -*- coding: utf-8 -*-
+"""Refresh US, Korea, and Japan top-20 market-cap lists and BNF 50-day signals.
 
+Buy signal on the latest daily bar only when every rule below is true:
+1. 50-day disparity fell for at least 3 consecutive sessions into yesterday,
+   and the lowest disparity in the last 10 sessions is -10% or deeper.
+2. Disparity fall stopped: today's disparity >= yesterday's disparity.
+3. Price fall stopped: today's low does not break yesterday's low.
+4. Volume spike: today's volume, or yesterday's volume, is at least 2x
+   the average of the prior 20 sessions (the 20 days before that bar).
+5. First bullish candle: today close > open, and yesterday was not a
+   bullish candle (close > open).
+
+Disparity = (close / 50-day SMA - 1) * 100, using adjusted closes.
+Candle color and the low comparison use unadjusted OHLC.
+
+Market-cap source: Yahoo screener (region us / jp), sorted by
+intraday market cap. If the Japan screener returns no .T names, fall
+back to the public TradingView Japan scanner. Korea uses the Naver
+KOSPI market-value list, same endpoint as update_rank.py.
+"""
+import html
+import json
+import pathlib
+import time
+import urllib.parse
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
+
+import requests
+
+CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
+SCREENER_URL = "https://query1.finance.yahoo.com/v1/finance/screener"
+KOSPI_URL = "https://m.stock.naver.com/api/stocks/marketValue/KOSPI"
+TV_SCAN = "https://scanner.tradingview.com/japan/scan"
+HEADERS = {"User-Agent": "Mozilla/5.0"}
+PAGE = pathlib.Path(__file__).with_name("index.html")
+TOP_N = 20
+CANDIDATES = 30
+SMA = 50
+FALL_STEPS = 3
+TROUGH_WINDOW = 10
+TROUGH_LIMIT = -10.0
+VOLUME_AVG = 20
+VOLUME_MULT = 2.0
+TV_EXCHANGES = {
+    "NMS": "NASDAQ",
+    "NGM": "NASDAQ",
+    "NCM": "NASDAQ",
+    "NYQ": "NYSE",
+    "NYS": "NYSE",
+    "ASE": "AMEX",
+    "PCX": "AMEX",
+    "BTS": "AMEX",
+    "JPX": "TSE",
+    "TKS": "TSE",
+    "TYO": "TSE",
+}
+
+SHELL = """<!DOCTYPE html>
+<html>
+<head>
+  <script src="/Premium/gate.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BNF 50일선 매수점</title>
+  <style>
+    body { background: #111; color: white; font-family: Arial, sans-serif; margin: 0; padding: 27px; }
+    a { color: #D8C0FF; }
+    .home { font-size: 40px; }
+    h1 { text-align: center; color: #FFFFE0; font-size: 40px; line-height: 1.35; }
+    h1.low { margin-top: 80px; }
+    .rank-wrap { max-width: 1400px; margin: 27px auto; }
+    .note, .formula { margin: 27px 0; color: #ccc; font-size: 27px; line-height: 1.45; }
+    .formula { color: #8a8a8a; }
+    .table-scroll { overflow-x: auto; }
+    table.rank { width: 100%; border-collapse: collapse; margin-top: 27px; }
+    table.rank th, table.rank td { border-bottom: 1px solid #444; padding: 16px 12px; text-align: right; white-space: nowrap; }
+    table.rank td { font-size: 22px; }
+    table.rank th { color: #D8C0FF; font-size: 22px; }
+    table.rank td.code, table.rank th.code,
+    table.rank td.name, table.rank th.name,
+    table.rank td.flag, table.rank th.flag { text-align: left; }
+    table.rank td.code { color: gold; font-weight: 700; }
+    table.rank td.code a { color: #4da3ff; text-decoration: underline; }
+    table.rank td.gap-low { color: #f1948a; font-weight: 700; }
+    table.rank td.yes { color: #f7dc6f; font-weight: 700; }
+    table.rank td.no { color: #888; }
+    table.rank tr.buy { background: #143024; }
+    table.rank td.signal { color: #7dcea0; font-weight: 700; }
+    table.rank td.wait { color: #f5cba7; }
+  </style>
+</head>
+<body>
+  <p><a class="home" href="../index.html">← 주가 방향 날씨</a></p>
+  <h1>BNF 50일선 매수점. 미국·한국·일본 시가총액 상위 20종목입니다. 평일 미국장 마감 후 업데이트됩니다.</h1>
+  <section class="rank-wrap">
+    <p class="note">만화의 BNF는 25일선 괴리로 관찰했지만, 이 페이지는 요청대로 일봉 50일 단순이동평균 이격도만 봅니다. 매수 시그널은 아래 다섯 가지가 최신 일봉에서 동시에 맞을 때만 붙입니다. 매수 추천이 아닙니다. 파산 가능성, 실적, 경기사이클을 따로 보셔야 하니 참조만 하세요.</p>
+    <p class="formula">이격도 = (일봉 종가 ÷ 50일 단순이동평균 − 1) × 100. 종가는 수정주가입니다. 양봉과 저가 비교는 수정 전 시고저종입니다.</p>
+    <p class="formula">1) 이격도가 어제까지 3거래일 이상 연속으로 낮아졌고, 최근 10거래일 이격도 저점이 -10% 이하. 2) 오늘 이격도 ≥ 어제 이격도 (추락 정지). 3) 오늘 저가 ≥ 어제 저가 (하락 정지). 4) 오늘 또는 어제 거래량이 그 직전 20일 평균의 2배 이상 (거래량 폭증). 5) 오늘 종가 &gt; 시가이고, 어제는 양봉이 아님 (첫 양봉).</p>
+  </section>
+<!-- BNF_START -->
+<!-- BNF_END -->
+</body>
+</html>
+"""
+
+
+def yahoo_session():
+    session = requests.Session()
+    session.headers["User-Agent"] = "Mozilla/5.0"
+    session.get("https://fc.yahoo.com", timeout=20)
+    crumb = session.get("https://query1.finance.yahoo.com/v1/test/getcrumb", timeout=20).text.strip()
+    if not crumb or crumb.startswith("{") or crumb.startswith("<"):
+        raise RuntimeError("Yahoo crumb failed")
+    return session, crumb
+
+
+def screener_quotes(session, crumb, region):
+    payload = {
+        "size": CANDIDATES,
+        "offset": 0,
+        "sortField": "intradaymarketcap",
+        "sortType": "DESC",
+        "quoteType": "EQUITY",
+        "query": {
+            "operator": "AND",
+            "operands": [{"operator": "eq", "operands": ["region", region]}],
+        },
+    }
+    response = session.post(
+        SCREENER_URL,
+        params={"crumb": crumb, "lang": "en-US", "region": region.upper()},
+        json=payload,
+        timeout=30,
+    )
+    response.raise_for_status()
+    result = (response.json().get("finance") or {}).get("result") or []
+    if not result:
+        return []
+    rows = []
+    for quote in result[0].get("quotes") or []:
+        if quote.get("quoteType") != "EQUITY":
+            continue
+        symbol = quote.get("symbol") or ""
+        if not symbol or symbol.startswith("^"):
+            continue
+        rows.append(
+            {
+                "ticker": symbol,
+                "name": quote.get("shortName") or quote.get("longName") or symbol,
+                "currency": quote.get("currency") or "",
+                "market_cap": quote.get("marketCap"),
+                "exchange": quote.get("exchange") or "",
+                "source": f"Yahoo screener region={region}",
+            }
+        )
+    return rows
+
+
+def load_us(session, crumb):
+    return screener_quotes(session, crumb, "us")
+
+
+def load_japan_yahoo(session, crumb):
+    rows = [row for row in screener_quotes(session, crumb, "jp") if row["ticker"].endswith(".T")]
+    return rows
+
+
+def load_japan_tradingview():
+    payload = {
+        "filter": [{"left": "type", "operation": "equal", "right": "stock"}],
+        "options": {"lang": "en"},
+        "markets": ["japan"],
+        "symbols": {"query": {"types": []}, "tickers": []},
+        "columns": ["name", "market_cap_basic", "description", "currency", "exchange"],
+        "sort": {"sortBy": "market_cap_basic", "sortOrder": "desc"},
+        "range": [0, CANDIDATES],
+    }
+    response = requests.post(
+        TV_SCAN,
+        json=payload,
+        headers={**HEADERS, "Origin": "https://www.tradingview.com"},
+        timeout=30,
+    )
+    response.raise_for_status()
+    rows = []
+    for item in response.json().get("data") or []:
+        symbol = item.get("s") or ""
+        if ":" not in symbol:
+            continue
+        exchange, code = symbol.split(":", 1)
+        if not code.isdigit():
+            continue
+        fields = item.get("d") or []
+        name = fields[2] if len(fields) > 2 and fields[2] else (fields[0] if fields else code)
+        market_cap = fields[1] if len(fields) > 1 else None
+        currency = fields[3] if len(fields) > 3 and fields[3] else "JPY"
+        rows.append(
+            {
+                "ticker": f"{code}.T",
+                "name": name,
+                "currency": currency,
+                "market_cap": market_cap,
+                "exchange": exchange or "TSE",
+                "source": "TradingView Japan scanner (Yahoo jp screener had no .T names)",
+            }
+        )
+    return rows
+
+
+def load_japan(session, crumb):
+    try:
+        rows = load_japan_yahoo(session, crumb)
+    except (requests.RequestException, ValueError, KeyError, TypeError, IndexError) as error:
+        print(f"Japan Yahoo screener failed: {error}", flush=True)
+        rows = []
+    if len(rows) >= TOP_N:
+        return rows
+    print(f"Japan Yahoo screener returned {len(rows)} .T names; using TradingView scanner", flush=True)
+    fallback = load_japan_tradingview()
+    seen = {row["ticker"] for row in rows}
+    for row in fallback:
+        if row["ticker"] not in seen:
+            rows.append(row)
+            seen.add(row["ticker"])
+    return rows
+
+
+def load_korea():
+    response = requests.get(
+        KOSPI_URL,
+        params={"page": 1, "pageSize": 80},
+        headers={**HEADERS, "Referer": "https://m.stock.naver.com/"},
+        timeout=30,
+    )
+    response.raise_for_status()
+    rows = []
+    for item in response.json().get("stocks") or []:
+        if item.get("stockEndType") != "stock":
+            continue
+        code = item.get("itemCode") or ""
+        if not code.isdigit() or len(code) != 6 or not code.endswith("0"):
+            continue
+        market_cap = item.get("marketValueRaw")
+        if isinstance(market_cap, str):
+            digits = market_cap.replace(",", "").strip()
+            market_cap = float(digits) if digits.isdigit() else None
+        rows.append(
+            {
+                "ticker": f"{code}.KS",
+                "name": item.get("stockName") or code,
+                "currency": "KRW",
+                "market_cap": market_cap,
+                "exchange": "KRX",
+                "source": "Naver KOSPI market value",
+            }
+        )
+        if len(rows) >= CANDIDATES:
+            break
+    return rows
+
+
+def chart_url(row):
+    ticker = row["ticker"]
+    if ticker.endswith(".KS") or ticker.endswith(".KQ"):
+        symbol = "KRX:" + ticker.split(".")[0]
+    elif ticker.endswith(".T"):
+        symbol = "TSE:" + ticker.split(".")[0]
+    else:
+        exchange = TV_EXCHANGES.get(row.get("exchange") or "", "")
+        symbol = f"{exchange}:{ticker}" if exchange else ticker
+    return (
+        "https://www.tradingview.com/chart/?symbol="
+        + urllib.parse.quote(symbol, safe=":")
+        + "&interval=D"
+    )
+
+
+def daily_bars(ticker):
+    for attempt in range(3):
+        try:
+            response = requests.get(
+                CHART_URL.format(ticker=urllib.parse.quote(ticker, safe=".-")),
+                params={
+                    "interval": "1d",
+                    "range": "1y",
+                    "events": "div,splits",
+                    "includeAdjustedClose": "true",
+                },
+                headers=HEADERS,
+                timeout=30,
+            )
+            if response.status_code in (429, 500, 502, 503):
+                time.sleep(1.2 * (attempt + 1))
+                continue
+            response.raise_for_status()
+            result = (response.json().get("chart") or {}).get("result") or []
+            if not result:
+                return None
+            block = result[0]
+            stamps = block.get("timestamp") or []
+            quote = (block.get("indicators") or {}).get("quote") or [{}]
+            quote = quote[0] if quote else {}
+            adjusted = ((block.get("indicators") or {}).get("adjclose") or [{}])[0].get("adjclose")
+            opens = quote.get("open") or []
+            highs = quote.get("high") or []
+            lows = quote.get("low") or []
+            closes = quote.get("close") or []
+            volumes = quote.get("volume") or []
+            bars = []
+            for index, stamp in enumerate(stamps):
+                close = closes[index] if index < len(closes) else None
+                open_ = opens[index] if index < len(opens) else None
+                high = highs[index] if index < len(highs) else None
+                low = lows[index] if index < len(lows) else None
+                volume = volumes[index] if index < len(volumes) else None
+                adj = adjusted[index] if adjusted and index < len(adjusted) else None
+                if None in (close, open_, high, low, volume):
+                    continue
+                if close <= 0 or open_ <= 0 or high <= 0 or low <= 0:
+                    continue
+                price = adj if isinstance(adj, (int, float)) and adj > 0 else close
+                bars.append(
+                    {
+                        "date": datetime.fromtimestamp(stamp, timezone.utc).date().isoformat(),
+                        "open": float(open_),
+                        "high": float(high),
+                        "low": float(low),
+                        "close": float(close),
+                        "adj": float(price),
+                        "volume": float(volume),
+                    }
+                )
+            return bars or None
+        except (requests.RequestException, ValueError, KeyError, TypeError):
+            time.sleep(0.6 * (attempt + 1))
+    return None
+
+
+def disparity_series(bars):
+    values = []
+    for index in range(len(bars)):
+        if index + 1 < SMA:
+            values.append(None)
+            continue
+        window = [bar["adj"] for bar in bars[index + 1 - SMA : index + 1]]
+        average = sum(window) / SMA
+        if average <= 0:
+            values.append(None)
+            continue
+        values.append((bars[index]["adj"] / average - 1) * 100)
+    return values
+
+
+def decline_steps(values, end):
+    count = 0
+    index = end
+    while index > 0 and values[index] is not None and values[index - 1] is not None:
+        if values[index] < values[index - 1]:
+            count += 1
+            index -= 1
+            continue
+        break
+    return count
+
+
+def average_volume(bars, end, length):
+    window = bars[end - length : end]
+    if len(window) < length:
+        return None
+    return sum(bar["volume"] for bar in window) / length
+
+
+def evaluate(bars):
+    need = SMA + VOLUME_AVG + FALL_STEPS
+    if not bars or len(bars) < need:
+        return None
+    values = disparity_series(bars)
+    today = len(bars) - 1
+    yesterday = today - 1
+    if values[today] is None or values[yesterday] is None:
+        return None
+    trough_slice = [value for value in values[today + 1 - TROUGH_WINDOW : today + 1] if value is not None]
+    if len(trough_slice) < TROUGH_WINDOW:
+        return None
+    trough = min(trough_slice)
+    steps = decline_steps(values, yesterday)
+    falling = steps >= FALL_STEPS
+    deep = trough <= TROUGH_LIMIT
+    disparity_stop = values[today] >= values[yesterday]
+    price_stop = bars[today]["low"] >= bars[yesterday]["low"]
+    average_today = average_volume(bars, today, VOLUME_AVG)
+    average_yesterday = average_volume(bars, yesterday, VOLUME_AVG)
+    multiple_today = bars[today]["volume"] / average_today if average_today else 0
+    multiple_yesterday = bars[yesterday]["volume"] / average_yesterday if average_yesterday else 0
+    volume_multiple = max(multiple_today, multiple_yesterday)
+    volume_spike = volume_multiple >= VOLUME_MULT
+    bullish_today = bars[today]["close"] > bars[today]["open"]
+    bullish_yesterday = bars[yesterday]["close"] > bars[yesterday]["open"]
+    first_yang = bullish_today and not bullish_yesterday
+    signal = falling and deep and disparity_stop and price_stop and volume_spike and first_yang
+    sma = sum(bar["adj"] for bar in bars[today + 1 - SMA : today + 1]) / SMA
+    return {
+        "date": bars[today]["date"],
+        "price": bars[today]["adj"],
+        "sma": sma,
+        "disparity": values[today],
+        "trough": trough,
+        "fall_steps": steps,
+        "falling": falling and deep,
+        "disparity_stop": disparity_stop,
+        "price_stop": price_stop,
+        "volume_multiple": volume_multiple,
+        "volume_spike": volume_spike,
+        "first_yang": first_yang,
+        "signal": signal,
+    }
+
+
+def fmt_number(value, currency):
+    if currency in ("KRW", "JPY"):
+        return f"{value:,.0f}"
+    return f"{value:,.2f}"
+
+
+def fmt_market_cap(value, currency):
+    if not isinstance(value, (int, float)) or value <= 0:
+        return "-"
+    scaled = value / 1e12
+    unit = {"USD": "조달러", "KRW": "조원", "JPY": "조엔"}.get(currency, "조")
+    if scaled >= 1:
+        return f"{scaled:,.2f}{unit}"
+    return f"{value / 1e8:,.0f}{'억' + unit[1:] if unit.startswith('조') else unit}"
+
+
+def yn(flag):
+    return "예" if flag else "아니오"
+
+
+def score_row(seed, bars):
+    signal = evaluate(bars)
+    if not signal:
+        return None
+    row = dict(seed)
+    row.update(signal)
+    row["checks"] = sum(
+        1
+        for flag in (
+            signal["falling"],
+            signal["disparity_stop"],
+            signal["price_stop"],
+            signal["volume_spike"],
+            signal["first_yang"],
+        )
+        if flag
+    )
+    return row
+
+
+def company_key(name):
+    text = str(name).lower()
+    for token in (
+        " inc.",
+        " inc",
+        " corporation",
+        " corp.",
+        " corp",
+        " ltd.",
+        " ltd",
+        " plc",
+        " co.,",
+        " co.",
+        " new",
+        " class a",
+        " class b",
+        " class c",
+    ):
+        text = text.replace(token, " ")
+    return " ".join(text.split())
+
+
+def unique_companies(rows):
+    kept = []
+    seen = set()
+    for row in rows:
+        key = company_key(row["name"])
+        if key in seen:
+            continue
+        seen.add(key)
+        kept.append(row)
+    return kept
+
+
+def collect(seeds):
+    picked = []
+    pending = list(seeds)
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        future_map = {pool.submit(daily_bars, row["ticker"]): row for row in pending[:CANDIDATES]}
+        for future in as_completed(future_map):
+            seed = future_map[future]
+            bars = future.result()
+            row = score_row(seed, bars)
+            if row:
+                picked.append(row)
+    order = {row["ticker"]: index for index, row in enumerate(seeds)}
+    picked.sort(key=lambda row: order.get(row["ticker"], 999))
+    picked = picked[:TOP_N]
+    for index, row in enumerate(picked, start=1):
+        row["cap_rank"] = index
+    picked.sort(key=lambda row: (0 if row["signal"] else 1, row["cap_rank"]))
+    return picked
+
+
+def cell_flag(flag):
+    kind = "yes" if flag else "no"
+    return f'<td class="{kind}">{yn(flag)}</td>'
+
+
+def render_table(title, rows):
+    if not rows:
+        return f'<h1 class="low">{html.escape(title)}</h1><section class="rank-wrap"><p class="note">데이터를 가져오지 못했습니다.</p></section>'
+    source = rows[0].get("source") or ""
+    asof = max(row["date"] for row in rows)
+    signals = [row for row in rows if row["signal"]]
+    lines = [
+        f'<h1 class="low">{html.escape(title)}</h1>',
+        '<section class="rank-wrap">',
+        f'<p class="note">기준 일봉 {html.escape(asof)} · 시가총액 상위 {len(rows)}종목 · 매수 시그널 {len(signals)}종목. 출처: {html.escape(source)}. 매수 시그널이 위로 올라옵니다. 시그널이 없어도 조건표는 모두 보여 줍니다.</p>',
+        '<div class="table-scroll"><table class="rank">',
+        "<thead><tr>"
+        "<th>시총</th><th class=\"code\">코드</th><th class=\"name\">종목</th><th>시가총액</th>"
+        "<th>종가</th><th>50일선</th><th>이격도</th><th>10일 저점</th>"
+        "<th class=\"flag\">이격추락</th><th class=\"flag\">추락정지</th><th class=\"flag\">하락정지</th>"
+        "<th>거래량배수</th><th class=\"flag\">첫양봉</th><th class=\"flag\">판정</th>"
+        "</tr></thead><tbody>",
+    ]
+    for row in rows:
+        verdict = "매수 시그널" if row["signal"] else f"관찰 {row['checks']}/5"
+        verdict_class = "signal" if row["signal"] else "wait"
+        tr = ' class="buy"' if row["signal"] else ""
+        lines.append(
+            f"<tr{tr}>"
+            f"<td>{row['cap_rank']}</td>"
+            f'<td class="code"><a href="{html.escape(chart_url(row))}" target="_blank">{html.escape(row["ticker"].split(".")[0])}</a></td>'
+            f'<td class="name">{html.escape(str(row["name"]))}</td>'
+            f"<td>{html.escape(fmt_market_cap(row.get('market_cap'), row.get('currency') or ''))}</td>"
+            f"<td>{fmt_number(row['price'], row.get('currency') or '')}</td>"
+            f"<td>{fmt_number(row['sma'], row.get('currency') or '')}</td>"
+            f'<td class="gap-low">{row["disparity"]:.1f}%</td>'
+            f'<td class="gap-low">{row["trough"]:.1f}%</td>'
+            f'{cell_flag(row["falling"])}'
+            f'{cell_flag(row["disparity_stop"])}'
+            f'{cell_flag(row["price_stop"])}'
+            f"<td>{row['volume_multiple']:.1f}x</td>"
+            f'{cell_flag(row["first_yang"])}'
+            f'<td class="{verdict_class}">{verdict}</td>'
+            "</tr>"
+        )
+    lines.append("</tbody></table></div></section>")
+    return "\n".join(lines)
+
+
+def write_page(sections):
+    if PAGE.exists():
+        text = PAGE.read_text(encoding="utf-8")
+    else:
+        text = SHELL
+    start = text.find("<!-- BNF_START -->")
+    end = text.find("<!-- BNF_END -->")
+    block = "<!-- BNF_START -->\n" + "\n".join(sections) + "\n<!-- BNF_END -->"
+    if start == -1 or end == -1 or end < start:
+        text = SHELL
+        start = text.find("<!-- BNF_START -->")
+        end = text.find("<!-- BNF_END -->")
+    text = text[:start] + block + text[end + len("<!-- BNF_END -->") :]
+    PAGE.write_text(text, encoding="utf-8")
+
+
+def main():
+    session, crumb = yahoo_session()
+    markets = [
+        ("1. 미국 시가총액 상위 20종목", load_us(session, crumb)),
+        ("2. 한국 코스피 시가총액 상위 20종목", load_korea()),
+        ("3. 일본 시가총액 상위 20종목", load_japan(session, crumb)),
+    ]
+    sections = []
+    summary = []
+    for title, seeds in markets:
+        seeds = unique_companies(seeds)
+        print(f"{title}: candidates {len(seeds)}", flush=True)
+        rows = collect(seeds)
+        print(f"  kept {len(rows)} signals {sum(1 for row in rows if row['signal'])}", flush=True)
+        sections.append(render_table(title, rows))
+        summary.append(
+            {
+                "title": title,
+                "count": len(rows),
+                "source": rows[0]["source"] if rows else "",
+                "signals": [
+                    {"ticker": row["ticker"], "name": row["name"], "disparity": round(row["disparity"], 1)}
+                    for row in rows
+                    if row["signal"]
+                ],
+            }
+        )
+    write_page(sections)
+    print(json.dumps(summary, ensure_ascii=False, indent=2), flush=True)
+
+
+if __name__ == "__main__":
+    main()
