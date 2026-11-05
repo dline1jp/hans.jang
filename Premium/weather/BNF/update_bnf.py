@@ -11,6 +11,9 @@ Buy signal on the latest daily bar only when every rule below is true:
 5. First bullish candle: today close > open, and yesterday was not a
    bullish candle (close > open).
 
+A positive disparity means the close is above the 50-day SMA. Those
+names are out of scope (대상외) and never get a buy signal.
+
 Disparity = (close / 50-day SMA - 1) * 100, using adjusted closes.
 Candle color and the low comparison use unadjusted OHLC.
 
@@ -89,6 +92,7 @@ SHELL = """<!DOCTYPE html>
     table.rank tr.buy { background: #143024; }
     table.rank td.signal { color: #7dcea0; font-weight: 700; }
     table.rank td.wait { color: #f5cba7; }
+    table.rank td.out { color: #888; }
     @media (max-width: 860px) {
       body { padding: 8px 6px; }
       .note, .formula { font-size: 14px; }
@@ -141,7 +145,7 @@ SHELL = """<!DOCTYPE html>
   <p><a class="home" href="../index.html">← 주가 방향 날씨</a></p>
   <h1>BNF 50일선 매수점. 미국·한국·일본 시가총액 상위 20종목입니다. 평일 미국장 마감 후 업데이트됩니다.</h1>
   <section class="rank-wrap">
-    <p class="note">만화의 BNF는 25일선 괴리로 관찰했지만, 이 페이지는 요청대로 일봉 50일 단순이동평균 이격도만 봅니다. 매수 시그널은 아래 다섯 가지가 최신 일봉에서 동시에 맞을 때만 붙입니다. 매수 추천이 아닙니다. 파산 가능성, 실적, 경기사이클을 따로 보셔야 하니 참조만 하세요.</p>
+    <p class="note">만화의 BNF는 25일선 괴리로 관찰했지만, 이 페이지는 요청대로 일봉 50일 단순이동평균 이격도만 봅니다. 이격도가 플러스(종가가 50일선 위)이면 대상외입니다. 매수 시그널은 이격도가 0 이하이고 아래 다섯 가지가 최신 일봉에서 동시에 맞을 때만 붙입니다. 매수 추천이 아닙니다. 파산 가능성, 실적, 경기사이클을 따로 보셔야 하니 참조만 하세요.</p>
     <p class="formula">이격도 = (일봉 종가 ÷ 50일 단순이동평균 − 1) × 100. 종가는 수정주가입니다. 양봉과 저가 비교는 수정 전 시고저종입니다.</p>
     <p class="formula">1) 이격도가 어제까지 3거래일 이상 연속으로 낮아졌고, 최근 10거래일 이격도 저점이 -10% 이하. 2) 오늘 이격도 ≥ 어제 이격도 (추락 정지). 3) 오늘 저가 ≥ 어제 저가 (하락 정지). 4) 오늘 또는 어제 거래량이 그 직전 20일 평균의 2배 이상 (거래량 폭증). 5) 오늘 종가 &gt; 시가이고, 어제는 양봉이 아님 (첫 양봉).</p>
   </section>
@@ -445,7 +449,16 @@ def evaluate(bars):
     bullish_today = bars[today]["close"] > bars[today]["open"]
     bullish_yesterday = bars[yesterday]["close"] > bars[yesterday]["open"]
     first_yang = bullish_today and not bullish_yesterday
-    signal = falling and deep and disparity_stop and price_stop and volume_spike and first_yang
+    above_ma = values[today] > 0
+    signal = (
+        not above_ma
+        and falling
+        and deep
+        and disparity_stop
+        and price_stop
+        and volume_spike
+        and first_yang
+    )
     sma = sum(bar["adj"] for bar in bars[today + 1 - SMA : today + 1]) / SMA
     return {
         "date": bars[today]["date"],
@@ -460,6 +473,7 @@ def evaluate(bars):
         "volume_multiple": volume_multiple,
         "volume_spike": volume_spike,
         "first_yang": first_yang,
+        "above_ma": above_ma,
         "signal": signal,
     }
 
@@ -563,6 +577,14 @@ def cell_flag(flag, label):
     return f'<td class="{kind}" data-label="{label}">{yn(flag)}</td>'
 
 
+def verdict_of(row):
+    if row["disparity"] > 0:
+        return "대상외", "out"
+    if row["signal"]:
+        return "매수 시그널", "signal"
+    return f"관찰 {row['checks']}/5", "wait"
+
+
 def render_table(title, rows):
     if not rows:
         return f'<h1 class="low">{html.escape(title)}</h1><section class="rank-wrap"><p class="note">데이터를 가져오지 못했습니다.</p></section>'
@@ -591,8 +613,7 @@ def render_table(title, rows):
         "</tr></thead><tbody>",
     ]
     for row in rows:
-        verdict = "매수 시그널" if row["signal"] else f"관찰 {row['checks']}/5"
-        verdict_class = "signal" if row["signal"] else "wait"
+        verdict, verdict_class = verdict_of(row)
         tr = ' class="buy"' if row["signal"] else ""
         lines.append(
             f"<tr{tr}>"
@@ -665,4 +686,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
