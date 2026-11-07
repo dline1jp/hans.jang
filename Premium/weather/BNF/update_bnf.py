@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Refresh US, Korea, and Japan top-20 market-cap lists and BNF 50-day signals.
+"""Refresh US, Korea, and Japan top-20 market-cap lists and BNF 25-day signals.
 
 Buy signal on the latest daily bar only when every rule below is true:
-1. 50-day disparity fell for at least 3 consecutive sessions into yesterday,
+1. 25-day disparity fell for at least 3 consecutive sessions into yesterday,
    and the lowest disparity in the last 10 sessions is -10% or deeper.
 2. Disparity fall stopped: today's disparity >= yesterday's disparity.
 3. Price fall stopped: today's low does not break yesterday's low.
@@ -11,10 +11,10 @@ Buy signal on the latest daily bar only when every rule below is true:
 5. First bullish candle: today close > open, and yesterday was not a
    bullish candle (close > open).
 
-A positive disparity means the close is above the 50-day SMA. Those
+A positive disparity means the close is above the 25-day SMA. Those
 names are out of scope (대상외) and never get a buy signal.
 
-Disparity = (close / 50-day SMA - 1) * 100, using adjusted closes.
+Disparity = (close / 25-day SMA - 1) * 100, using adjusted closes.
 Candle color and the low comparison use unadjusted OHLC.
 
 Market-cap source: Yahoo screener (region us / jp), sorted by
@@ -40,7 +40,7 @@ HEADERS = {"User-Agent": "Mozilla/5.0"}
 PAGE = pathlib.Path(__file__).with_name("index.html")
 TOP_N = 20
 CANDIDATES = 30
-SMA = 50
+SMA = 25
 FALL_STEPS = 3
 TROUGH_WINDOW = 10
 TROUGH_LIMIT = -10.0
@@ -66,7 +66,7 @@ SHELL = """<!DOCTYPE html>
   <script src="/Premium/gate.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BNF 50일선 매수점</title>
+  <title>BNF 25일선 매수점</title>
   <style>
     html { overflow-x: hidden; }
     body { background: #111; color: white; font-family: Arial, sans-serif; margin: 0; padding: 12px 8px; overflow-x: hidden; }
@@ -90,9 +90,12 @@ SHELL = """<!DOCTYPE html>
     table.rank td.yes { color: #f7dc6f; font-weight: 700; }
     table.rank td.no { color: #888; }
     table.rank tr.buy { background: #143024; }
-    table.rank td.signal { color: #7dcea0; font-weight: 700; }
-    table.rank td.wait { color: #f5cba7; }
+    table.rank td.signal { color: #7dcea0; font-weight: 700; white-space: nowrap; letter-spacing: 1px; }
+    table.rank td.wait { color: #f7dc6f; white-space: nowrap; letter-spacing: 1px; }
     table.rank td.out { color: #888; }
+    table.rank .star-on { color: #f7dc6f; }
+    table.rank td.signal .star-on { color: #7dcea0; }
+    table.rank .star-off { color: #555; }
     @media (max-width: 860px) {
       body { padding: 8px 6px; }
       .note, .formula { font-size: 14px; }
@@ -143,10 +146,10 @@ SHELL = """<!DOCTYPE html>
 </head>
 <body>
   <p><a class="home" href="../index.html">← 주가 방향 날씨</a></p>
-  <h1>BNF 50일선 매수점. 미국·한국·일본 시가총액 상위 20종목입니다. 평일 미국장 마감 후 업데이트됩니다.</h1>
+  <h1>BNF 25일선 매수점. 미국·한국·일본 시가총액 상위 20종목입니다. 평일 미국장 마감 후 업데이트됩니다.</h1>
   <section class="rank-wrap">
-    <p class="note">만화의 BNF는 25일선 괴리로 관찰했지만, 이 페이지는 요청대로 일봉 50일 단순이동평균 이격도만 봅니다. 이격도가 플러스(종가가 50일선 위)이면 대상외입니다. 매수 시그널은 이격도가 0 이하이고 아래 다섯 가지가 최신 일봉에서 동시에 맞을 때만 붙입니다. 매수 추천이 아닙니다. 파산 가능성, 실적, 경기사이클을 따로 보셔야 하니 참조만 하세요.</p>
-    <p class="formula">이격도 = (일봉 종가 ÷ 50일 단순이동평균 − 1) × 100. 종가는 수정주가입니다. 양봉과 저가 비교는 수정 전 시고저종입니다.</p>
+    <p class="note">일봉 25일 단순이동평균 기준 이격도만 봅니다. 이격도가 플러스(종가가 25일선 위)이면 대상외입니다. 매수 시그널은 이격도가 0 이하이고 아래 다섯 가지가 최신 일봉에서 동시에 맞을 때만 붙입니다. 매수 추천이 아닙니다. 파산 가능성, 실적, 경기사이클을 따로 보셔야 하니 참조만 하세요.</p>
+    <p class="formula">이격도 = (일봉 종가 ÷ 25일 단순이동평균 − 1) × 100. 종가는 수정주가입니다. 양봉과 저가 비교는 수정 전 시고저종입니다.</p>
     <p class="formula">1) 이격도가 어제까지 3거래일 이상 연속으로 낮아졌고, 최근 10거래일 이격도 저점이 -10% 이하. 2) 오늘 이격도 ≥ 어제 이격도 (추락 정지). 3) 오늘 저가 ≥ 어제 저가 (하락 정지). 4) 오늘 또는 어제 거래량이 그 직전 20일 평균의 2배 이상 (거래량 폭증). 5) 오늘 종가 &gt; 시가이고, 어제는 양봉이 아님 (첫 양봉).</p>
   </section>
 <!-- BNF_START -->
@@ -577,12 +580,19 @@ def cell_flag(flag, label):
     return f'<td class="{kind}" data-label="{label}">{yn(flag)}</td>'
 
 
+def stars(count, total=5):
+    filled = "★" * count
+    empty = "☆" * (total - count)
+    return f'<span class="star-on">{filled}</span><span class="star-off">{empty}</span>'
+
+
 def verdict_of(row):
     if row["disparity"] > 0:
-        return "대상외", "out"
+        return "대상외", "out", "대상외"
     if row["signal"]:
-        return "매수 시그널", "signal"
-    return f"관찰 {row['checks']}/5", "wait"
+        return stars(5), "signal", "매수 시그널 5/5"
+    count = row["checks"]
+    return stars(count), "wait", f"관찰 {count}/5"
 
 
 def render_table(title, rows):
@@ -604,7 +614,7 @@ def render_table(title, rows):
         "</colgroup>",
         "<thead><tr>"
         '<th title="시가총액 순위">시총</th><th class="code">코드</th><th class="name">종목</th><th>시총액</th>'
-        '<th>종가</th><th title="50일 단순이동평균">50일</th><th title="50일선 이격도">이격</th><th title="최근 10거래일 이격도 저점">저점</th>'
+        f'<th>종가</th><th title="{SMA}일 단순이동평균">{SMA}일</th><th title="{SMA}일선 이격도">이격</th><th title="최근 10거래일 이격도 저점">저점</th>'
         '<th class="flag" title="이격도 3일 이상 연속 하락, 10일 저점 -10% 이하">추락</th>'
         '<th class="flag" title="오늘 이격도 ≥ 어제 이격도">정지</th>'
         '<th class="flag" title="오늘 저가 ≥ 어제 저가">하락</th>'
@@ -613,7 +623,7 @@ def render_table(title, rows):
         "</tr></thead><tbody>",
     ]
     for row in rows:
-        verdict, verdict_class = verdict_of(row)
+        verdict, verdict_class, verdict_title = verdict_of(row)
         tr = ' class="buy"' if row["signal"] else ""
         lines.append(
             f"<tr{tr}>"
@@ -622,7 +632,7 @@ def render_table(title, rows):
             f'<td class="name" data-label="종목">{html.escape(str(row["name"]))}</td>'
             f'<td data-label="시총액">{html.escape(fmt_market_cap(row.get("market_cap"), row.get("currency") or ""))}</td>'
             f'<td data-label="종가">{fmt_number(row["price"], row.get("currency") or "")}</td>'
-            f'<td data-label="50일">{fmt_number(row["sma"], row.get("currency") or "")}</td>'
+            f'<td data-label="{SMA}일">{fmt_number(row["sma"], row.get("currency") or "")}</td>'
             f'<td class="gap-low" data-label="이격">{row["disparity"]:.1f}%</td>'
             f'<td class="gap-low" data-label="저점">{row["trough"]:.1f}%</td>'
             f'{cell_flag(row["falling"], "추락")}'
@@ -630,7 +640,7 @@ def render_table(title, rows):
             f'{cell_flag(row["price_stop"], "하락")}'
             f'<td data-label="거래">{row["volume_multiple"]:.1f}x</td>'
             f'{cell_flag(row["first_yang"], "양봉")}'
-            f'<td class="{verdict_class}" data-label="판정">{verdict}</td>'
+            f'<td class="{verdict_class}" data-label="판정" title="{html.escape(verdict_title)}">{verdict}</td>'
             "</tr>"
         )
     lines.append("</tbody></table></div></section>")
