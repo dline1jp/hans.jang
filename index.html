@@ -18,81 +18,59 @@ h1 img { width: calc(100% + 60px); max-width: none; height: auto; display: block
 .card {
   background-color: #140c08;
   background-image:
-    repeating-linear-gradient(92deg, rgba(0,0,0,0.28) 0 1px, transparent 1px 7px),
-    linear-gradient(180deg, #3a2216 0%, #1c100c 46%, #0a0604 100%);
-  border: 3px solid #5c4030;
-  border-radius: 16px;
-  padding: 25px;
-  text-align: center;
-  color: #f6ead8;
-  min-height: 200px;
-  cursor: pointer;
-  box-shadow:
-    inset 0 2px 0 rgba(140,100,60,0.28),
-    inset 0 -8px 0 rgba(0,0,0,0.55),
-    0 8px 0 #070403,
-    0 16px 18px rgba(0,0,0,0.45);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
-}
-.card:hover {
-  background-image:
-    repeating-linear-gradient(92deg, rgba(0,0,0,0.22) 0 1px, transparent 1px 7px),
-    linear-gradient(180deg, #4a2c1c 0%, #26160f 46%, #120c08 100%);
-  border-color: #8a6844;
-  transform: translateY(-3px);
-  box-shadow:
-    inset 0 2px 0 rgba(160,120,70,0.32),
-    inset 0 -8px 0 rgba(0,0,0,0.5),
-    0 11px 0 #070403,
-    0 20px 22px rgba(0,0,0,0.5);
-}
-.menu-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  white-space: nowrap;
-  height: 88px;
-  padding: 0 22px;
-  border: 4px solid #5c4030;
-  border-radius: 12px;
-  background-color: #140c08;
-  background-image:
-    repeating-linear-gradient(92deg, rgba(0,0,0,0.28) 0 1px, transparent 1px 6px),
-    linear-gradient(180deg, #3c2418 0%, #1c100c 40%, #0a0604 100%);
-  color: #4da3ff;
-  text-decoration: underline;
-  font-size: 56px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow:
-    inset 0 3px 0 rgba(140,100,60,0.3),
-    inset 0 -6px 0 rgba(0,0,0,0.55),
-    0 9px 0 #070403,
-    0 16px 16px rgba(0,0,0,0.45);
-}
-.menu-btn:hover {
-  border-color: #c6a15a;
-  background-image:
-    repeating-linear-gradient(92deg, rgba(0,0,0,0.14) 0 1px, transparent 1px 6px),
-    linear-gradient(180deg, #6e4022 0%, #452414 40%, #22140c 100%);
-  transform: translateY(-2px);
-  box-shadow:
-    inset 0 3px 0 rgba(210,170,100,0.45),
-    inset 0 -6px 0 rgba(0,0,0,0.45),
-    0 11px 0 #120a06,
-    0 18px 18px rgba(20,8,4,0.5);
-}
+
+[65 lines collapsed]
+
 .menu-btn:active {
   transform: translateY(7px);
   box-shadow: inset 0 4px 8px rgba(0,0,0,0.55), 0 2px 0 #120a06;
 } </style> </head> <body>  <nav class="top-menu">
+}
+.cycle-now { max-width: 1400px; margin: -8px auto 36px; text-align: center; }
+.cycle-now h2 { margin: 0 0 14px; font-size: 34px; color: #1a6f8a; }
+.cycle-now h2 a { color: inherit; text-decoration: none; }
+.cycle-now-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.cycle-now a.cycle-card {
+  display: block;
+  background: #fffdf8;
+  border: 3px solid #c4b39a;
+  border-radius: 14px;
+  padding: 16px 12px 14px;
+  text-decoration: none;
+  box-shadow: 0 6px 0 #e4d8c4;
+}
+.cycle-now a.cycle-card:hover { border-color: #008C95; transform: translateY(-2px); }
+.cycle-now .name { display: block; font-size: 28px; font-weight: 700; color: #008C95; margin-bottom: 8px; }
+.cycle-now .state { display: block; font-size: 24px; font-weight: 700; line-height: 1.35; color: #2c2824; }
+.cycle-now .state.up { color: #1f6f4a; }
+.cycle-now .state.expand { color: #2457d6; }
+.cycle-now .state.slow { color: #8a5a28; }
+.cycle-now .state.down { color: #5c6570; }
+.cycle-now-asof { margin: 12px 0 0; color: #8a8178; font-size: 18px; }
+@media (max-width: 900px) {
+  .cycle-now-grid { grid-template-columns: 1fr 1fr; }
+  .cycle-now h2 { font-size: 28px; }
+  .cycle-now .name { font-size: 24px; }
+  .cycle-now .state { font-size: 20px; }
+}
+</style> </head> <body>  <nav class="top-menu">
 <a class="menu-btn" href="Premium/weather/index.html" target="_blank">주가 방향 날씨</a>
 <a class="menu-btn" href="Premium/cycle/index.html" target="_blank">경기사이클 날씨</a>
-
 </nav>
      
  <h1><img src="3.png" alt="한스장랩"></h1>  <div class="subtitle-ko"> 경기순환사이클 전문가 한스픽 지수지표모음</div> <div class="subtitle"> 네이버프리미엄 콘텐츠 버핏2배랩, 탠배거랩 구독자 전용 웹사이트입니다. 구독자가 아니신 분들의 열람을 금지합니다.</div>  <div class="grid">
+ <h1><img src="3.png" alt="한스장랩"></h1>  <div class="subtitle-ko"> 경기순환사이클 전문가 한스픽 지수지표모음</div>
+<section class="cycle-now" aria-label="현재 경기 상태">
+  <h2><a href="Premium/cycle/index.html" target="_blank">현재 경기 상태</a></h2>
+  <div class="cycle-now-grid" id="cycle-now">
+    <a class="cycle-card" href="Premium/cycle/index.html" target="_blank"><span class="name">G20</span><span class="state" data-area="G20">불러오는 중</span></a>
+    <a class="cycle-card" href="Premium/cycle/index.html" target="_blank"><span class="name">미국</span><span class="state" data-area="United States">불러오는 중</span></a>
+    <a class="cycle-card" href="Premium/cycle/index.html" target="_blank"><span class="name">한국</span><span class="state" data-area="Korea">불러오는 중</span></a>
+    <a class="cycle-card" href="Premium/cycle/index.html" target="_blank"><span class="name">중국</span><span class="state" data-area="China">불러오는 중</span></a>
+  </div>
+  <p class="cycle-now-asof" id="cycle-now-asof"></p>
+</section>
+<div class="subtitle"> 네이버프리미엄 콘텐츠 버핏2배랩, 탠배거랩 구독자 전용 웹사이트입니다. 구독자가 아니신 분들의 열람을 금지합니다.</div>  <div class="grid">
         
     
 <a href="https://fred.stlouisfed.org/series/PCU33443344" target="_blank"> <div class="card"> <img src="https://fred.stlouisfed.org/graph/fredgraph.png?width=1297&height=500&id=PCU33443344"
@@ -107,7 +85,6 @@ style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 
 style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 미국 M2 전년대비 </div> </div> </a>   
 <a href="https://fred.stlouisfed.org/graph/?g=1ZINd" target="_blank"> <div class="card"> <img src="https://fred.stlouisfed.org/graph/fredgraph.png?g=1ZINp&height=490"
 style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 미국 설비투자 전년대비 </div> </div> </a>   
-
 <a href="https://fred.stlouisfed.org/graph/?g=1ZINY" target="_blank"> <div class="card"> <img src="https://fred.stlouisfed.org/graph/fredgraph.png?g=1ZINY&height=490"
 style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 미국 비농업고용 전년대비 </div> </div> </a>   
 <a href="https://fred.stlouisfed.org/graph/?g=1ZIO2" target="_blank"> <div class="card"> <img src="https://fred.stlouisfed.org/graph/fredgraph.png?g=1ZIO2&height=490"
@@ -117,65 +94,48 @@ style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 
 <a href="https://fred.stlouisfed.org/graph/?g=203WS" target="_blank"> <div class="card"> <img src="https://fred.stlouisfed.org/graph/fredgraph.png?g=203WS&height=490"
 style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 미국 실질 소매판매 전년대비 </div> </div> </a>   
 
+[59 lines collapsed]
 
-<a href="https://www.tradingview.com/widgetembed/?symbol=FRED:DGS10&interval=W&style=1&theme=light&hideideas=1&studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A200%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D&studies_overrides=%7B%22moving%20average.ma.color%22%3A%22%23E53935%22%2C%22moving%20average.ma.linewidth%22%3A2%2C%22moving%20average.length%22%3A200%7D" target="_blank">  <div class="card">    <img loading="lazy" decoding="async" src="https://fred.stlouisfed.org/graph/fredgraph.png?width=1297&height=500&id=DGS10"
-style="width:100%; height:200px; object-fit:contain;">    <div class="card-title">미국 10년 국채금리 주봉 </div>  </div></a>     
-<a href="https://fred.stlouisfed.org/series/DFII10" target="_blank">  <div class="card">    <img loading="lazy" decoding="async" src="https://fred.stlouisfed.org/graph/fredgraph.png?width=1297&height=500&id=DFII10"
-style="width:100%; height:200px; object-fit:contain;">    <div class="card-title">미국실제10년국채금리-물가뺌 </div>  </div></a>     
-<a href="https://fred.stlouisfed.org/series/DTB6" target="_blank">  <div class="card">    <img loading="lazy" decoding="async" src="https://fred.stlouisfed.org/graph/fredgraph.png?width=1297&height=500&id=DTB6"
-style="width:100%; height:200px; object-fit:contain;">    <div class="card-title">미국 6개월 단기 국채 금리 </div>  </div></a>   
-<a href="https://www.tradingview.com/chart/?symbol=TVC:MOVE&interval=W" target="_blank">  <div class="card">    <img loading="lazy" decoding="async" src="https://scs-phinf.pstatic.net/MjAyNjAyMTRfMTU2/MDAxNzcxMDM2OTQ2MjUx.YC9OdCkEHFsEy8YPcaeuJC-hvZz-YDw-XdgRtGd7-cUg.v7PubOe8yx0j-L-qxIA9ZKTCF7mhpAEccSuHyj3ckUgg.PNG/image%7Cpremium%7Cchannel%7Cdline1secret%7C2026%7C02%7C14%7C1771036946212.png?type=nfs200_200"
-style="width:100%; height:200px; object-fit:contain;">    <div class="card-title">MOVE채권공포지수-옵션주봉 </div>  </div></a>   
-<a href="https://www.tradingview.com/widgetembed/?symbol=CAPITALCOM:DXY&interval=W&style=1&theme=light&hideideas=1&studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A200%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D&studies_overrides=%7B%22moving%20average.ma.color%22%3A%22%23E53935%22%2C%22moving%20average.ma.linewidth%22%3A2%2C%22moving%20average.length%22%3A200%7D" target="_blank">  <div class="card">    <img loading="lazy" decoding="async" src="https://fred.stlouisfed.org/graph/fredgraph.png?width=1297&height=500&id=DTWEXBGS"
-style="width:100%; height:200px; object-fit:contain;">    <div class="card-title">달러인덱스 주봉</div>  </div></a>    
-<a href="https://www.tradingview.com/widgetembed/?symbol=CAPITALCOM:VIX&interval=W&style=1&theme=light&hideideas=1&studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A200%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D&studies_overrides=%7B%22moving%20average.ma.color%22%3A%22%23E53935%22%2C%22moving%20average.ma.linewidth%22%3A2%2C%22moving%20average.length%22%3A200%7D" target="_blank">  <div class="card">    <img loading="lazy" decoding="async" src="https://fred.stlouisfed.org/graph/fredgraph.png?width=1297&height=500&id=VIXCLS"
-style="width:100%; height:200px; object-fit:contain;">    <div class="card-title"> VIX-주식 옵션변동성 주봉 </div>  </div></a>
-<a href="https://www.multpl.com/s-p-500-earnings/table/by-month" target="_blank"> <div class="card"> <img <img loading="lazy" decoding="async" fetchpriority="low" src="https://scs-phinf.pstatic.net/MjAyNjAyMTRfMTU2/MDAxNzcxMDM2OTQ2MjUx.YC9OdCkEHFsEy8YPcaeuJC-hvZz-YDw-XdgRtGd7-cUg.v7PubOe8yx0j-L-qxIA9ZKTCF7mhpAEccSuHyj3ckUgg.PNG/image%7Cpremium%7Cchannel%7Cdline1secret%7C2026%7C02%7C14%7C1771036946212.png?type=nfs200_200"
-style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> S&P500 어닝 - 매월 </div> </div> </a>   
-<a href="https://fred.stlouisfed.org/graph/?g=1ZIO2" target="_blank">  <div class="card">    <img loading="lazy" decoding="async" src="https://fred.stlouisfed.org/graph/fredgraph.png?g=1ZIO2&height=490"
-style="width:100%; height:200px; object-fit:contain;">    <div class="card-title"> 미국 산업 재고량 전년대비 </div>  </div></a>
-<a href="https://fred.stlouisfed.org/series/A191RO1Q156NBEA" target="_blank">  <div class="card">    <img loading="lazy" decoding="async" src="https://fred.stlouisfed.org/graph/fredgraph.png?width=1297&height=500&id=A191RO1Q156NBEA"
-style="width:100%; height:200px; object-fit:contain;">    <div class="card-title"> 미국 전년대비 GDP </div>  </div></a>
-<a href="https://www.multpl.com/shiller-pe" target="_blank">   <div class="card">     <img loading="lazy" decoding="async"  src="https://upload.wikimedia.org/wikipedia/commons/d/db/Shiller_Ratio_Jun2026.png"
-style="width:100%; height:200px; object-fit:contain;">     <div class="card-title">Shiller PER</div>   </div></a>
-<a href="https://fred.stlouisfed.org/series/M2V" target="_blank"> <div class="card"> <img loading="lazy" decoding="async" src="https://fred.stlouisfed.org/graph/fredgraph.png?width=1297&height=500&id=M2V"
-style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 미국 M2 유통속도 </div> </div> </a>  
-<a href="https://www.tradingview.com/widgetembed/?symbol=CAPITALCOM:USOIL&interval=W&style=1&theme=light&hideideas=1&studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A200%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D&studies_overrides=%7B%22moving%20average.ma.color%22%3A%22%23E53935%22%2C%22moving%20average.ma.linewidth%22%3A2%2C%22moving%20average.length%22%3A200%7D" target="_blank">  <div class="card">    <img loading="lazy" decoding="async" src="https://fred.stlouisfed.org/graph/fredgraph.png?width=1297&height=500&id=DCOILWTICO"
-style="width:100%; height:200px; object-fit:contain;">    <div class="card-title">Crude 유가 주봉</div>  </div></a>     
-<a href="https://fred.stlouisfed.org/series/UNRATE" target="_blank">  <div class="card">    <img loading="lazy" decoding="async" src="https://fred.stlouisfed.org/graph/fredgraph.png?width=1297&height=500&id=UNRATE"
-style="width:100%; height:200px; object-fit:contain;">    <div class="card-title">미국 실업률 </div>  </div></a>    
-<a href="https://fred.stlouisfed.org/graph/?g=1ZIOn" target="_blank">  <div class="card">    <img loading="lazy" decoding="async" src="https://fred.stlouisfed.org/graph/fredgraph.png?g=1ZIOn&height=490"
-style="width:100%; height:200px; object-fit:contain;">    <div class="card-title">미국 경기선행지수 전년대비 </div>  </div></a>    
-<a href="https://fred.stlouisfed.org/graph/?g=1ZIOD" target="_blank">  <div class="card">    <img loading="lazy" decoding="async" src="https://fred.stlouisfed.org/graph/fredgraph.png?g=1ZIOD&height=490"
-style="width:100%; height:200px; object-fit:contain;">    <div class="card-title"> G7 경기선행지수 전년대비 </div>  </div></a>   
-<a href="https://fred.stlouisfed.org/graph/?g=1ZIOI" target="_blank">  <div class="card">    <img loading="lazy" decoding="async" src="https://fred.stlouisfed.org/graph/fredgraph.png?g=1ZIOI&height=490"
-style="width:100%; height:200px; object-fit:contain;">    <div class="card-title"> 한국 경기선행지수 전년대비 </div>  </div></a>  
-<a href="https://fred.stlouisfed.org/series/MORTGAGE30US" target="_blank">  <div class="card">    <img loading="lazy" decoding="async" src="https://fred.stlouisfed.org/graph/fredgraph.png?width=1297&height=500&id=MORTGAGE30US"
-style="width:100%; height:200px; object-fit:contain;">    <div class="card-title">미국 30년 모기지 주택론 금리 </div>  </div></a>    
-<a href="https://fred.stlouisfed.org/series/RRPONTSYD" target="_blank">  <div class="card">    <img loading="lazy" decoding="async" src="https://fred.stlouisfed.org/graph/fredgraph.png?width=1297&height=500&id=RRPONTSYD"
-style="width:100%; height:200px; object-fit:contain;">    <div class="card-title">유동성흡수 역레포(RRP)잔액 </div>  </div></a> 
-<a href="https://fred.stlouisfed.org/series/WTREGEN" target="_blank">  <div class="card">    <img loading="lazy" decoding="async" src="https://fred.stlouisfed.org/graph/fredgraph.png?width=1297&height=500&id=WTREGEN"
-style="width:100%; height:200px; object-fit:contain;">    <div class="card-title">미국 재무부 일반계정(TGA) 잔액 </div>  </div></a>   
-<a href="https://fred.stlouisfed.org/series/EXPINF1YR" target="_blank">  <div class="card">    <img loading="lazy" decoding="async" src="https://fred.stlouisfed.org/graph/fredgraph.png?width=1297&height=500&id=EXPINF1YR"
-style="width:100%; height:200px; object-fit:contain;">    <div class="card-title">미국 1년후 기대 인플레이션 </div>  </div></a>   
-<a href="https://fred.stlouisfed.org/series/EXPINF5YR" target="_blank">  <div class="card">    <img loading="lazy" decoding="async" src="https://fred.stlouisfed.org/graph/fredgraph.png?width=1297&height=500&id=EXPINF5YR"
-style="width:100%; height:200px; object-fit:contain;">    <div class="card-title">미국 5년후 기대 인플레이션 </div>  </div></a>   
-        
-
-<a href="https://www.threads.com/@jang.hantt" target="_blank"> <div class="card"> <img loading="lazy" decoding="async" fetchpriority="low"
-src="https://scs-phinf.pstatic.net/MjAyNjAyMTRfMTU2/MDAxNzcxMDM2OTQ2MjUx.YC9OdCkEHFsEy8YPcaeuJC-hvZz-YDw-XdgRtGd7-cUg.v7PubOe8yx0j-L-qxIA9ZKTCF7mhpAEccSuHyj3ckUgg.PNG/image%7Cpremium%7Cchannel%7Cdline1secret%7C2026%7C02%7C14%7C1771036946212.png?type=nfs200_200"
-style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 한스 아이디어 </div> </div> </a>  
-<a href="https://contents.premium.naver.com/dline1secret/dline1secret2/contents/230103211039740yx" target="_blank"> <div class="card"> <img loading="lazy" decoding="async" fetchpriority="low"
-src="https://blogpfthumb-phinf.pstatic.net/MjAyNTA4MjdfMjc5/MDAxNzU2MjUzMTU2OTQ4.eU4oBoMVcFRM-aFqLDyN7gZABlEIeOKRpVhTzZeSNDMg.gBXhxBLyGLkK3bk4-pOeRgUVJXIERzubhTuiekvfQqcg.PNG/5.png/5.png?type=w161"
-style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 밸류 차트보는분 위기해결 </div> </div> </a>  
-<a href="https://contents.premium.naver.com/dline1secret/dline1secret2" target="_blank"> <div class="card"> <img loading="lazy" decoding="async" fetchpriority="low"
-src="https://scs-phinf.pstatic.net/MjAyMzExMjlfMzcg/MDAxNzAxMjUyOTU1MDQy.uj8M8mnUXcNcd-DYDcaEmOBxMkUftn72HUV_u1pVc2Ag.zxjh0N5asU8kRdUviZj8PsCBKn9uCrAxxMCH1967jrMg.JPEG/image%7Cpremium%7Cchannel%7Cdline1secret%7C2023%7C11%7C29%7C1701252955006.jpg?type=nfs200_200"
-style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 버핏2배랩 </div> </div> </a>   
-<a href="https://contents.premium.naver.com/dline1secret/dline1secret10" target="_blank"> <div class="card"> <img loading="lazy" decoding="async" fetchpriority="low"
-src="https://scs-phinf.pstatic.net/MjAyNjAyMTRfMTU2/MDAxNzcxMDM2OTQ2MjUx.YC9OdCkEHFsEy8YPcaeuJC-hvZz-YDw-XdgRtGd7-cUg.v7PubOe8yx0j-L-qxIA9ZKTCF7mhpAEccSuHyj3ckUgg.PNG/image%7Cpremium%7Cchannel%7Cdline1secret%7C2026%7C02%7C14%7C1771036946212.png?type=nfs200_200"
-style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 텐배거랩 </div> </div> </a>   
-<a href="https://search.shopping.naver.com/book/catalog/56154530707" target="_blank"> <div class="card"> <img loading="lazy" decoding="async" fetchpriority="low"
 src="https://shopping-phinf.pstatic.net/main_5615453/56154530707.20260331115031.jpg?type=w300"
 style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 버핏2배랩의 천장바닥 매매비법 </div> </div> </a>  
-
      </div> </body> </html>
+     </div>
+<script>
+(function () {
+  var SUPABASE_URL = "https://vlvblacfffkalojefjwp.supabase.co";
+  var SUPABASE_ANON_KEY = "sb_publishable_C4BZUGCN_QyMZkVe3PIysQ_ZkqosPCL";
+  var MONTH = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+  var NEXT = { "확장": "둔화", "둔화": "수축", "수축": "회복", "회복": "확장" };
+  var TONE = { "확장": "expand", "둔화": "slow", "수축": "down", "회복": "up" };
+  function parsePeriod(raw) {
+    var text = String(raw || "").trim();
+    var yearFirst = text.match(/^(\d{2,4})-([A-Za-z]{3})$/);
+    var monthFirst = text.match(/^([A-Za-z]{3})-(\d{2,4})$/);
+    var year, month;
+    if (yearFirst) {
+      year = Number(yearFirst[1]);
+      month = MONTH[yearFirst[2].toLowerCase()];
+    } else if (monthFirst) {
+      month = MONTH[monthFirst[1].toLowerCase()];
+      year = Number(monthFirst[2]);
+    }
+    if (!month) return null;
+    if (year < 100) year += 2000;
+    return { year: year, month: month, key: year * 100 + month };
+  }
+  function parseMom(raw) {
+    if (raw === null || raw === undefined || String(raw).trim() === "") return null;
+    var value = parseFloat(String(raw).replace("%", "").replace(/,/g, ""));
+    return isNaN(value) ? null : value;
+  }
+  function zoneName(obs, mom) {
+    if (obs >= 100 && mom >= 0) return "확장";
+    if (obs >= 100) return "둔화";
+    if (mom >= 0) return "회복";
+    return "수축";
+  }
+  function movingTowardNext(zone, prev, last) {
+    if (zone === "확장") return last.mom < prev.mom - 0.02 && last.mom < 0.12;
+    if (zone === "둔화") return last.obs < prev.obs - 0.02 && last.obs < 100.35;
+    if (zone === "수축") return last.mom > prev.mom + 0.02 && last.mom > -0.12;
+    return last.obs > prev.obs + 0.02 && last.obs > 99.65;
