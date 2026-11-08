@@ -109,6 +109,7 @@ SHELL = """<!DOCTYPE html>
     .rank-wrap { width: 100%; max-width: none; margin: 8px auto; }
     .note, .formula { margin: 8px 0; color: #ccc; font-size: clamp(13px, 1.15vw, 18px); line-height: 1.4; }
     .formula { color: #8a8a8a; }
+    .intro .note, .intro .formula { font-size: clamp(19.5px, 1.725vw, 27px); line-height: 1.5; }
     .table-scroll { overflow: visible; width: 100%; }
     table.rank { width: 100%; table-layout: fixed; border-collapse: collapse; margin-top: 8px; }
     table.rank th, table.rank td { border-bottom: 1px solid #444; padding: 5px 2px; text-align: center; white-space: normal; word-break: break-word; overflow-wrap: anywhere; vertical-align: middle; line-height: 1.2; }
@@ -131,6 +132,7 @@ SHELL = """<!DOCTYPE html>
     @media (max-width: 860px) {
       body { padding: 8px 6px; }
       .note, .formula { font-size: 14px; }
+      .intro .note, .intro .formula { font-size: 21px; }
       table.rank { table-layout: auto; }
       table.rank colgroup { display: none; }
       table.rank thead { display: none; }
@@ -206,12 +208,6 @@ SHELL = """<!DOCTYPE html>
     <img src="Designer (2).png" alt="차트 4">
   </div>
   <h1>BNF 25일선 매수점. 미국·한국·일본 시가총액 상위 20종목입니다. 평일 미국장 마감 후 업데이트됩니다.</h1>
-  <section class="rank-wrap">
-    <p class="note">일봉 25일 단순이동평균 기준 이격도만 봅니다. 이격도가 플러스(종가가 25일선 위)이면 대상외입니다. 매수 시그널은 이격도가 0 이하이고 아래 다섯 가지가 최신 일봉에서 동시에 맞을 때만 붙입니다. 매수 추천이 아닙니다. 파산 가능성, 실적, 경기사이클을 따로 보셔야 하니 참조만 하세요.</p>
-    <p class="formula">이격도 = (일봉 종가 ÷ 25일 단순이동평균 − 1) × 100. 종가는 수정주가입니다. 양봉과 저가 비교는 수정 전 시고저종입니다.</p>
-    <p class="formula">1)추락: 최근 10거래일 이격도가 계단식으로 3단계 이상 하락하고, 각 하락폭은 직전 하락보다 작다. 그 사이 반등은 있어도 된다. 최근 10거래일 이격도 저점이 -20% 이하. 2) 정지: 오늘 이격도 ≥ 어제 이격도 (추락 정지). 3) 하락: 오늘 저가 ≥ 어제 저가 (하락 정지). 4) 거래: 오늘 또는 어제 거래량이 그 직전 20일 평균의 2배 이상 (거래량 폭증). 5) 양봉: 오늘 종가 &gt; 시가이고, 어제는 양봉이 아님 (첫 양봉) 판정: 별5개가 만점 매수 시그널이나 별3개, 4개때부터 관찰이 필요함. 여기에 매일 시세가 업데이트됨.</p>
-    <p class="formula">종목 코드를 누르면 일봉 차트에 25일 단순이동평균, 50일 단순이동평균, RSI 14가 함께 열립니다.</p>
-  </section>
 <!-- BNF_START -->
 <!-- BNF_END -->
 </body>
@@ -770,6 +766,17 @@ def star_count(row):
     return row["checks"]
 
 
+def render_intro():
+    return """<section class="rank-wrap">
+<div class="intro">
+<p class="note">일봉 25일 단순이동평균 기준 이격도만 봅니다. 이격도가 플러스(종가가 25일선 위)이면 대상외입니다. 매수 시그널은 이격도가 0 이하이고 아래 다섯 가지가 최신 일봉에서 동시에 맞을 때만 붙입니다. 매수 추천이 아닙니다. 파산 가능성, 실적, 경기사이클을 따로 보셔야 하니 참조만 하세요.</p>
+<p class="formula">이격도 = (일봉 종가 ÷ 25일 단순이동평균 − 1) × 100. 종가는 수정주가입니다. 양봉과 저가 비교는 수정 전 시고저종입니다.</p>
+<p class="formula">1)추락: 최근 10거래일 이격도가 계단식으로 3단계 이상 하락하고, 각 하락폭은 직전 하락보다 작다. 그 사이 반등은 있어도 된다. 최근 10거래일 이격도 저점이 -20% 이하. 2) 정지: 오늘 이격도 ≥ 어제 이격도 (추락 정지). 3) 하락: 오늘 저가 ≥ 어제 저가 (하락 정지). 4) 거래: 오늘 또는 어제 거래량이 그 직전 20일 평균의 2배 이상 (거래량 폭증). 5) 양봉: 오늘 종가 &gt; 시가이고, 어제는 양봉이 아님 (첫 양봉) 판정: 별5개가 만점 매수 시그널이나 별3개, 4개때부터 관찰이 필요함. 여기에 매일 시세가 업데이트됨.</p>
+<p class="formula">종목 코드를 누르면 일봉 차트에 25일 단순이동평균, 50일 단순이동평균, RSI 14가 함께 열립니다.</p>
+</div>
+</section>"""
+
+
 def render_summary(rows):
     ranked = []
     for row in rows:
@@ -782,7 +789,7 @@ def render_summary(rows):
     ranked.sort(key=lambda row: (-row["star_count"], row["disparity"], row.get("group") or "", row["cap_rank"]))
     ranked = ranked[:10]
     lines = [
-        '<h1 class="low"> 결론: 별 많은 10종목 랭킹 </h1>',
+        '<h1 class="low">별이 많은 10종목</h1>',
         '<section class="rank-wrap">',
         '<p class="note">미국·한국·일본·주요 목록에서 대상외를 빼고, 별이 많은 순입니다. 별이 같으면 이격도가 더 낮은 종목이 위입니다.</p>',
         '<div class="table-scroll"><table class="rank top">',
@@ -861,6 +868,7 @@ def main():
             }
         )
     sections.insert(0, render_summary(ranked))
+    sections.insert(1, render_intro())
     write_page(sections)
     print(json.dumps(summary, ensure_ascii=False, indent=2), flush=True)
 
