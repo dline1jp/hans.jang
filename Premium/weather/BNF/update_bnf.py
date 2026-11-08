@@ -61,6 +61,22 @@ TROUGH_WINDOW = 10
 TROUGH_LIMIT = -20.0
 VOLUME_AVG = 20
 VOLUME_MULT = 2.0
+WATCH = [
+    ("QQQ", "QQQ", "Invesco QQQ", "USD", "NASDAQ:QQQ"),
+    ("SPY", "SPY", "SPDR S&P 500", "USD", "AMEX:SPY"),
+    ("VOO", "VOO", "Vanguard S&P 500", "USD", "AMEX:VOO"),
+    ("^SOX", "SOX", "필라델피아 반도체", "USD", "NASDAQ:SOX"),
+    ("SMH", "SMH", "VanEck 반도체", "USD", "NASDAQ:SMH"),
+    ("SLV", "SLV", "iShares 은", "USD", "AMEX:SLV"),
+    ("GLD", "GLD", "SPDR 금", "USD", "AMEX:GLD"),
+    ("SCHD", "SCHD", "Schwab 미국배당", "USD", "AMEX:SCHD"),
+    ("069500.KS", "069500", "KODEX 200", "KRW", "KRX:069500"),
+    ("102110.KS", "102110", "TIGER 200", "KRW", "KRX:102110"),
+    ("EWY", "EWY", "iShares 한국", "USD", "AMEX:EWY"),
+    ("FLKR", "FLKR", "Franklin 한국", "USD", "AMEX:FLKR"),
+    ("BTC-USD", "BTC-USD", "비트코인", "USD", "BITSTAMP:BTCUSD"),
+    ("ETH-USD", "ETH-USD", "이더리움", "USD", "BITSTAMP:ETHUSD"),
+]
 TV_EXCHANGES = {
     "NMS": "NASDAQ",
     "NGM": "NASDAQ",
@@ -111,6 +127,7 @@ SHELL = """<!DOCTYPE html>
     table.rank .star-on { color: #f7dc6f; }
     table.rank td.signal .star-on { color: #7dcea0; }
     table.rank .star-off { color: #555; }
+    table.rank.top td:nth-child(6) { white-space: nowrap; }
     @media (max-width: 860px) {
       body { padding: 8px 6px; }
       .note, .formula { font-size: 14px; }
@@ -156,6 +173,12 @@ SHELL = """<!DOCTYPE html>
         font-size: 12px;
         font-weight: 700;
       }
+      table.rank.top td:nth-child(3) { order: 2; width: auto; flex: none; justify-content: flex-start; text-align: right; white-space: nowrap; }
+      table.rank.top td:nth-child(4) { order: 4; width: 100%; flex: none; justify-content: flex-start; text-align: left; white-space: normal; }
+      table.rank.top td:nth-child(5) { order: 5; }
+      table.rank.top td:nth-child(5)::before { content: attr(data-label); color: #D8C0FF; font-size: 12px; font-weight: 700; }
+      table.rank.top td:nth-child(6) { order: 3; width: auto; margin-left: auto; justify-content: flex-end; font-size: 13px; }
+      table.rank.top td:nth-child(6)::before { content: none; }
     }
   </style>
 </head>
@@ -317,6 +340,42 @@ def load_japan(session, crumb):
     return rows
 
 
+def load_watch():
+    rows = []
+    for ticker, label, name, currency, tv in WATCH:
+        rows.append(
+            {
+                "ticker": ticker,
+                "label": label,
+                "name": name,
+                "currency": currency,
+                "market_cap": market_cap_of(ticker),
+                "exchange": "",
+                "tv": tv,
+                "source": "고정 목록",
+            }
+        )
+    return rows
+
+
+def market_cap_of(ticker):
+    try:
+        response = requests.get(
+            CHART_URL.format(ticker=urllib.parse.quote(ticker, safe=".-")),
+            params={"interval": "1d", "range": "5d"},
+            headers=HEADERS,
+            timeout=20,
+        )
+        response.raise_for_status()
+        result = (response.json().get("chart") or {}).get("result") or []
+        if not result:
+            return None
+        value = (result[0].get("meta") or {}).get("marketCap")
+        return value if isinstance(value, (int, float)) and value > 0 else None
+    except (requests.RequestException, ValueError, KeyError, TypeError):
+        return None
+
+
 def load_korea():
     response = requests.get(
         KOSPI_URL,
@@ -353,7 +412,9 @@ def load_korea():
 
 def chart_url(row):
     ticker = row["ticker"]
-    if ticker.endswith(".KS") or ticker.endswith(".KQ"):
+    if row.get("tv"):
+        symbol = row["tv"]
+    elif ticker.endswith(".KS") or ticker.endswith(".KQ"):
         symbol = "KRX:" + ticker.split(".")[0]
     elif ticker.endswith(".T"):
         symbol = "TSE:" + ticker.split(".")[0]
@@ -648,16 +709,17 @@ def verdict_of(row):
     return stars(count), "wait", f"관찰 {count}/5"
 
 
-def render_table(title, rows):
+def render_table(title, rows, lead=None):
     if not rows:
         return f'<h1 class="low">{html.escape(title)}</h1><section class="rank-wrap"><p class="note">데이터를 가져오지 못했습니다.</p></section>'
     source = rows[0].get("source") or ""
     asof = max(row["date"] for row in rows)
     signals = [row for row in rows if row["signal"]]
+    blurb = lead or f"시가총액 상위 {len(rows)}종목"
     lines = [
         f'<h1 class="low">{html.escape(title)}</h1>',
         '<section class="rank-wrap">',
-        f'<p class="note">기준 일봉 {html.escape(asof)} · 시가총액 상위 {len(rows)}종목 · 매수 시그널 {len(signals)}종목. 출처: {html.escape(source)}. 매수 시그널이 위로 올라옵니다. 시그널이 없어도 조건표는 모두 보여 줍니다.</p>',
+        f'<p class="note">기준 일봉 {html.escape(asof)} · {html.escape(blurb)} · 매수 시그널 {len(signals)}종목. 출처: {html.escape(source)}. 매수 시그널이 위로 올라옵니다. 시그널이 없어도 조건표는 모두 보여 줍니다.</p>',
         '<div class="table-scroll"><table class="rank">',
         "<colgroup>"
         '<col style="width:4%"><col style="width:7%"><col style="width:14%"><col style="width:8%">'
@@ -681,7 +743,7 @@ def render_table(title, rows):
         lines.append(
             f"<tr{tr}>"
             f'<td data-label="시총">{row["cap_rank"]}</td>'
-            f'<td class="code" data-label="코드"><a href="{html.escape(chart_url(row))}" target="_blank">{html.escape(row["ticker"].split(".")[0])}</a></td>'
+            f'<td class="code" data-label="코드"><a href="{html.escape(chart_url(row))}" target="_blank">{html.escape(row.get("label") or row["ticker"].split(".")[0])}</a></td>'
             f'<td class="name" data-label="종목">{html.escape(str(row["name"]))}</td>'
             f'<td data-label="시총액">{html.escape(fmt_market_cap(row.get("market_cap"), row.get("currency") or ""))}</td>'
             f'<td data-label="종가">{fmt_number(row["price"], row.get("currency") or "")}</td>'
@@ -693,6 +755,56 @@ def render_table(title, rows):
             f'{cell_flag(row["price_stop"], "하락")}'
             f'<td data-label="거래">{row["volume_multiple"]:.1f}x</td>'
             f'{cell_flag(row["first_yang"], "양봉")}'
+            f'<td class="{verdict_class}" data-label="판정" title="{html.escape(verdict_title)}">{verdict}</td>'
+            "</tr>"
+        )
+    lines.append("</tbody></table></div></section>")
+    return "\n".join(lines)
+
+
+def star_count(row):
+    if row["disparity"] > 0:
+        return None
+    if row["signal"]:
+        return 5
+    return row["checks"]
+
+
+def render_summary(rows):
+    ranked = []
+    for row in rows:
+        count = star_count(row)
+        if count is None:
+            continue
+        item = dict(row)
+        item["star_count"] = count
+        ranked.append(item)
+    ranked.sort(key=lambda row: (-row["star_count"], row["disparity"], row.get("group") or "", row["cap_rank"]))
+    ranked = ranked[:10]
+    lines = [
+        '<h1 class="low">별이 많은 10종목</h1>',
+        '<section class="rank-wrap">',
+        '<p class="note">미국·한국·일본·주요 목록에서 대상외를 빼고, 별이 많은 순입니다. 별이 같으면 이격도가 더 낮은 종목이 위입니다.</p>',
+        '<div class="table-scroll"><table class="rank top">',
+        '<colgroup><col style="width:8%"><col style="width:10%"><col style="width:14%"><col style="width:34%"><col style="width:12%"><col style="width:22%"></colgroup>',
+        "<thead><tr>"
+        "<th>순위</th><th>시장</th><th class=\"code\">코드</th><th class=\"name\">종목</th>"
+        '<th title="25일선 이격도">이격</th><th>판정</th>'
+        "</tr></thead><tbody>",
+    ]
+    if not ranked:
+        lines.append('<tr><td colspan="6">별이 있는 종목이 없습니다.</td></tr>')
+    for index, row in enumerate(ranked, start=1):
+        verdict, verdict_class, verdict_title = verdict_of(row)
+        tr = ' class="buy"' if row["signal"] else ""
+        label = row.get("label") or row["ticker"].split(".")[0]
+        lines.append(
+            f"<tr{tr}>"
+            f'<td data-label="순위">{index}</td>'
+            f'<td data-label="시장">{html.escape(row.get("group") or "")}</td>'
+            f'<td class="code" data-label="코드"><a href="{html.escape(chart_url(row))}" target="_blank">{html.escape(label)}</a></td>'
+            f'<td class="name" data-label="종목">{html.escape(str(row["name"]))}</td>'
+            f'<td class="gap-low" data-label="이격">{row["disparity"]:.1f}%</td>'
             f'<td class="{verdict_class}" data-label="판정" title="{html.escape(verdict_title)}">{verdict}</td>'
             "</tr>"
         )
@@ -719,18 +831,23 @@ def write_page(sections):
 def main():
     session, crumb = yahoo_session()
     markets = [
-        ("1. 미국 시가총액 상위 20종목", load_us(session, crumb)),
-        ("2. 한국 코스피 시가총액 상위 20종목", load_korea()),
-        ("3. 일본 시가총액 상위 20종목", load_japan(session, crumb)),
+        ("1. 미국 시가총액 상위 20종목", "미국", load_us(session, crumb), None),
+        ("2. 한국 코스피 시가총액 상위 20종목", "한국", load_korea(), None),
+        ("3. 일본 시가총액 상위 20종목", "일본", load_japan(session, crumb), None),
+        ("4. 주요 ETF·지수 14종목", "주요", load_watch(), "목록 순서 14종목"),
     ]
     sections = []
+    ranked = []
     summary = []
-    for title, seeds in markets:
+    for title, group, seeds, lead in markets:
         seeds = unique_companies(seeds)
+        for seed in seeds:
+            seed["group"] = group
         print(f"{title}: candidates {len(seeds)}", flush=True)
         rows = collect(seeds)
         print(f"  kept {len(rows)} signals {sum(1 for row in rows if row['signal'])}", flush=True)
-        sections.append(render_table(title, rows))
+        sections.append(render_table(title, rows, lead))
+        ranked.extend(rows)
         summary.append(
             {
                 "title": title,
@@ -743,6 +860,7 @@ def main():
                 ],
             }
         )
+    sections.insert(0, render_summary(ranked))
     write_page(sections)
     print(json.dumps(summary, ensure_ascii=False, indent=2), flush=True)
 
