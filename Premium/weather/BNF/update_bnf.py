@@ -789,7 +789,7 @@ def render_summary(rows):
     ranked.sort(key=lambda row: (-row["star_count"], row["disparity"], row.get("group") or "", row["cap_rank"]))
     ranked = ranked[:10]
     lines = [
-        '<h1 class="low">별이 많은 10종목</h1>',
+        '<h1 class="low">별이 많은순 10종목 랭킹 </h1>',
         '<section class="rank-wrap">',
         '<p class="note">미국·한국·일본·주요 목록에서 대상외를 빼고, 별이 많은 순입니다. 별이 같으면 이격도가 더 낮은 종목이 위입니다.</p>',
         '<div class="table-scroll"><table class="rank top">',
