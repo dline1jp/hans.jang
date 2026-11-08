@@ -1,66 +1,4 @@
-# -*- coding: utf-8 -*-
-"""Refresh US, Korea, and Japan top-20 market-cap lists and BNF 25-day signals.
-
-Buy signal on the latest daily bar only when every rule below is true:
-1. 25-day disparity fell for at least 3 consecutive sessions into yesterday,
-   and the lowest disparity in the last 10 sessions is -10% or deeper.
-2. Disparity fall stopped: today's disparity >= yesterday's disparity.
-3. Price fall stopped: today's low does not break yesterday's low.
-4. Volume spike: today's volume, or yesterday's volume, is at least 2x
-   the average of the prior 20 sessions (the 20 days before that bar).
-5. First bullish candle: today close > open, and yesterday was not a
-   bullish candle (close > open).
-
-A positive disparity means the close is above the 25-day SMA. Those
-names are out of scope (대상외) and never get a buy signal.
-
-Disparity = (close / 25-day SMA - 1) * 100, using adjusted closes.
-Candle color and the low comparison use unadjusted OHLC.
-
-Market-cap source: Yahoo screener (region us / jp), sorted by
-intraday market cap. If the Japan screener returns no .T names, fall
-back to the public TradingView Japan scanner. Korea uses the Naver
-KOSPI market-value list, same endpoint as update_rank.py.
-"""
-import html
-import json
-import pathlib
-import time
-import urllib.parse
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timezone
-
-import requests
-
-CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
-SCREENER_URL = "https://query1.finance.yahoo.com/v1/finance/screener"
-KOSPI_URL = "https://m.stock.naver.com/api/stocks/marketValue/KOSPI"
-TV_SCAN = "https://scanner.tradingview.com/japan/scan"
-HEADERS = {"User-Agent": "Mozilla/5.0"}
-PAGE = pathlib.Path(__file__).with_name("index.html")
-TOP_N = 20
-CANDIDATES = 30
-SMA = 25
-FALL_STEPS = 3
-TROUGH_WINDOW = 10
-TROUGH_LIMIT = -10.0
-VOLUME_AVG = 20
-VOLUME_MULT = 2.0
-TV_EXCHANGES = {
-    "NMS": "NASDAQ",
-    "NGM": "NASDAQ",
-    "NCM": "NASDAQ",
-    "NYQ": "NYSE",
-    "NYS": "NYSE",
-    "ASE": "AMEX",
-    "PCX": "AMEX",
-    "BTS": "AMEX",
-    "JPX": "TSE",
-    "TKS": "TSE",
-    "TYO": "TSE",
-}
-
-SHELL = """<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
   <script src="/Premium/gate.js"></script>
@@ -146,553 +84,165 @@ SHELL = """<!DOCTYPE html>
 </head>
 <body>
   <p><a class="home" href="../index.html">← 주가 방향 날씨</a></p>
+   <div class="BNF">
+    <img src="Designer (2).png" alt="차트 4">  
+  </div>
   <h1>BNF 25일선 매수점. 미국·한국·일본 시가총액 상위 20종목입니다. 평일 미국장 마감 후 업데이트됩니다.</h1>
   <section class="rank-wrap">
     <p class="note">일봉 25일 단순이동평균 기준 이격도만 봅니다. 이격도가 플러스(종가가 25일선 위)이면 대상외입니다. 매수 시그널은 이격도가 0 이하이고 아래 다섯 가지가 최신 일봉에서 동시에 맞을 때만 붙입니다. 매수 추천이 아닙니다. 파산 가능성, 실적, 경기사이클을 따로 보셔야 하니 참조만 하세요.</p>
     <p class="formula">이격도 = (일봉 종가 ÷ 25일 단순이동평균 − 1) × 100. 종가는 수정주가입니다. 양봉과 저가 비교는 수정 전 시고저종입니다.</p>
     <p class="formula">1) 이격도가 어제까지 3거래일 이상 연속으로 낮아졌고, 최근 10거래일 이격도 저점이 -10% 이하. 2) 오늘 이격도 ≥ 어제 이격도 (추락 정지). 3) 오늘 저가 ≥ 어제 저가 (하락 정지). 4) 오늘 또는 어제 거래량이 그 직전 20일 평균의 2배 이상 (거래량 폭증). 5) 오늘 종가 &gt; 시가이고, 어제는 양봉이 아님 (첫 양봉).</p>
+    <p class="formula">종목 코드를 누르면 일봉 차트에 25일 단순이동평균, 50일 단순이동평균, RSI 14가 함께 열립니다.</p>
   </section>
 <!-- BNF_START -->
+<h1 class="low">1. 미국 시가총액 상위 20종목</h1>
+<section class="rank-wrap">
+<p class="note">기준 일봉 2026-11-06 · 시가총액 상위 20종목 · 매수 시그널 0종목. 출처: Yahoo screener region=us. 매수 시그널이 위로 올라옵니다. 시그널이 없어도 조건표는 모두 보여 줍니다.</p>
+<div class="table-scroll"><table class="rank">
+<colgroup><col style="width:4%"><col style="width:7%"><col style="width:14%"><col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:6%"><col style="width:6%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:6%"><col style="width:5%"><col style="width:13%"></colgroup>
+<thead><tr><th title="시가총액 순위">시총</th><th class="code">코드</th><th class="name">종목</th><th>시총액</th><th>종가</th><th title="25일 단순이동평균">25일</th><th title="25일선 이격도">이격</th><th title="최근 10거래일 이격도 저점">저점</th><th class="flag" title="이격도 3일 이상 연속 하락, 10일 저점 -10% 이하">추락</th><th class="flag" title="오늘 이격도 ≥ 어제 이격도">정지</th><th class="flag" title="오늘 저가 ≥ 어제 저가">하락</th><th title="거래량이 20일 평균의 몇 배인지">거래</th><th class="flag" title="오늘 첫 양봉">양봉</th><th class="flag">판정</th></tr></thead><tbody>
+<tr><td data-label="시총">1</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NASDAQ%3AAAPL&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">AAPL</a></td><td class="name" data-label="종목">Apple Inc.</td><td data-label="시총액">4.98조달러</td><td data-label="종가">342.37</td><td data-label="25일">341.92</td><td class="gap-low" data-label="이격">0.1%</td><td class="gap-low" data-label="저점">-2.5%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.6x</td><td class="yes" data-label="양봉">예</td><td class="out" data-label="판정" title="대상외">대상외</td></tr>
+<tr><td data-label="시총">2</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NASDAQ%3ANVDA&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">NVDA</a></td><td class="name" data-label="종목">NVIDIA Corporation</td><td data-label="시총액">4.51조달러</td><td data-label="종가">186.64</td><td data-label="25일">216.25</td><td class="gap-low" data-label="이격">-13.7%</td><td class="gap-low" data-label="저점">-16.8%</td><td class="no" data-label="추락">아니오</td><td class="yes" data-label="정지">예</td><td class="yes" data-label="하락">예</td><td data-label="거래">3.0x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 3/5"><span class="star-on">★★★</span><span class="star-off">☆☆</span></td></tr>
+<tr><td data-label="시총">3</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NASDAQ%3AMSFT&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">MSFT</a></td><td class="name" data-label="종목">Microsoft Corporation</td><td data-label="시총액">3.94조달러</td><td data-label="종가">530.61</td><td data-label="25일">530.80</td><td class="gap-low" data-label="이격">-0.0%</td><td class="gap-low" data-label="저점">-3.8%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.8x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 1/5"><span class="star-on">★</span><span class="star-off">☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">4</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NASDAQ%3AGOOGL&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">GOOGL</a></td><td class="name" data-label="종목">Alphabet Inc.</td><td data-label="시총액">3.50조달러</td><td data-label="종가">284.78</td><td data-label="25일">323.74</td><td class="gap-low" data-label="이격">-12.0%</td><td class="gap-low" data-label="저점">-16.6%</td><td class="no" data-label="추락">아니오</td><td class="yes" data-label="정지">예</td><td class="yes" data-label="하락">예</td><td data-label="거래">1.5x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 2/5"><span class="star-on">★★</span><span class="star-off">☆☆☆</span></td></tr>
+<tr><td data-label="시총">5</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NASDAQ%3AAMZN&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">AMZN</a></td><td class="name" data-label="종목">Amazon.com, Inc.</td><td data-label="시총액">2.80조달러</td><td data-label="종가">259.30</td><td data-label="25일">254.79</td><td class="gap-low" data-label="이격">1.8%</td><td class="gap-low" data-label="저점">-5.1%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="yes" data-label="하락">예</td><td data-label="거래">1.9x</td><td class="no" data-label="양봉">아니오</td><td class="out" data-label="판정" title="대상외">대상외</td></tr>
+<tr><td data-label="시총">6</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NYSE%3ATSM&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">TSM</a></td><td class="name" data-label="종목">Taiwan Semiconductor Manufactur</td><td data-label="시총액">1.95조달러</td><td data-label="종가">375.44</td><td data-label="25일">427.22</td><td class="gap-low" data-label="이격">-12.1%</td><td class="gap-low" data-label="저점">-18.1%</td><td class="no" data-label="추락">아니오</td><td class="yes" data-label="정지">예</td><td class="yes" data-label="하락">예</td><td data-label="거래">3.4x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 3/5"><span class="star-on">★★★</span><span class="star-off">☆☆</span></td></tr>
+<tr><td data-label="시총">7</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NASDAQ%3ASPCX&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">SPCX</a></td><td class="name" data-label="종목">Space Exploration Technologies </td><td data-label="시총액">1.82조달러</td><td data-label="종가">134.27</td><td data-label="25일">149.55</td><td class="gap-low" data-label="이격">-10.2%</td><td class="gap-low" data-label="저점">-17.9%</td><td class="no" data-label="추락">아니오</td><td class="yes" data-label="정지">예</td><td class="yes" data-label="하락">예</td><td data-label="거래">1.7x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 3/5"><span class="star-on">★★★</span><span class="star-off">☆☆</span></td></tr>
+<tr><td data-label="시총">8</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NASDAQ%3AMETA&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">META</a></td><td class="name" data-label="종목">Meta Platforms, Inc.</td><td data-label="시총액">1.56조달러</td><td data-label="종가">610.15</td><td data-label="25일">675.80</td><td class="gap-low" data-label="이격">-9.7%</td><td class="gap-low" data-label="저점">-13.7%</td><td class="no" data-label="추락">아니오</td><td class="yes" data-label="정지">예</td><td class="yes" data-label="하락">예</td><td data-label="거래">1.2x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 3/5"><span class="star-on">★★★</span><span class="star-off">☆☆</span></td></tr>
+<tr><td data-label="시총">9</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NASDAQ%3ATSLA&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">TSLA</a></td><td class="name" data-label="종목">Tesla, Inc.</td><td data-label="시총액">1.42조달러</td><td data-label="종가">358.22</td><td data-label="25일">380.13</td><td class="gap-low" data-label="이격">-5.8%</td><td class="gap-low" data-label="저점">-9.7%</td><td class="no" data-label="추락">아니오</td><td class="yes" data-label="정지">예</td><td class="yes" data-label="하락">예</td><td data-label="거래">2.1x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 4/5"><span class="star-on">★★★★</span><span class="star-off">☆</span></td></tr>
+<tr><td data-label="시총">10</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NASDAQ%3AAVGO&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">AVGO</a></td><td class="name" data-label="종목">Broadcom Inc.</td><td data-label="시총액">1.40조달러</td><td data-label="종가">293.69</td><td data-label="25일">339.16</td><td class="gap-low" data-label="이격">-13.4%</td><td class="gap-low" data-label="저점">-14.7%</td><td class="no" data-label="추락">아니오</td><td class="yes" data-label="정지">예</td><td class="no" data-label="하락">아니오</td><td data-label="거래">2.5x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 2/5"><span class="star-on">★★</span><span class="star-off">☆☆☆</span></td></tr>
+<tr><td data-label="시총">11</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NYSE%3ABRK-A&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">BRK-A</a></td><td class="name" data-label="종목">Berkshire Hathaway Inc.</td><td data-label="시총액">1.22조달러</td><td data-label="종가">856,612.00</td><td data-label="25일">805,393.92</td><td class="gap-low" data-label="이격">6.4%</td><td class="gap-low" data-label="저점">3.8%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">2.7x</td><td class="yes" data-label="양봉">예</td><td class="out" data-label="판정" title="대상외">대상외</td></tr>
+<tr><td data-label="시총">12</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NYSE%3ALLY&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">LLY</a></td><td class="name" data-label="종목">Eli Lilly and Company</td><td data-label="시총액">1.21조달러</td><td data-label="종가">1,354.00</td><td data-label="25일">1,275.09</td><td class="gap-low" data-label="이격">6.2%</td><td class="gap-low" data-label="저점">6.2%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.8x</td><td class="yes" data-label="양봉">예</td><td class="out" data-label="판정" title="대상외">대상외</td></tr>
+<tr><td data-label="시총">13</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NASDAQ%3AWMT&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">WMT</a></td><td class="name" data-label="종목">Walmart Inc.</td><td data-label="시총액">9,989억달러</td><td data-label="종가">125.52</td><td data-label="25일">118.16</td><td class="gap-low" data-label="이격">6.2%</td><td class="gap-low" data-label="저점">5.4%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">2.0x</td><td class="yes" data-label="양봉">예</td><td class="out" data-label="판정" title="대상외">대상외</td></tr>
+<tr><td data-label="시총">14</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NASDAQ%3ASKHY&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">SKHY</a></td><td class="name" data-label="종목">SK hynix Inc.</td><td data-label="시총액">8,980억달러</td><td data-label="종가">127.34</td><td data-label="25일">151.85</td><td class="gap-low" data-label="이격">-16.1%</td><td class="gap-low" data-label="저점">-19.8%</td><td class="no" data-label="추락">아니오</td><td class="yes" data-label="정지">예</td><td class="yes" data-label="하락">예</td><td data-label="거래">2.3x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 3/5"><span class="star-on">★★★</span><span class="star-off">☆☆</span></td></tr>
+<tr><td data-label="시총">15</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NYSE%3AJPM&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">JPM</a></td><td class="name" data-label="종목">JP Morgan Chase &amp; Co.</td><td data-label="시총액">8,883억달러</td><td data-label="종가">334.49</td><td data-label="25일">335.86</td><td class="gap-low" data-label="이격">-0.4%</td><td class="gap-low" data-label="저점">-0.4%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.8x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 1/5"><span class="star-on">★</span><span class="star-off">☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">16</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NYSE%3AV&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">V</a></td><td class="name" data-label="종목">Visa Inc.</td><td data-label="시총액">7,899억달러</td><td data-label="종가">422.65</td><td data-label="25일">402.01</td><td class="gap-low" data-label="이격">5.1%</td><td class="gap-low" data-label="저점">3.8%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">2.2x</td><td class="yes" data-label="양봉">예</td><td class="out" data-label="판정" title="대상외">대상외</td></tr>
+<tr><td data-label="시총">17</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NASDAQ%3AMU&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">MU</a></td><td class="name" data-label="종목">Micron Technology, Inc.</td><td data-label="시총액">7,807억달러</td><td data-label="종가">690.00</td><td data-label="25일">913.65</td><td class="gap-low" data-label="이격">-24.5%</td><td class="gap-low" data-label="저점">-29.3%</td><td class="no" data-label="추락">아니오</td><td class="yes" data-label="정지">예</td><td class="yes" data-label="하락">예</td><td data-label="거래">2.9x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 3/5"><span class="star-on">★★★</span><span class="star-off">☆☆</span></td></tr>
+<tr><td data-label="시총">18</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NASDAQ%3AAMD&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">AMD</a></td><td class="name" data-label="종목">Advanced Micro Devices, Inc.</td><td data-label="시총액">7,365억달러</td><td data-label="종가">449.04</td><td data-label="25일">548.07</td><td class="gap-low" data-label="이격">-18.1%</td><td class="gap-low" data-label="저점">-27.2%</td><td class="no" data-label="추락">아니오</td><td class="yes" data-label="정지">예</td><td class="yes" data-label="하락">예</td><td data-label="거래">3.0x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 4/5"><span class="star-on">★★★★</span><span class="star-off">☆</span></td></tr>
+<tr><td data-label="시총">19</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NYSE%3AXOM&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">XOM</a></td><td class="name" data-label="종목">ExxonMobil Holdings Corporation</td><td data-label="시총액">6,766억달러</td><td data-label="종가">165.87</td><td data-label="25일">175.08</td><td class="gap-low" data-label="이격">-5.3%</td><td class="gap-low" data-label="저점">-5.5%</td><td class="no" data-label="추락">아니오</td><td class="yes" data-label="정지">예</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.4x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 2/5"><span class="star-on">★★</span><span class="star-off">☆☆☆</span></td></tr>
+<tr><td data-label="시총">20</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=NYSE%3AJNJ&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">JNJ</a></td><td class="name" data-label="종목">Johnson &amp; Johnson</td><td data-label="시총액">6,649억달러</td><td data-label="종가">276.22</td><td data-label="25일">263.10</td><td class="gap-low" data-label="이격">5.0%</td><td class="gap-low" data-label="저점">1.9%</td><td class="no" data-label="추락">아니오</td><td class="yes" data-label="정지">예</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.2x</td><td class="yes" data-label="양봉">예</td><td class="out" data-label="판정" title="대상외">대상외</td></tr>
+</tbody></table></div></section>
+<h1 class="low">2. 한국 코스피 시가총액 상위 20종목</h1>
+<section class="rank-wrap">
+<p class="note">기준 일봉 2026-11-06 · 시가총액 상위 20종목 · 매수 시그널 0종목. 출처: Naver KOSPI market value. 매수 시그널이 위로 올라옵니다. 시그널이 없어도 조건표는 모두 보여 줍니다.</p>
+<div class="table-scroll"><table class="rank">
+<colgroup><col style="width:4%"><col style="width:7%"><col style="width:14%"><col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:6%"><col style="width:6%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:6%"><col style="width:5%"><col style="width:13%"></colgroup>
+<thead><tr><th title="시가총액 순위">시총</th><th class="code">코드</th><th class="name">종목</th><th>시총액</th><th>종가</th><th title="25일 단순이동평균">25일</th><th title="25일선 이격도">이격</th><th title="최근 10거래일 이격도 저점">저점</th><th class="flag" title="이격도 3일 이상 연속 하락, 10일 저점 -10% 이하">추락</th><th class="flag" title="오늘 이격도 ≥ 어제 이격도">정지</th><th class="flag" title="오늘 저가 ≥ 어제 저가">하락</th><th title="거래량이 20일 평균의 몇 배인지">거래</th><th class="flag" title="오늘 첫 양봉">양봉</th><th class="flag">판정</th></tr></thead><tbody>
+<tr><td data-label="시총">1</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A005930&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">005930</a></td><td class="name" data-label="종목">삼성전자</td><td data-label="시총액">1,131.25조원</td><td data-label="종가">188,700</td><td data-label="25일">230,728</td><td class="gap-low" data-label="이격">-18.2%</td><td class="gap-low" data-label="저점">-18.2%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.9x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 1/5"><span class="star-on">★</span><span class="star-off">☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">2</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A000660&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">000660</a></td><td class="name" data-label="종목">SK하이닉스</td><td data-label="시총액">859.06조원</td><td data-label="종가">1,132,000</td><td data-label="25일">1,434,200</td><td class="gap-low" data-label="이격">-21.1%</td><td class="gap-low" data-label="저점">-21.1%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">2.1x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 2/5"><span class="star-on">★★</span><span class="star-off">☆☆☆</span></td></tr>
+<tr><td data-label="시총">3</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A402340&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">402340</a></td><td class="name" data-label="종목">SK스퀘어</td><td data-label="시총액">99.21조원</td><td data-label="종가">724,000</td><td data-label="25일">895,400</td><td class="gap-low" data-label="이격">-19.1%</td><td class="gap-low" data-label="저점">-21.3%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.2x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 1/5"><span class="star-on">★</span><span class="star-off">☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">4</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A373220&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">373220</a></td><td class="name" data-label="종목">LG에너지솔루션</td><td data-label="시총액">79.09조원</td><td data-label="종가">337,500</td><td data-label="25일">382,980</td><td class="gap-low" data-label="이격">-11.9%</td><td class="gap-low" data-label="저점">-12.1%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">0.9x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 1/5"><span class="star-on">★</span><span class="star-off">☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">5</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A207940&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">207940</a></td><td class="name" data-label="종목">삼성바이오로직스</td><td data-label="시총액">69.81조원</td><td data-label="종가">1,516,000</td><td data-label="25일">1,369,255</td><td class="gap-low" data-label="이격">10.7%</td><td class="gap-low" data-label="저점">1.6%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.2x</td><td class="yes" data-label="양봉">예</td><td class="out" data-label="판정" title="대상외">대상외</td></tr>
+<tr><td data-label="시총">6</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A009150&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">009150</a></td><td class="name" data-label="종목">삼성전기</td><td data-label="시총액">66.78조원</td><td data-label="종가">870,000</td><td data-label="25일">1,265,720</td><td class="gap-low" data-label="이격">-31.3%</td><td class="gap-low" data-label="저점">-31.3%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">2.0x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 1/5"><span class="star-on">★</span><span class="star-off">☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">7</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A005380&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">005380</a></td><td class="name" data-label="종목">현대차</td><td data-label="시총액">57.17조원</td><td data-label="종가">279,500</td><td data-label="25일">306,900</td><td class="gap-low" data-label="이격">-8.9%</td><td class="gap-low" data-label="저점">-13.3%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.8x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 1/5"><span class="star-on">★</span><span class="star-off">☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">8</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A105560&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">105560</a></td><td class="name" data-label="종목">KB금융</td><td data-label="시총액">53.98조원</td><td data-label="종가">151,000</td><td data-label="25일">158,140</td><td class="gap-low" data-label="이격">-4.5%</td><td class="gap-low" data-label="저점">-11.3%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.8x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 0/5"><span class="star-on"></span><span class="star-off">☆☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">9</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A068270&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">068270</a></td><td class="name" data-label="종목">셀트리온</td><td data-label="시총액">48.39조원</td><td data-label="종가">211,000</td><td data-label="25일">190,672</td><td class="gap-low" data-label="이격">10.7%</td><td class="gap-low" data-label="저점">1.5%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">3.7x</td><td class="no" data-label="양봉">아니오</td><td class="out" data-label="판정" title="대상외">대상외</td></tr>
+<tr><td data-label="시총">10</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A032830&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">032830</a></td><td class="name" data-label="종목">삼성생명</td><td data-label="시총액">47.20조원</td><td data-label="종가">234,500</td><td data-label="25일">258,300</td><td class="gap-low" data-label="이격">-9.2%</td><td class="gap-low" data-label="저점">-9.2%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.3x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 1/5"><span class="star-on">★</span><span class="star-off">☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">11</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A028260&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">028260</a></td><td class="name" data-label="종목">삼성물산</td><td data-label="시총액">44.84조원</td><td data-label="종가">273,500</td><td data-label="25일">305,080</td><td class="gap-low" data-label="이격">-10.4%</td><td class="gap-low" data-label="저점">-10.4%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.5x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 1/5"><span class="star-on">★</span><span class="star-off">☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">12</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A055550&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">055550</a></td><td class="name" data-label="종목">신한지주</td><td data-label="시총액">40.89조원</td><td data-label="종가">86,700</td><td data-label="25일">92,348</td><td class="gap-low" data-label="이격">-6.1%</td><td class="gap-low" data-label="저점">-15.8%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.1x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 0/5"><span class="star-on"></span><span class="star-off">☆☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">13</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A000270&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">000270</a></td><td class="name" data-label="종목">기아</td><td data-label="시총액">39.16조원</td><td data-label="종가">100,300</td><td data-label="25일">106,540</td><td class="gap-low" data-label="이격">-5.9%</td><td class="gap-low" data-label="저점">-13.2%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.6x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 0/5"><span class="star-on"></span><span class="star-off">☆☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">14</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A006400&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">006400</a></td><td class="name" data-label="종목">삼성SDI</td><td data-label="시총액">38.24조원</td><td data-label="종가">468,000</td><td data-label="25일">535,740</td><td class="gap-low" data-label="이격">-12.6%</td><td class="gap-low" data-label="저점">-12.6%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.4x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 0/5"><span class="star-on"></span><span class="star-off">☆☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">15</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A012450&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">012450</a></td><td class="name" data-label="종목">한화에어로스페이스</td><td data-label="시총액">33.98조원</td><td data-label="종가">660,000</td><td data-label="25일">827,760</td><td class="gap-low" data-label="이격">-20.3%</td><td class="gap-low" data-label="저점">-21.9%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.1x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 1/5"><span class="star-on">★</span><span class="star-off">☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">16</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A034730&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">034730</a></td><td class="name" data-label="종목">SK</td><td data-label="시총액">33.13조원</td><td data-label="종가">445,000</td><td data-label="25일">505,020</td><td class="gap-low" data-label="이격">-11.9%</td><td class="gap-low" data-label="저점">-12.1%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">0.9x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 1/5"><span class="star-on">★</span><span class="star-off">☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">17</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A086790&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">086790</a></td><td class="name" data-label="종목">하나금융지주</td><td data-label="시총액">32.06조원</td><td data-label="종가">118,300</td><td data-label="25일">120,049</td><td class="gap-low" data-label="이격">-1.5%</td><td class="gap-low" data-label="저점">-11.7%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.2x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 0/5"><span class="star-on"></span><span class="star-off">☆☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">18</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A012330&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">012330</a></td><td class="name" data-label="종목">현대모비스</td><td data-label="시총액">31.75조원</td><td data-label="종가">349,000</td><td data-label="25일">352,820</td><td class="gap-low" data-label="이격">-1.1%</td><td class="gap-low" data-label="저점">-9.9%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.7x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 1/5"><span class="star-on">★</span><span class="star-off">☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">19</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A034020&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">034020</a></td><td class="name" data-label="종목">두산에너빌리티</td><td data-label="시총액">28.92조원</td><td data-label="종가">44,700</td><td data-label="25일">64,004</td><td class="gap-low" data-label="이격">-30.2%</td><td class="gap-low" data-label="저점">-30.2%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.7x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 0/5"><span class="star-on"></span><span class="star-off">☆☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">20</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=KRX%3A035420&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">035420</a></td><td class="name" data-label="종목">NAVER</td><td data-label="시총액">28.69조원</td><td data-label="종가">190,200</td><td data-label="25일">179,728</td><td class="gap-low" data-label="이격">5.8%</td><td class="gap-low" data-label="저점">-7.0%</td><td class="no" data-label="추락">아니오</td><td class="yes" data-label="정지">예</td><td class="no" data-label="하락">아니오</td><td data-label="거래">3.0x</td><td class="no" data-label="양봉">아니오</td><td class="out" data-label="판정" title="대상외">대상외</td></tr>
+</tbody></table></div></section>
+<h1 class="low">3. 일본 시가총액 상위 20종목</h1>
+<section class="rank-wrap">
+<p class="note">기준 일봉 2026-11-06 · 시가총액 상위 20종목 · 매수 시그널 0종목. 출처: Yahoo screener region=jp. 매수 시그널이 위로 올라옵니다. 시그널이 없어도 조건표는 모두 보여 줍니다.</p>
+<div class="table-scroll"><table class="rank">
+<colgroup><col style="width:4%"><col style="width:7%"><col style="width:14%"><col style="width:8%"><col style="width:8%"><col style="width:8%"><col style="width:6%"><col style="width:6%"><col style="width:5%"><col style="width:5%"><col style="width:5%"><col style="width:6%"><col style="width:5%"><col style="width:13%"></colgroup>
+<thead><tr><th title="시가총액 순위">시총</th><th class="code">코드</th><th class="name">종목</th><th>시총액</th><th>종가</th><th title="25일 단순이동평균">25일</th><th title="25일선 이격도">이격</th><th title="최근 10거래일 이격도 저점">저점</th><th class="flag" title="이격도 3일 이상 연속 하락, 10일 저점 -10% 이하">추락</th><th class="flag" title="오늘 이격도 ≥ 어제 이격도">정지</th><th class="flag" title="오늘 저가 ≥ 어제 저가">하락</th><th title="거래량이 20일 평균의 몇 배인지">거래</th><th class="flag" title="오늘 첫 양봉">양봉</th><th class="flag">판정</th></tr></thead><tbody>
+<tr><td data-label="시총">1</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A7203&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">7203</a></td><td class="name" data-label="종목">TOYOTA MOTOR CORP</td><td data-label="시총액">39.32조엔</td><td data-label="종가">3,338</td><td data-label="25일">3,052</td><td class="gap-low" data-label="이격">9.4%</td><td class="gap-low" data-label="저점">0.6%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="yes" data-label="하락">예</td><td data-label="거래">4.8x</td><td class="no" data-label="양봉">아니오</td><td class="out" data-label="판정" title="대상외">대상외</td></tr>
+<tr><td data-label="시총">2</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A8306&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">8306</a></td><td class="name" data-label="종목">MITSUBISHI UFJ FINANCIAL GROUP </td><td data-label="시총액">36.29조엔</td><td data-label="종가">3,224</td><td data-label="25일">3,449</td><td class="gap-low" data-label="이격">-6.5%</td><td class="gap-low" data-label="저점">-6.8%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.7x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 0/5"><span class="star-on"></span><span class="star-off">☆☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">3</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A6758&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">6758</a></td><td class="name" data-label="종목">SONY GROUP CORPORATION</td><td data-label="시총액">24.19조엔</td><td data-label="종가">4,142</td><td data-label="25일">3,931</td><td class="gap-low" data-label="이격">5.4%</td><td class="gap-low" data-label="저점">0.9%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">2.7x</td><td class="no" data-label="양봉">아니오</td><td class="out" data-label="판정" title="대상외">대상외</td></tr>
+<tr><td data-label="시총">4</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A9983&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">9983</a></td><td class="name" data-label="종목">FAST RETAILING CO LTD</td><td data-label="시총액">23.92조엔</td><td data-label="종가">77,950</td><td data-label="25일">74,995</td><td class="gap-low" data-label="이격">3.9%</td><td class="gap-low" data-label="저점">0.7%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">2.7x</td><td class="no" data-label="양봉">아니오</td><td class="out" data-label="판정" title="대상외">대상외</td></tr>
+<tr><td data-label="시총">5</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A6098&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">6098</a></td><td class="name" data-label="종목">RECRUIT HOLDINGS CO LTD</td><td data-label="시총액">23.61조엔</td><td data-label="종가">17,000</td><td data-label="25일">18,079</td><td class="gap-low" data-label="이격">-6.0%</td><td class="gap-low" data-label="저점">-6.0%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">2.1x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 1/5"><span class="star-on">★</span><span class="star-off">☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">6</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A8316&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">8316</a></td><td class="name" data-label="종목">SUMITOMO MITSUI FINANCIAL GROUP</td><td data-label="시총액">22.64조엔</td><td data-label="종가">3,008</td><td data-label="25일">3,237</td><td class="gap-low" data-label="이격">-7.1%</td><td class="gap-low" data-label="저점">-7.1%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.6x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 1/5"><span class="star-on">★</span><span class="star-off">☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">7</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A6501&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">6501</a></td><td class="name" data-label="종목">HITACHI</td><td data-label="시총액">20.24조엔</td><td data-label="종가">4,542</td><td data-label="25일">5,484</td><td class="gap-low" data-label="이격">-17.2%</td><td class="gap-low" data-label="저점">-17.2%</td><td class="yes" data-label="추락">예</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.5x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 2/5"><span class="star-on">★★</span><span class="star-off">☆☆☆</span></td></tr>
+<tr><td data-label="시총">8</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A6857&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">6857</a></td><td class="name" data-label="종목">ADVANTEST CORP</td><td data-label="시총액">20.23조엔</td><td data-label="종가">28,015</td><td data-label="25일">35,957</td><td class="gap-low" data-label="이격">-22.1%</td><td class="gap-low" data-label="저점">-22.1%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">2.2x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 2/5"><span class="star-on">★★</span><span class="star-off">☆☆☆</span></td></tr>
+<tr><td data-label="시총">9</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A9984&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">9984</a></td><td class="name" data-label="종목">SOFTBANK GROUP CORP</td><td data-label="시총액">20.23조엔</td><td data-label="종가">3,549</td><td data-label="25일">5,036</td><td class="gap-low" data-label="이격">-29.5%</td><td class="gap-low" data-label="저점">-29.5%</td><td class="yes" data-label="추락">예</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.4x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 2/5"><span class="star-on">★★</span><span class="star-off">☆☆☆</span></td></tr>
+<tr><td data-label="시총">10</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A8035&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">8035</a></td><td class="name" data-label="종목">TOKYO ELECTRON</td><td data-label="시총액">18.70조엔</td><td data-label="종가">8,263</td><td data-label="25일">10,609</td><td class="gap-low" data-label="이격">-22.1%</td><td class="gap-low" data-label="저점">-22.1%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">2.2x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 2/5"><span class="star-on">★★</span><span class="star-off">☆☆☆</span></td></tr>
+<tr><td data-label="시총">11</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A8058&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">8058</a></td><td class="name" data-label="종목">MITSUBISHI CORP</td><td data-label="시총액">18.16조엔</td><td data-label="종가">4,958</td><td data-label="25일">4,794</td><td class="gap-low" data-label="이격">3.4%</td><td class="gap-low" data-label="저점">-0.5%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">2.3x</td><td class="no" data-label="양봉">아니오</td><td class="out" data-label="판정" title="대상외">대상외</td></tr>
+<tr><td data-label="시총">12</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A8411&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">8411</a></td><td class="name" data-label="종목">MIZUHO FINANCIAL GROUP</td><td data-label="시총액">17.38조엔</td><td data-label="종가">7,199</td><td data-label="25일">7,976</td><td class="gap-low" data-label="이격">-9.7%</td><td class="gap-low" data-label="저점">-10.1%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.8x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 0/5"><span class="star-on"></span><span class="star-off">☆☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">13</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A6861&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">6861</a></td><td class="name" data-label="종목">KEYENCE CORP</td><td data-label="시총액">16.92조엔</td><td data-label="종가">69,750</td><td data-label="25일">78,838</td><td class="gap-low" data-label="이격">-11.5%</td><td class="gap-low" data-label="저점">-11.5%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.6x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 1/5"><span class="star-on">★</span><span class="star-off">☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">14</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A8766&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">8766</a></td><td class="name" data-label="종목">TOKIO MARINE HOLDINGS INC</td><td data-label="시총액">16.08조엔</td><td data-label="종가">570</td><td data-label="25일">551</td><td class="gap-low" data-label="이격">3.4%</td><td class="gap-low" data-label="저점">3.4%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.3x</td><td class="no" data-label="양봉">아니오</td><td class="out" data-label="판정" title="대상외">대상외</td></tr>
+<tr><td data-label="시총">15</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A8001&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">8001</a></td><td class="name" data-label="종목">ITOCHU CORP</td><td data-label="시총액">15.48조엔</td><td data-label="종가">2,241</td><td data-label="25일">2,264</td><td class="gap-low" data-label="이격">-1.0%</td><td class="gap-low" data-label="저점">-1.0%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.8x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 0/5"><span class="star-on"></span><span class="star-off">☆☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">16</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A285A&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">285A</a></td><td class="name" data-label="종목">KIOXIA HOLDINGS CORPORATION</td><td data-label="시총액">13.60조엔</td><td data-label="종가">8,511</td><td data-label="25일">14,347</td><td class="gap-low" data-label="이격">-40.7%</td><td class="gap-low" data-label="저점">-40.7%</td><td class="yes" data-label="추락">예</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">2.2x</td><td class="yes" data-label="양봉">예</td><td class="wait" data-label="판정" title="관찰 3/5"><span class="star-on">★★★</span><span class="star-off">☆☆</span></td></tr>
+<tr><td data-label="시총">17</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A8031&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">8031</a></td><td class="name" data-label="종목">MITSUI &amp; CO</td><td data-label="시총액">13.10조엔</td><td data-label="종가">4,620</td><td data-label="25일">4,944</td><td class="gap-low" data-label="이격">-6.6%</td><td class="gap-low" data-label="저점">-6.6%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">2.5x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 1/5"><span class="star-on">★</span><span class="star-off">☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">18</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A9432&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">9432</a></td><td class="name" data-label="종목">NTT INC</td><td data-label="시총액">12.94조엔</td><td data-label="종가">160</td><td data-label="25일">172</td><td class="gap-low" data-label="이격">-6.9%</td><td class="gap-low" data-label="저점">-6.9%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.7x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 0/5"><span class="star-on"></span><span class="star-off">☆☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">19</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A9434&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">9434</a></td><td class="name" data-label="종목">SOFTBANK CORP.</td><td data-label="시총액">11.26조엔</td><td data-label="종가">235</td><td data-label="25일">240</td><td class="gap-low" data-label="이격">-1.8%</td><td class="gap-low" data-label="저점">-4.3%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.4x</td><td class="no" data-label="양봉">아니오</td><td class="wait" data-label="판정" title="관찰 0/5"><span class="star-on"></span><span class="star-off">☆☆☆☆☆</span></td></tr>
+<tr><td data-label="시총">20</td><td class="code" data-label="코드"><a href="https://www.tradingview.com/widgetembed/?symbol=TSE%3A4519&amp;interval=D&amp;style=1&amp;theme=dark&amp;hideideas=1&amp;studies=%5B%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A25%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%23FFD54F%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22MASimple%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A50%7D%2C%22overrides%22%3A%7B%22MovAvgSimple.color%22%3A%22%2342A5F5%22%2C%22MovAvgSimple.linewidth%22%3A2%7D%7D%2C%7B%22id%22%3A%22RSI%40tv-basicstudies%22%2C%22inputs%22%3A%7B%22length%22%3A14%7D%7D%5D" target="_blank">4519</a></td><td class="name" data-label="종목">CHUGAI PHARMACEUTICAL CO</td><td data-label="시총액">11.20조엔</td><td data-label="종가">6,806</td><td data-label="25일">6,463</td><td class="gap-low" data-label="이격">5.3%</td><td class="gap-low" data-label="저점">4.0%</td><td class="no" data-label="추락">아니오</td><td class="no" data-label="정지">아니오</td><td class="no" data-label="하락">아니오</td><td data-label="거래">1.6x</td><td class="no" data-label="양봉">아니오</td><td class="out" data-label="판정" title="대상외">대상외</td></tr>
+</tbody></table></div></section>
 <!-- BNF_END -->
+<section class="rank-wrap">
+<br>  <br> <일본 투자가 BNF가 160만엔을 200억엔 이상 만든 비결 상세 해설> <br>  <br>
+투자 기간 8-10년. 많은 사람이 "초고수 차트기법" 때문이라고 생각하지만 실제로는 리스크 관리 + 시장 심리 + 확률적 매매가 핵심이었다. BNF는 가치투자자가 아니다<br> 
+그는 PER 분석 기업탐방 장기보유를 거의 하지 않았다. 오히려 단타 스윙 이벤트 드리븐 시장심리 매매에 가까웠다. 본인도 인터뷰에서 "기업을 분석하지 않는다. 사람을 분석한다." 라고 말했던것이 유명하다.<br> <br> 
+한스 생각: 그는 우량주 대장주만 공략했다고 했다. 기업을 분석하지 않는다는 틀린말이라고 생각함. 위험 회사는 애초 투자 대상에서 제외했다.<br> <br> 
+        
+BNF의 핵심은 '대중의 실수' 찾기 <br> <br> 
+1. 왜 올랐는지 분석했다<br> 
+실적 때문인가? 수급 때문인가? 착시인가? 과열이면 역으로 매도. 차트를 보는 것이 아니라 사람들이 차트를 보고 어떻게 행동할지 예측했다.<br> <br> 
+
+2. J-COM 사건<br> 
+증권사 직원 오주문 실수. 시장 전체 패닉. 대부분 투자자는 "큰일났다" 도망쳤지만 BNF는 계산했다. 실제 가치보다 훨씬 싸게 거래되고 있음을 발견. 수십억 엔 매수. 며칠 뒤 매도. 약 20억 엔 이상 수익을 거둔 것으로 알려졌다. 호가창만 보고 판단했다.<br> <br> 
+
+3. 호가창(板読み)의 달인<br> 
+"이타요미(板読み)"라고 부른다. 호가창을 보면서 누가 사고 있는지 누가 던지는지 기관인지 개인인지 추정. 진짜 물량인지 유인용 허수주문인지 판단하려 했다.<br> <br> 
+
+4. 손절이 비정상적으로 빠름<br> 
+수익률보다 손실 통제가 뛰어났다. 100번 매매 60번 손실 40번 수익이어도 수익이 남았다. 손실 -1% 수익 +5% 구조였다. 승률이 아니라 손익비를 관리했다.<br> <br>
+
+5. 레버리지를 거의 안 씀<br> 
+핵심 철학. 한 번의 실패로 퇴장하면 끝이다.<br> <br>
+
+6. 시장 충격을 노렸다<br> 
+이는 워런 버핏의 남이 공포에 떨때 탐욕을 가져라와 비슷하지만 BNF는 훨씬 단기적이었다.<br> <br>
+
+7. 하루 종일 시장만 봤다<br> 
+전성기 생활에 오전 8시 준비 장중 계속 모니터링. 뉴스 실시간 체크 장 종료 후 복기 거의 직업 수준. 실제로 그는 "투자는 노동이다"<br> <br> 
+
+chat gpt의견<br> 
+이미지에 나온 내용은 BNF 투자법을 단순화해서 설명한 것으로 보이는데, 실제 BNF의 알려진 매매 스타일과는 일부 맞고 일부는 과장되어 있다. 핵심은 25일 이격도가 아니라 과매도된 대형 우량주에서 나타나는 군중심리 왜곡이다.<br> <br> 
+<style>
+    .BNF { max-width: 1100px; margin: 0 auto; }
+    .BNF img { width: 100%; height: auto; display: block; margin: 0 0 28px; background: #fff; }
+  </style>
+    <div class="BNF">
+    <img src="1.png" alt="차트 1">
+    <img src="2.png" alt="차트 2">
+    <img src="3.png" alt="차트 3">    
+  </div>
+실제 BNF 매매를 재구성하면<br> <br> 
+
+1단계. 종목 선정<br> 
+아무 종목이나 안 했음. 주로 토요타 소니 미쓰비시UFJ NTT 미즈호 캐논 같은 일본 대표주들. 이유는 급락해도 상장폐지 위험 적음. 유동성 풍부 기관 복귀 가능 반면 잡주는 -50% → -90%. 거래정지 상장폐지 가능.그래서 BNF는 원래 대형주 중심이었다.<br> <br> 
+
+2단계. 25일선과 괴리율<br> 
+중요한 건 25일선 자체가 아니다. "왜 이렇게까지 팔고 있지?" 를 생각했다. 즉 가격이 아니라 군중심리에 매매했다.<br> <br> 
+
+3단계. 떨어지는 칼날을 잡지 않는다. 이게 가장 중요.<br> 
+초보자 -20% 매수 -30% 매수 -40% 매수 -> 파산. BNF -20% 관찰 -25% 관찰 -30% 관찰 거래량 폭증 하락 정지 첫 양봉 -> 진입. 즉 매도가 끝났기 때문에 산다.<br> <br> 
+
+4단계. 거래량<br> 
+BNF가 항상 본 것. 좋은 급락 주가 ↓↓↓ 거래량 ↑↑↑ 기관 투매 패닉<br> 나쁜 급락 주가 ↓↓↓ 거래량 ↓ 관심 없음 매수세 없음. 거래량이 터진 날을 중요하게 봤다. 왜? 투매가 끝났을 가능성이 높기 때문.<br> <br> 
+
+5단계. 익절 기준. 여기서 의외로 짧음. 반등 먹으면 나온다<br> 
+실제와 상당히 유사. 예 100엔 -> 75엔 매수-> 85엔 매도. 90엔까지 갈 수도 있음.근데 안 기다림.BNF 생각은 시장은 내 돈을 벌어주는 기계가 아니라 위험한 곳이다.<br> <br> 
+
+6단계. 손절<br> 
+BNF의 진짜 비밀. 뜻대로 안갈때 빠른 손절의 달인이었다. 실제로는 손절을 연구해야 함. 손실 -2% 수익 +8%이면 승률 40%여도 돈 번다. 
+
+7단계. 왜 25일선이었나<br> 
+심리적 이유. 일본 기관들이 당시 25일선을 많이 사용. 25거래일 ≒ 1개월. 사람들이 보는 차트를 본 것이다. "이 회사가 좋은 회사인가"보다 "투자자들이 지금 과하게 공포를 느끼는가" 를 봤다.<br> <br> 
+
+한국 시장에 적용한다면<br>  
+KOSPI200 위주 시총 상위주 위주 25일 괴리율 -15~-30% 거래량 폭증. 첫 반등 확인 손절 -3~-5% 익절 +8~15% 정도에 가깝다.<br> 
+중요한것은 "우량주가 공포 속에서 과매도된 뒤 매도가 소진되는 순간을 찾는 것"이다. 뜻대로 안가면 손절이 빠른것. 적당히 수익보고 나오는것이었다.<br> <br> 
+BNF를 오랫동안 연구한 일본 투자자들은 그의 성공 원인을 이격도 자체보다 자금관리(포지션 사이징) 50%, 손절 30%, 진입기술 20% 정도로 보는 경우가 많다. 160만 엔이 200억 엔이 된 핵심은 특정 지표가 아니라 복리로 살아남은 기간에 있었다.<br> <br> 
+</p>      </section>
 </body>
 </html>
-"""
-
-
-def yahoo_session():
-    session = requests.Session()
-    session.headers["User-Agent"] = "Mozilla/5.0"
-    session.get("https://fc.yahoo.com", timeout=20)
-    crumb = session.get("https://query1.finance.yahoo.com/v1/test/getcrumb", timeout=20).text.strip()
-    if not crumb or crumb.startswith("{") or crumb.startswith("<"):
-        raise RuntimeError("Yahoo crumb failed")
-    return session, crumb
-
-
-def screener_quotes(session, crumb, region):
-    payload = {
-        "size": CANDIDATES,
-        "offset": 0,
-        "sortField": "intradaymarketcap",
-        "sortType": "DESC",
-        "quoteType": "EQUITY",
-        "query": {
-            "operator": "AND",
-            "operands": [{"operator": "eq", "operands": ["region", region]}],
-        },
-    }
-    response = session.post(
-        SCREENER_URL,
-        params={"crumb": crumb, "lang": "en-US", "region": region.upper()},
-        json=payload,
-        timeout=30,
-    )
-    response.raise_for_status()
-    result = (response.json().get("finance") or {}).get("result") or []
-    if not result:
-        return []
-    rows = []
-    for quote in result[0].get("quotes") or []:
-        if quote.get("quoteType") != "EQUITY":
-            continue
-        symbol = quote.get("symbol") or ""
-        if not symbol or symbol.startswith("^"):
-            continue
-        rows.append(
-            {
-                "ticker": symbol,
-                "name": quote.get("shortName") or quote.get("longName") or symbol,
-                "currency": quote.get("currency") or "",
-                "market_cap": quote.get("marketCap"),
-                "exchange": quote.get("exchange") or "",
-                "source": f"Yahoo screener region={region}",
-            }
-        )
-    return rows
-
-
-def load_us(session, crumb):
-    return screener_quotes(session, crumb, "us")
-
-
-def load_japan_yahoo(session, crumb):
-    rows = [row for row in screener_quotes(session, crumb, "jp") if row["ticker"].endswith(".T")]
-    return rows
-
-
-def load_japan_tradingview():
-    payload = {
-        "filter": [{"left": "type", "operation": "equal", "right": "stock"}],
-        "options": {"lang": "en"},
-        "markets": ["japan"],
-        "symbols": {"query": {"types": []}, "tickers": []},
-        "columns": ["name", "market_cap_basic", "description", "currency", "exchange"],
-        "sort": {"sortBy": "market_cap_basic", "sortOrder": "desc"},
-        "range": [0, CANDIDATES],
-    }
-    response = requests.post(
-        TV_SCAN,
-        json=payload,
-        headers={**HEADERS, "Origin": "https://www.tradingview.com"},
-        timeout=30,
-    )
-    response.raise_for_status()
-    rows = []
-    for item in response.json().get("data") or []:
-        symbol = item.get("s") or ""
-        if ":" not in symbol:
-            continue
-        exchange, code = symbol.split(":", 1)
-        if not code.isdigit():
-            continue
-        fields = item.get("d") or []
-        name = fields[2] if len(fields) > 2 and fields[2] else (fields[0] if fields else code)
-        market_cap = fields[1] if len(fields) > 1 else None
-        currency = fields[3] if len(fields) > 3 and fields[3] else "JPY"
-        rows.append(
-            {
-                "ticker": f"{code}.T",
-                "name": name,
-                "currency": currency,
-                "market_cap": market_cap,
-                "exchange": exchange or "TSE",
-                "source": "TradingView Japan scanner (Yahoo jp screener had no .T names)",
-            }
-        )
-    return rows
-
-
-def load_japan(session, crumb):
-    try:
-        rows = load_japan_yahoo(session, crumb)
-    except (requests.RequestException, ValueError, KeyError, TypeError, IndexError) as error:
-        print(f"Japan Yahoo screener failed: {error}", flush=True)
-        rows = []
-    if len(rows) >= TOP_N:
-        return rows
-    print(f"Japan Yahoo screener returned {len(rows)} .T names; using TradingView scanner", flush=True)
-    fallback = load_japan_tradingview()
-    seen = {row["ticker"] for row in rows}
-    for row in fallback:
-        if row["ticker"] not in seen:
-            rows.append(row)
-            seen.add(row["ticker"])
-    return rows
-
-
-def load_korea():
-    response = requests.get(
-        KOSPI_URL,
-        params={"page": 1, "pageSize": 80},
-        headers={**HEADERS, "Referer": "https://m.stock.naver.com/"},
-        timeout=30,
-    )
-    response.raise_for_status()
-    rows = []
-    for item in response.json().get("stocks") or []:
-        if item.get("stockEndType") != "stock":
-            continue
-        code = item.get("itemCode") or ""
-        if not code.isdigit() or len(code) != 6 or not code.endswith("0"):
-            continue
-        market_cap = item.get("marketValueRaw")
-        if isinstance(market_cap, str):
-            digits = market_cap.replace(",", "").strip()
-            market_cap = float(digits) if digits.isdigit() else None
-        rows.append(
-            {
-                "ticker": f"{code}.KS",
-                "name": item.get("stockName") or code,
-                "currency": "KRW",
-                "market_cap": market_cap,
-                "exchange": "KRX",
-                "source": "Naver KOSPI market value",
-            }
-        )
-        if len(rows) >= CANDIDATES:
-            break
-    return rows
-
-
-def chart_url(row):
-    ticker = row["ticker"]
-    if ticker.endswith(".KS") or ticker.endswith(".KQ"):
-        symbol = "KRX:" + ticker.split(".")[0]
-    elif ticker.endswith(".T"):
-        symbol = "TSE:" + ticker.split(".")[0]
-    else:
-        exchange = TV_EXCHANGES.get(row.get("exchange") or "", "")
-        symbol = f"{exchange}:{ticker}" if exchange else ticker
-    return (
-        "https://www.tradingview.com/chart/?symbol="
-        + urllib.parse.quote(symbol, safe=":")
-        + "&interval=D"
-    )
-
-
-def daily_bars(ticker):
-    for attempt in range(3):
-        try:
-            response = requests.get(
-                CHART_URL.format(ticker=urllib.parse.quote(ticker, safe=".-")),
-                params={
-                    "interval": "1d",
-                    "range": "1y",
-                    "events": "div,splits",
-                    "includeAdjustedClose": "true",
-                },
-                headers=HEADERS,
-                timeout=30,
-            )
-            if response.status_code in (429, 500, 502, 503):
-                time.sleep(1.2 * (attempt + 1))
-                continue
-            response.raise_for_status()
-            result = (response.json().get("chart") or {}).get("result") or []
-            if not result:
-                return None
-            block = result[0]
-            stamps = block.get("timestamp") or []
-            quote = (block.get("indicators") or {}).get("quote") or [{}]
-            quote = quote[0] if quote else {}
-            adjusted = ((block.get("indicators") or {}).get("adjclose") or [{}])[0].get("adjclose")
-            opens = quote.get("open") or []
-            highs = quote.get("high") or []
-            lows = quote.get("low") or []
-            closes = quote.get("close") or []
-            volumes = quote.get("volume") or []
-            bars = []
-            for index, stamp in enumerate(stamps):
-                close = closes[index] if index < len(closes) else None
-                open_ = opens[index] if index < len(opens) else None
-                high = highs[index] if index < len(highs) else None
-                low = lows[index] if index < len(lows) else None
-                volume = volumes[index] if index < len(volumes) else None
-                adj = adjusted[index] if adjusted and index < len(adjusted) else None
-                if None in (close, open_, high, low, volume):
-                    continue
-                if close <= 0 or open_ <= 0 or high <= 0 or low <= 0:
-                    continue
-                price = adj if isinstance(adj, (int, float)) and adj > 0 else close
-                bars.append(
-                    {
-                        "date": datetime.fromtimestamp(stamp, timezone.utc).date().isoformat(),
-                        "open": float(open_),
-                        "high": float(high),
-                        "low": float(low),
-                        "close": float(close),
-                        "adj": float(price),
-                        "volume": float(volume),
-                    }
-                )
-            return bars or None
-        except (requests.RequestException, ValueError, KeyError, TypeError):
-            time.sleep(0.6 * (attempt + 1))
-    return None
-
-
-def disparity_series(bars):
-    values = []
-    for index in range(len(bars)):
-        if index + 1 < SMA:
-            values.append(None)
-            continue
-        window = [bar["adj"] for bar in bars[index + 1 - SMA : index + 1]]
-        average = sum(window) / SMA
-        if average <= 0:
-            values.append(None)
-            continue
-        values.append((bars[index]["adj"] / average - 1) * 100)
-    return values
-
-
-def decline_steps(values, end):
-    count = 0
-    index = end
-    while index > 0 and values[index] is not None and values[index - 1] is not None:
-        if values[index] < values[index - 1]:
-            count += 1
-            index -= 1
-            continue
-        break
-    return count
-
-
-def average_volume(bars, end, length):
-    window = bars[end - length : end]
-    if len(window) < length:
-        return None
-    return sum(bar["volume"] for bar in window) / length
-
-
-def evaluate(bars):
-    need = SMA + VOLUME_AVG + FALL_STEPS
-    if not bars or len(bars) < need:
-        return None
-    values = disparity_series(bars)
-    today = len(bars) - 1
-    yesterday = today - 1
-    if values[today] is None or values[yesterday] is None:
-        return None
-    trough_slice = [value for value in values[today + 1 - TROUGH_WINDOW : today + 1] if value is not None]
-    if len(trough_slice) < TROUGH_WINDOW:
-        return None
-    trough = min(trough_slice)
-    steps = decline_steps(values, yesterday)
-    falling = steps >= FALL_STEPS
-    deep = trough <= TROUGH_LIMIT
-    disparity_stop = values[today] >= values[yesterday]
-    price_stop = bars[today]["low"] >= bars[yesterday]["low"]
-    average_today = average_volume(bars, today, VOLUME_AVG)
-    average_yesterday = average_volume(bars, yesterday, VOLUME_AVG)
-    multiple_today = bars[today]["volume"] / average_today if average_today else 0
-    multiple_yesterday = bars[yesterday]["volume"] / average_yesterday if average_yesterday else 0
-    volume_multiple = max(multiple_today, multiple_yesterday)
-    volume_spike = volume_multiple >= VOLUME_MULT
-    bullish_today = bars[today]["close"] > bars[today]["open"]
-    bullish_yesterday = bars[yesterday]["close"] > bars[yesterday]["open"]
-    first_yang = bullish_today and not bullish_yesterday
-    above_ma = values[today] > 0
-    signal = (
-        not above_ma
-        and falling
-        and deep
-        and disparity_stop
-        and price_stop
-        and volume_spike
-        and first_yang
-    )
-    sma = sum(bar["adj"] for bar in bars[today + 1 - SMA : today + 1]) / SMA
-    return {
-        "date": bars[today]["date"],
-        "price": bars[today]["adj"],
-        "sma": sma,
-        "disparity": values[today],
-        "trough": trough,
-        "fall_steps": steps,
-        "falling": falling and deep,
-        "disparity_stop": disparity_stop,
-        "price_stop": price_stop,
-        "volume_multiple": volume_multiple,
-        "volume_spike": volume_spike,
-        "first_yang": first_yang,
-        "above_ma": above_ma,
-        "signal": signal,
-    }
-
-
-def fmt_number(value, currency):
-    if currency in ("KRW", "JPY"):
-        return f"{value:,.0f}"
-    return f"{value:,.2f}"
-
-
-def fmt_market_cap(value, currency):
-    if not isinstance(value, (int, float)) or value <= 0:
-        return "-"
-    scaled = value / 1e12
-    unit = {"USD": "조달러", "KRW": "조원", "JPY": "조엔"}.get(currency, "조")
-    if scaled >= 1:
-        return f"{scaled:,.2f}{unit}"
-    return f"{value / 1e8:,.0f}{'억' + unit[1:] if unit.startswith('조') else unit}"
-
-
-def yn(flag):
-    return "예" if flag else "아니오"
-
-
-def score_row(seed, bars):
-    signal = evaluate(bars)
-    if not signal:
-        return None
-    row = dict(seed)
-    row.update(signal)
-    row["checks"] = sum(
-        1
-        for flag in (
-            signal["falling"],
-            signal["disparity_stop"],
-            signal["price_stop"],
-            signal["volume_spike"],
-            signal["first_yang"],
-        )
-        if flag
-    )
-    return row
-
-
-def company_key(name):
-    text = str(name).lower()
-    for token in (
-        " inc.",
-        " inc",
-        " corporation",
-        " corp.",
-        " corp",
-        " ltd.",
-        " ltd",
-        " plc",
-        " co.,",
-        " co.",
-        " new",
-        " class a",
-        " class b",
-        " class c",
-    ):
-        text = text.replace(token, " ")
-    return " ".join(text.split())
-
-
-def unique_companies(rows):
-    kept = []
-    seen = set()
-    for row in rows:
-        key = company_key(row["name"])
-        if key in seen:
-            continue
-        seen.add(key)
-        kept.append(row)
-    return kept
-
-
-def collect(seeds):
-    picked = []
-    pending = list(seeds)
-    with ThreadPoolExecutor(max_workers=6) as pool:
-        future_map = {pool.submit(daily_bars, row["ticker"]): row for row in pending[:CANDIDATES]}
-        for future in as_completed(future_map):
-            seed = future_map[future]
-            bars = future.result()
-            row = score_row(seed, bars)
-            if row:
-                picked.append(row)
-    order = {row["ticker"]: index for index, row in enumerate(seeds)}
-    picked.sort(key=lambda row: order.get(row["ticker"], 999))
-    picked = picked[:TOP_N]
-    for index, row in enumerate(picked, start=1):
-        row["cap_rank"] = index
-    picked.sort(key=lambda row: (0 if row["signal"] else 1, row["cap_rank"]))
-    return picked
-
-
-def cell_flag(flag, label):
-    kind = "yes" if flag else "no"
-    return f'<td class="{kind}" data-label="{label}">{yn(flag)}</td>'
-
-
-def stars(count, total=5):
-    filled = "★" * count
-    empty = "☆" * (total - count)
-    return f'<span class="star-on">{filled}</span><span class="star-off">{empty}</span>'
-
-
-def verdict_of(row):
-    if row["disparity"] > 0:
-        return "대상외", "out", "대상외"
-    if row["signal"]:
-        return stars(5), "signal", "매수 시그널 5/5"
-    count = row["checks"]
-    return stars(count), "wait", f"관찰 {count}/5"
-
-
-def render_table(title, rows):
-    if not rows:
-        return f'<h1 class="low">{html.escape(title)}</h1><section class="rank-wrap"><p class="note">데이터를 가져오지 못했습니다.</p></section>'
-    source = rows[0].get("source") or ""
-    asof = max(row["date"] for row in rows)
-    signals = [row for row in rows if row["signal"]]
-    lines = [
-        f'<h1 class="low">{html.escape(title)}</h1>',
-        '<section class="rank-wrap">',
-        f'<p class="note">기준 일봉 {html.escape(asof)} · 시가총액 상위 {len(rows)}종목 · 매수 시그널 {len(signals)}종목. 출처: {html.escape(source)}. 매수 시그널이 위로 올라옵니다. 시그널이 없어도 조건표는 모두 보여 줍니다.</p>',
-        '<div class="table-scroll"><table class="rank">',
-        "<colgroup>"
-        '<col style="width:4%"><col style="width:7%"><col style="width:14%"><col style="width:8%">'
-        '<col style="width:8%"><col style="width:8%"><col style="width:6%"><col style="width:6%">'
-        '<col style="width:5%"><col style="width:5%"><col style="width:5%">'
-        '<col style="width:6%"><col style="width:5%"><col style="width:13%">'
-        "</colgroup>",
-        "<thead><tr>"
-        '<th title="시가총액 순위">시총</th><th class="code">코드</th><th class="name">종목</th><th>시총액</th>'
-        f'<th>종가</th><th title="{SMA}일 단순이동평균">{SMA}일</th><th title="{SMA}일선 이격도">이격</th><th title="최근 10거래일 이격도 저점">저점</th>'
-        '<th class="flag" title="이격도 3일 이상 연속 하락, 10일 저점 -10% 이하">추락</th>'
-        '<th class="flag" title="오늘 이격도 ≥ 어제 이격도">정지</th>'
-        '<th class="flag" title="오늘 저가 ≥ 어제 저가">하락</th>'
-        '<th title="거래량이 20일 평균의 몇 배인지">거래</th>'
-        '<th class="flag" title="오늘 첫 양봉">양봉</th><th class="flag">판정</th>'
-        "</tr></thead><tbody>",
-    ]
-    for row in rows:
-        verdict, verdict_class, verdict_title = verdict_of(row)
-        tr = ' class="buy"' if row["signal"] else ""
-        lines.append(
-            f"<tr{tr}>"
-            f'<td data-label="시총">{row["cap_rank"]}</td>'
-            f'<td class="code" data-label="코드"><a href="{html.escape(chart_url(row))}" target="_blank">{html.escape(row["ticker"].split(".")[0])}</a></td>'
-            f'<td class="name" data-label="종목">{html.escape(str(row["name"]))}</td>'
-            f'<td data-label="시총액">{html.escape(fmt_market_cap(row.get("market_cap"), row.get("currency") or ""))}</td>'
-            f'<td data-label="종가">{fmt_number(row["price"], row.get("currency") or "")}</td>'
-            f'<td data-label="{SMA}일">{fmt_number(row["sma"], row.get("currency") or "")}</td>'
-            f'<td class="gap-low" data-label="이격">{row["disparity"]:.1f}%</td>'
-            f'<td class="gap-low" data-label="저점">{row["trough"]:.1f}%</td>'
-            f'{cell_flag(row["falling"], "추락")}'
-            f'{cell_flag(row["disparity_stop"], "정지")}'
-            f'{cell_flag(row["price_stop"], "하락")}'
-            f'<td data-label="거래">{row["volume_multiple"]:.1f}x</td>'
-            f'{cell_flag(row["first_yang"], "양봉")}'
-            f'<td class="{verdict_class}" data-label="판정" title="{html.escape(verdict_title)}">{verdict}</td>'
-            "</tr>"
-        )
-    lines.append("</tbody></table></div></section>")
-    return "\n".join(lines)
-
-
-def write_page(sections):
-    if PAGE.exists():
-        text = PAGE.read_text(encoding="utf-8")
-    else:
-        text = SHELL
-    start = text.find("<!-- BNF_START -->")
-    end = text.find("<!-- BNF_END -->")
-    block = "<!-- BNF_START -->\n" + "\n".join(sections) + "\n<!-- BNF_END -->"
-    if start == -1 or end == -1 or end < start:
-        text = SHELL
-        start = text.find("<!-- BNF_START -->")
-        end = text.find("<!-- BNF_END -->")
-    text = text[:start] + block + text[end + len("<!-- BNF_END -->") :]
-    PAGE.write_text(text, encoding="utf-8")
-
-
-def main():
-    session, crumb = yahoo_session()
-    markets = [
-        ("1. 미국 시가총액 상위 20종목", load_us(session, crumb)),
-        ("2. 한국 코스피 시가총액 상위 20종목", load_korea()),
-        ("3. 일본 시가총액 상위 20종목", load_japan(session, crumb)),
-    ]
-    sections = []
-    summary = []
-    for title, seeds in markets:
-        seeds = unique_companies(seeds)
-        print(f"{title}: candidates {len(seeds)}", flush=True)
-        rows = collect(seeds)
-        print(f"  kept {len(rows)} signals {sum(1 for row in rows if row['signal'])}", flush=True)
-        sections.append(render_table(title, rows))
-        summary.append(
-            {
-                "title": title,
-                "count": len(rows),
-                "source": rows[0]["source"] if rows else "",
-                "signals": [
-                    {"ticker": row["ticker"], "name": row["name"], "disparity": round(row["disparity"], 1)}
-                    for row in rows
-                    if row["signal"]
-                ],
-            }
-        )
-    write_page(sections)
-    print(json.dumps(summary, ensure_ascii=False, indent=2), flush=True)
-
-
-if __name__ == "__main__":
-    main()
