@@ -19,6 +19,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add Premium/weather/BNF/index.html
-          git diff --cached --quiet || git commit -m "Update BNF 50-day buy signals"
+          git diff --cached --quiet || git commit -m "Update BNF 25-day buy signals"
           git push
 
