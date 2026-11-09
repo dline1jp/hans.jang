@@ -2,10 +2,12 @@
 """Refresh US, Korea, and Japan top-20 market-cap lists and BNF 25-day signals.
 
 Buy signal on the latest daily bar only when every rule below is true:
-1. Over the last 10 sessions into yesterday, disparity fell in a staircase
-   of at least 3 down days, each drop smaller than the previous drop.
-   Bounces between those down days are allowed. The lowest disparity in
-   those 10 sessions is also -20% or deeper.
+1. Over the last 10 sessions into yesterday, the adjusted close fell in a
+   staircase of at least 3 down days. Each step is a decline rate,
+   (previous close - current close) / previous close, and each rate is
+   smaller than the previous drop. Bounces between those down days are
+   allowed. The lowest disparity in the latest 10 sessions is also -20%
+   or deeper.
 2. Disparity fall stopped: today's disparity >= yesterday's disparity.
 3. Price fall stopped: today's low does not break yesterday's low.
 4. Volume spike: today's volume, or yesterday's volume, is at least 2x
@@ -502,13 +504,9 @@ def disparity_series(bars):
     return values
 
 
-update_bnf.py
-Ln 507–532
-
-#계단식3단계
-
 def staircase_steps(values, end, window):
     """Shrinking price-decline rates, ending on `end`.
+
     `values` are adjusted closes. A step is a day the close fell, and the
     drop is the decline rate (previous - current) / previous. Up days are
     pauses and do not reset the staircase. The latest rates must get
@@ -554,7 +552,8 @@ def evaluate(bars):
     if len(trough_slice) < TROUGH_WINDOW:
         return None
     trough = min(trough_slice)
-    steps = staircase_steps(values, yesterday, TROUGH_WINDOW)
+    prices = [bar["adj"] for bar in bars]
+    steps = staircase_steps(prices, yesterday, TROUGH_WINDOW)
     falling = steps >= FALL_STEPS
     deep = trough <= TROUGH_LIMIT
     disparity_stop = values[today] >= values[yesterday]
@@ -732,7 +731,7 @@ def render_table(title, rows, lead=None):
         "<thead><tr>"
         '<th title="시가총액 순위">시총</th><th class="code">코드</th><th class="name">종목</th><th>시총액</th>'
         f'<th>종가</th><th title="{SMA}일 단순이동평균">{SMA}일</th><th title="{SMA}일선 이격도">이격</th><th title="최근 10거래일 이격도 저점">저점</th>'
-        '<th class="flag" title="최근 10거래일 계단식 3단계 이상, 하락폭은 단계마다 감소, 저점 -20% 이하">추락</th>'
+        '<th class="flag" title="최근 10거래일 시세가 계단식으로 3단계 이상 하락하고 하락률은 단계마다 감소, 이격도 저점 -20% 이하">추락</th>'
         '<th class="flag" title="오늘 이격도 ≥ 어제 이격도">정지</th>'
         '<th class="flag" title="오늘 저가 ≥ 어제 저가">하락</th>'
         '<th title="거래량이 20일 평균의 몇 배인지">거래</th>'
@@ -777,7 +776,7 @@ def render_intro():
 <div class="intro">
 <p class="note">일봉 25일 단순이동평균 기준 이격도만 봅니다. 이격도가 플러스(종가가 25일선 위)이면 대상외입니다. 매수 시그널은 이격도가 0 이하이고 아래 다섯 가지가 최신 일봉에서 동시에 맞을 때만 붙입니다. 매수 추천이 아닙니다. 파산 가능성, 실적, 경기사이클을 따로 보셔야 하니 참조만 하세요.</p>
 <p class="formula">이격도 = (일봉 종가 ÷ 25일 단순이동평균 − 1) × 100. 종가는 수정주가입니다. 양봉과 저가 비교는 수정 전 시고저종입니다.</p>
-<p class="formula">1)추락: 최근 10거래일 이격도가 계단식으로 3단계 이상 하락하고, 각 하락폭은 직전 하락보다 작다. 그 사이 반등은 있어도 된다. 최근 10거래일 이격도 저점이 -20% 이하. 2) 정지: 오늘 이격도 ≥ 어제 이격도 (추락 정지). 3) 하락: 오늘 저가 ≥ 어제 저가 (하락 정지). 4) 거래: 오늘 또는 어제 거래량이 그 직전 20일 평균의 2배 이상 (거래량 폭증). 5) 양봉: 오늘 종가 &gt; 시가이고, 어제는 양봉이 아님 (첫 양봉) 판정: 별5개가 만점 매수 시그널이나 별3개, 4개때부터 관찰이 필요함. 여기에 매일 시세가 업데이트됨.</p>
+<p class="formula">1)추락: 최근 10거래일 시세가 계단식으로 3단계 이상 하락하고, 각 하락폭은 직전 하락보다 작다. 그 사이 반등은 있어도 된다. 최근 10거래일 이격도 저점이 -20% 이하. 2) 정지: 오늘 이격도 ≥ 어제 이격도 (추락 정지). 3) 하락: 오늘 저가 ≥ 어제 저가 (하락 정지). 4) 거래: 오늘 또는 어제 거래량이 그 직전 20일 평균의 2배 이상 (거래량 폭증). 5) 양봉: 오늘 종가 &gt; 시가이고, 어제는 양봉이 아님 (첫 양봉) 판정: 별5개가 만점 매수 시그널이나 별3개, 4개때부터 관찰이 필요함. 여기에 매일 시세가 업데이트됨.</p>
 <p class="formula">종목 코드를 누르면 일봉 차트에 25일 단순이동평균, 50일 단순이동평균, RSI 14가 함께 열립니다.</p>
 </div>
 </section>"""
