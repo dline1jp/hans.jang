@@ -502,11 +502,17 @@ def disparity_series(bars):
     return values
 
 
-def staircase_steps(values, end, window):
-    """Shrinking down-steps in disparity, ending on `end`.
+update_bnf.py
+Ln 507–532
 
-    A step is a day disparity fell. Up days are pauses and do not reset
-    the staircase. The latest drops must get smaller each step.
+#계단식3단계
+
+def staircase_steps(values, end, window):
+    """Shrinking price-decline rates, ending on `end`.
+    `values` are adjusted closes. A step is a day the close fell, and the
+    drop is the decline rate (previous - current) / previous. Up days are
+    pauses and do not reset the staircase. The latest rates must get
+    strictly smaller each step.
     """
     if end <= 0 or values[end] is None or values[end - 1] is None:
         return 0
@@ -517,9 +523,9 @@ def staircase_steps(values, end, window):
     for index in range(start, end + 1):
         previous = values[index - 1]
         current = values[index]
-        if previous is None or current is None or current >= previous:
+        if previous is None or current is None or previous <= 0 or current >= previous:
             continue
-        drops.append(previous - current)
+        drops.append((previous - current) / previous)
     count = 1
     for index in range(len(drops) - 1, 0, -1):
         if drops[index - 1] <= drops[index]:
