@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """Daily 200-day moving-average trend signals for the major index funds.
 
-매수(보유): the latest daily close is above its 200-day simple moving average.
+매수(보유): the close broke above the 200-day average and stayed above for at least one more day.
 매도(현금): the latest daily close is at or below that average.
+The first day back above the line is 돌파 대기, not a buy yet.
 Both the close and the average use adjusted prices, so splits and dividends
 do not break the line. A name flips only when today's side differs from
 yesterday's side.
@@ -99,7 +100,7 @@ def daily_closes(ticker):
                     "date": datetime.fromtimestamp(stamp, timezone.utc).date().isoformat(),
                     "close": float(price),
                 })
-            if len(bars) >= SMA + 1:
+            if len(bars) >= SMA + 2:
                 return bars
         except (requests.RequestException, ValueError, KeyError, TypeError):
             time.sleep(0.8 * (attempt + 1))
@@ -115,27 +116,34 @@ def judge(bars):
     closes = [bar["close"] for bar in bars]
     today = len(closes) - 1
     yesterday = today - 1
+    before = today - 2
     ma = sma(closes, today)
     prev_ma = sma(closes, yesterday)
+    prev2_ma = sma(closes, before)
     close = closes[today]
     prev = closes[yesterday]
+    prev2 = closes[before]
     above = close > ma
     prev_above = prev > prev_ma
-    if above and not prev_above:
-        change = "매수 전환"
+    prev2_above = prev2 > prev2_ma
+    if above and prev_above and not prev2_above:
+        signal, change = "매수", "매수 전환"
+    elif above and prev_above:
+        signal, change = "매수", "보유 유지"
     elif above:
-        change = "보유 유지"
+        signal, change = "대기", "돌파 대기"
     elif prev_above:
-        change = "매도 전환"
+        signal, change = "매도", "매도 전환"
     else:
-        change = "현금 유지"
+        signal, change = "매도", "현금 유지"
     return {
         "date": bars[today]["date"],
         "close": close,
         "ma": ma,
         "disparity": close / ma * 100,
-        "buy": above,
-        "signal": "매수" if above else "매도",
+        "buy": signal == "매수",
+        "wait": signal == "대기",
+        "signal": signal,
         "change": change,
     }
 
@@ -155,13 +163,22 @@ def chip(row):
 
 def render(rows):
     buys = [row for row in rows if row["buy"]]
-    sells = [row for row in rows if not row["buy"]]
+    waits = [row for row in rows if row["wait"]]
+    sells = [row for row in rows if not row["buy"] and not row["wait"]]
     asof = max(row["date"] for row in rows)
     buy_html = "".join(f"<li>{chip(row)}</li>" for row in buys) or "<li>없음</li>"
+    wait_box = ""
+    if waits:
+        wait_html = "".join(f"<li>{chip(row)}</li>" for row in waits)
+        wait_box = (
+            '<div class="box wait">'
+            f"<h2>대기 {len(waits)}개 · 오늘 처음 돌파, 내일 확인</h2>"
+            f"<ol>{wait_html}</ol></div>"
+        )
     sell_html = "".join(f"<li>{chip(row)}</li>" for row in sells) or "<li>없음</li>"
     body = []
     for row in rows:
-        side = "buy" if row["buy"] else "sell"
+        side = "buy" if row["buy"] else "wait" if row["wait"] else "sell"
         body.append(
             f'<tr class="{side}">'
             f'<td class="code" data-label="코드"><a href="{chart_url(row["symbol"])}" target="_blank">{html.escape(row["label"])}</a></td>'
@@ -188,12 +205,18 @@ def render(rows):
     h1 {{ text-align: center; color: #FFFFE0; font-size: 32px; line-height: 1.35; }}
     .note, .formula {{ color: #ccc; font-size: 18px; line-height: 1.5; max-width: 980px; margin: 8px auto; }}
     .formula {{ color: #8a8a8a; }}
+    .rules {{ max-width: 980px; margin: 14px auto 8px; }}
+    .rules h2 {{ color: #FFFFE0; font-size: 26px; margin: 0 0 8px; }}
+    .rules ol {{ margin: 0; padding-left: 1.3em; color: #eee; font-size: 20px; line-height: 1.55; }}
+    .rules li {{ margin: 6px 0; }}
     .summary {{ max-width: 980px; margin: 18px auto 28px; display: grid; gap: 14px; }}
     .box {{ border: 1px solid #444; border-radius: 12px; padding: 14px 16px; }}
     .box.buy {{ background: #143024; }}
+    .box.wait {{ background: #2e2a14; }}
     .box.sell {{ background: #3a1c1c; }}
     .box h2 {{ margin: 0 0 10px; font-size: 24px; }}
     .box.buy h2 {{ color: #7dcea0; }}
+    .box.wait h2 {{ color: #f7dc6f; }}
     .box.sell h2 {{ color: #f1948a; }}
     .box ol {{ margin: 0; padding-left: 1.2em; }}
     .box li {{ margin: 4px 0; font-size: 20px; }}
@@ -205,8 +228,10 @@ def render(rows):
     table.rank td.code, table.rank td.name, table.rank th.code, table.rank th.name {{ text-align: left; }}
     table.rank td.code {{ font-weight: 700; }}
     table.rank tr.buy td.signal, table.rank td.buy {{ color: #7dcea0; font-weight: 700; }}
+    table.rank tr.wait td.signal, table.rank td.wait {{ color: #f7dc6f; font-weight: 700; }}
     table.rank tr.sell td.signal, table.rank td.sell {{ color: #f1948a; font-weight: 700; }}
     table.rank tr.buy {{ background: #10261c; }}
+    table.rank tr.wait {{ background: #2a2610; }}
     table.rank tr.sell {{ background: #2a1616; }}
     @media (max-width: 800px) {{
       h1 {{ font-size: 26px; }}
@@ -222,12 +247,23 @@ def render(rows):
   <p><a class="home" href="../index.html">← 주가 방향 날씨</a></p>
   <h1>200일 이동평균 추세 매매</h1>
   <p class="note">가격이 200일 이동평균 위에 있을 때만 매수(보유)하고, 아래로 내려오면 매도하고 현금으로 둡니다. 평일 미국장 마감 후 갱신됩니다. 기준일 {asof}. 매수·매도 추천이 아닙니다. 참조만 하세요.</p>
-  <p class="formula">이격도 = 수정 종가 ÷ 200일 이동평균 × 100. 이격도 100 초과가 매수, 100 이하가 매도입니다.</p>
+  <section class="rules">
+    <h2>규칙</h2>
+    <ol>
+      <li>종목이나 지수(예: S&amp;P 500, 코스피)의 200일 단순이동평균을 계산합니다.</li>
+      <li>매수: 종가가 200일선을 위로 돌파하고, 그 상태가 하루 이상 유지되면 매수합니다.</li>
+      <li>보유: 가격이 200일선 위에 있는 동안 보유합니다.</li>
+      <li>매도: 종가가 200일선 아래로 내려가면 전량 매도하고 현금으로 대기합니다.</li>
+      <li>다시 위로 올라오면 같은 규칙으로 재진입합니다.</li>
+    </ol>
+  </section>
+  <p class="formula">이격도 = 수정 종가 ÷ 200일 이동평균 × 100. 이격도 100 초과가 하루 더 유지되면 매수, 100 이하로 내려오면 매도입니다.</p>
   <section class="summary">
     <div class="box buy">
       <h2>매수 {len(buys)}개 · 200일선 위, 보유</h2>
       <ol>{buy_html}</ol>
     </div>
+    {wait_box}
     <div class="box sell">
       <h2>매도 {len(sells)}개 · 200일선 아래, 현금</h2>
       <ol>{sell_html}</ol>
@@ -272,4 +308,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
