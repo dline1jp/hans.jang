@@ -481,7 +481,7 @@ def render(groups):
   <script src="/Premium/gate.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>200일 이동평균 매매 시그널</title>
+  <title>200일 이동평균 추세 장투 매매</title>
   <style>
     body {{ background: #111; color: white; font-family: Arial, sans-serif; margin: 0; padding: 16px; }}
     a {{ color: #4da3ff; }}
@@ -534,8 +534,8 @@ def render(groups):
 </head>
 <body>
   <p><a class="home" href="../index.html">← 주가 방향 날씨</a></p>
-  <h1>200일 이동평균 추세 매매</h1>
-  <p class="note">가격이 200일 이동평균 위에 있을 때만 매수(보유)하고, 아래로 내려오면 매도하고 현금으로 둡니다. 평일 미국장 마감 후 갱신됩니다. 기준일 {asof}. 매수·매도 추천이 아닙니다. 참조만 하세요.</p>
+  <h1>200일 이동평균 추세 장투 매매</h1>
+  <p class="note">몇년안에 몇번 이하의 빈도의 장기 추세 매매를 할때만 적용합니다. 즉 시크리컬 경기 사이클 장투 추세 매매법입니다. 장기가격이 200일 이동평균 위에 있을 때만 매수(보유)하고, 아래로 내려오면 매도하고 현금으로 둡니다. 평일 미국장 마감 후 갱신됩니다. 기준일 {asof}. 매수·매도 추천이 아닙니다. 참조만 하세요.</p>
   <div class="glance">
     {"".join(summaries)}
   </div>
