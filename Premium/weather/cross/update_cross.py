@@ -41,13 +41,17 @@ TV_EXCHANGES = {
     "TYO": "TSE",
 }
 TV_STUDIES = urllib.parse.quote(json.dumps([
-    {"id": "MASimple@tv-basicstudies", "inputs": {"length": FAST}},
-    {"id": "MASimple@tv-basicstudies", "inputs": {"length": SLOW}},
+    {
+        "id": "MASimple@tv-basicstudies",
+        "inputs": {"length": FAST},
+        "overrides": {"MovAvgSimple.color": "#9C27B0", "MovAvgSimple.linewidth": 2},
+    },
+    {
+        "id": "MASimple@tv-basicstudies",
+        "inputs": {"length": SLOW},
+        "overrides": {"MovAvgSimple.color": "#E53935", "MovAvgSimple.linewidth": 2},
+    },
 ], separators=(",", ":")))
-TV_OVERRIDES = urllib.parse.quote(json.dumps({
-    "moving average.ma.color": "#E53935",
-    "moving average.ma.linewidth": 2,
-}, separators=(",", ":")))
 
 # ticker, label, name, currency, TradingView symbol
 FUNDS = [
@@ -224,7 +228,6 @@ def chart_url(symbol):
         + urllib.parse.quote(symbol, safe="")
         + "&interval=D&style=1&theme=dark&hideideas=1"
         + "&studies=" + TV_STUDIES
-        + "&studies_overrides=" + TV_OVERRIDES
     )
 
 
