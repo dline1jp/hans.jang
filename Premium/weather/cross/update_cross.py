@@ -1,0 +1,588 @@
+# -*- coding: utf-8 -*-
+"""Daily golden-cross and death-cross signals.
+
+매수(보유): the 50-day SMA is above the 200-day SMA.
+매도(현금): the 50-day SMA is at or below the 200-day SMA.
+A golden cross is the day the 50-day line crosses up. A death cross is the
+day it crosses down. Both averages use adjusted closes.
+"""
+import html
+import json
+import sys
+import time
+import urllib.parse
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
+from pathlib import Path
+
+import requests
+
+CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
+SCREENER_URL = "https://query1.finance.yahoo.com/v1/finance/screener"
+KOSPI_URL = "https://m.stock.naver.com/api/stocks/marketValue/KOSPI"
+TV_SCAN = "https://scanner.tradingview.com/japan/scan"
+HEADERS = {"User-Agent": "Mozilla/5.0"}
+PAGE = Path(__file__).with_name("index.html")
+FAST = 50
+SLOW = 200
+TOP_N = 20
+CANDIDATES = 30
+TV_EXCHANGES = {
+    "NMS": "NASDAQ",
+    "NGM": "NASDAQ",
+    "NCM": "NASDAQ",
+    "NYQ": "NYSE",
+    "NYS": "NYSE",
+    "ASE": "AMEX",
+    "PCX": "AMEX",
+    "BTS": "AMEX",
+    "JPX": "TSE",
+    "TKS": "TSE",
+    "TYO": "TSE",
+}
+TV_STUDIES = urllib.parse.quote(json.dumps([
+    {"id": "MASimple@tv-basicstudies", "inputs": {"length": FAST}},
+    {"id": "MASimple@tv-basicstudies", "inputs": {"length": SLOW}},
+], separators=(",", ":")))
+TV_OVERRIDES = urllib.parse.quote(json.dumps({
+    "moving average.ma.color": "#E53935",
+    "moving average.ma.linewidth": 2,
+}, separators=(",", ":")))
+
+# ticker, label, name, currency, TradingView symbol
+FUNDS = [
+    ("QQQ", "QQQ", "Invesco QQQ", "USD", "NASDAQ:QQQ"),
+    ("SPY", "SPY", "SPDR S&P 500", "USD", "AMEX:SPY"),
+    ("VOO", "VOO", "Vanguard S&P 500", "USD", "AMEX:VOO"),
+    ("^SOX", "SOX", "필라델피아 반도체", "USD", "NASDAQ:SOX"),
+    ("SMH", "SMH", "VanEck 반도체", "USD", "NASDAQ:SMH"),
+    ("SOXX", "SOXX", "iShares 반도체", "USD", "NASDAQ:SOXX"),
+    ("SLV", "SLV", "iShares 은", "USD", "AMEX:SLV"),
+    ("GLD", "GLD", "SPDR 금", "USD", "AMEX:GLD"),
+    ("SCHD", "SCHD", "Schwab 미국배당", "USD", "AMEX:SCHD"),
+    ("069500.KS", "069500", "KODEX 200", "KRW", "KRX:069500"),
+    ("102110.KS", "102110", "TIGER 200", "KRW", "KRX:102110"),
+    ("EWY", "EWY", "iShares 한국", "USD", "AMEX:EWY"),
+    ("FLKR", "FLKR", "Franklin 한국", "USD", "AMEX:FLKR"),
+    ("BTC-USD", "BTC-USD", "비트코인", "USD", "BITSTAMP:BTCUSD"),
+    ("ETH-USD", "ETH-USD", "이더리움", "USD", "BITSTAMP:ETHUSD"),
+]
+
+
+def yahoo_session():
+    session = requests.Session()
+    session.headers["User-Agent"] = "Mozilla/5.0"
+    session.get("https://fc.yahoo.com", timeout=20)
+    crumb = session.get("https://query1.finance.yahoo.com/v1/test/getcrumb", timeout=20).text.strip()
+    if not crumb or crumb.startswith("{") or crumb.startswith("<"):
+        raise RuntimeError("Yahoo crumb failed")
+    return session, crumb
+
+
+def screener_quotes(session, crumb, region):
+    payload = {
+        "size": CANDIDATES,
+        "offset": 0,
+        "sortField": "intradaymarketcap",
+        "sortType": "DESC",
+        "quoteType": "EQUITY",
+        "query": {
+            "operator": "AND",
+            "operands": [{"operator": "eq", "operands": ["region", region]}],
+        },
+    }
+    response = session.post(
+        SCREENER_URL,
+        params={"crumb": crumb, "lang": "en-US", "region": region.upper()},
+        json=payload,
+        timeout=30,
+    )
+    response.raise_for_status()
+    result = (response.json().get("finance") or {}).get("result") or []
+    if not result:
+        return []
+    rows = []
+    for quote in result[0].get("quotes") or []:
+        if quote.get("quoteType") != "EQUITY":
+            continue
+        symbol = quote.get("symbol") or ""
+        if not symbol or symbol.startswith("^"):
+            continue
+        rows.append({
+            "ticker": symbol,
+            "name": quote.get("shortName") or quote.get("longName") or symbol,
+            "currency": quote.get("currency") or "",
+            "exchange": quote.get("exchange") or "",
+        })
+    return rows
+
+
+def load_us(session, crumb):
+    return screener_quotes(session, crumb, "us")[:TOP_N]
+
+
+def load_japan_yahoo(session, crumb):
+    return [row for row in screener_quotes(session, crumb, "jp") if str(row["ticker"]).endswith(".T")]
+
+
+def load_japan_tradingview():
+    payload = {
+        "filter": [{"left": "type", "operation": "equal", "right": "stock"}],
+        "options": {"lang": "en"},
+        "markets": ["japan"],
+        "symbols": {"query": {"types": []}, "tickers": []},
+        "columns": ["name", "market_cap_basic", "description", "currency", "exchange"],
+        "sort": {"sortBy": "market_cap_basic", "sortOrder": "desc"},
+        "range": [0, CANDIDATES],
+    }
+    response = requests.post(
+        TV_SCAN,
+        json=payload,
+        headers={**HEADERS, "Origin": "https://www.tradingview.com"},
+        timeout=30,
+    )
+    response.raise_for_status()
+    rows = []
+    for item in response.json().get("data") or []:
+        symbol = item.get("s") or ""
+        if ":" not in symbol:
+            continue
+        exchange, code = symbol.split(":", 1)
+        fields = item.get("d") or []
+        name = fields[2] if len(fields) > 2 and fields[2] else (fields[0] if fields else code)
+        currency = fields[3] if len(fields) > 3 and fields[3] else "JPY"
+        rows.append({
+            "ticker": f"{code}.T",
+            "name": name,
+            "currency": currency,
+            "exchange": exchange or "TSE",
+        })
+    return rows
+
+
+def load_japan(session, crumb):
+    try:
+        rows = load_japan_yahoo(session, crumb)
+    except (requests.RequestException, ValueError, KeyError, TypeError, IndexError) as error:
+        print(f"Japan Yahoo screener failed: {error}", flush=True)
+        rows = []
+    if len(rows) < TOP_N:
+        print(f"Japan Yahoo screener returned {len(rows)} .T names; using TradingView scanner", flush=True)
+        seen = {row["ticker"] for row in rows}
+        for row in load_japan_tradingview():
+            if row["ticker"] not in seen:
+                rows.append(row)
+                seen.add(row["ticker"])
+    return rows[:TOP_N]
+
+
+def load_korea():
+    response = requests.get(
+        KOSPI_URL,
+        params={"page": 1, "pageSize": 80},
+        headers={**HEADERS, "Referer": "https://m.stock.naver.com/"},
+        timeout=30,
+    )
+    response.raise_for_status()
+    rows = []
+    for item in response.json().get("stocks") or []:
+        if item.get("stockEndType") != "stock":
+            continue
+        code = item.get("itemCode") or ""
+        if not code.isdigit() or len(code) != 6 or not code.endswith("0"):
+            continue
+        rows.append({
+            "ticker": f"{code}.KS",
+            "name": item.get("stockName") or code,
+            "currency": "KRW",
+            "exchange": "KRX",
+        })
+        if len(rows) >= TOP_N:
+            break
+    return rows
+
+
+def tv_symbol(ticker, exchange):
+    if ticker.endswith(".KS") or ticker.endswith(".KQ"):
+        return "KRX:" + ticker.split(".")[0]
+    if ticker.endswith(".T"):
+        return "TSE:" + ticker[:-2]
+    mapped = TV_EXCHANGES.get(exchange or "", "")
+    code = ticker.replace("-", ".")
+    return f"{mapped}:{code}" if mapped else code
+
+
+def display_code(ticker):
+    if ticker.endswith(".KS") or ticker.endswith(".KQ") or ticker.endswith(".T"):
+        return ticker.rsplit(".", 1)[0]
+    return ticker
+
+
+def chart_url(symbol):
+    return (
+        "https://www.tradingview.com/widgetembed/?symbol="
+        + urllib.parse.quote(symbol, safe="")
+        + "&interval=D&style=1&theme=dark&hideideas=1"
+        + "&studies=" + TV_STUDIES
+        + "&studies_overrides=" + TV_OVERRIDES
+    )
+
+
+def daily_closes(ticker):
+    quoted = urllib.parse.quote(ticker, safe=".-")
+    for attempt in range(4):
+        try:
+            response = requests.get(
+                CHART_URL.format(ticker=quoted),
+                params={
+                    "interval": "1d",
+                    "range": "2y",
+                    "events": "div,splits",
+                    "includeAdjustedClose": "true",
+                },
+                headers=HEADERS,
+                timeout=30,
+            )
+            if response.status_code in (429, 500, 502, 503):
+                time.sleep(1.4 * (attempt + 1))
+                continue
+            response.raise_for_status()
+            result = (response.json().get("chart") or {}).get("result") or []
+            if not result:
+                time.sleep(0.8 * (attempt + 1))
+                continue
+            block = result[0]
+            stamps = block.get("timestamp") or []
+            quote = ((block.get("indicators") or {}).get("quote") or [{}])[0]
+            adjusted = ((block.get("indicators") or {}).get("adjclose") or [{}])[0].get("adjclose")
+            closes = quote.get("close") or []
+            bars = []
+            for index, stamp in enumerate(stamps):
+                close = closes[index] if index < len(closes) else None
+                adj = adjusted[index] if adjusted and index < len(adjusted) else None
+                price = adj if isinstance(adj, (int, float)) and adj > 0 else close
+                if not isinstance(price, (int, float)) or price <= 0:
+                    continue
+                bars.append({
+                    "date": datetime.fromtimestamp(stamp, timezone.utc).date().isoformat(),
+                    "close": float(price),
+                })
+            if bars:
+                return bars
+        except (requests.RequestException, ValueError, KeyError, TypeError):
+            time.sleep(0.8 * (attempt + 1))
+    return None
+
+
+def sma(closes, end, length):
+    window = closes[end - length + 1:end + 1]
+    return sum(window) / length
+
+
+def judge(bars):
+    closes = [bar["close"] for bar in bars]
+    today = len(closes) - 1
+    yesterday = today - 1
+    fast = sma(closes, today, FAST)
+    slow = sma(closes, today, SLOW)
+    prev_fast = sma(closes, yesterday, FAST)
+    prev_slow = sma(closes, yesterday, SLOW)
+    above = fast > slow
+    prev_above = prev_fast > prev_slow
+    if above and not prev_above:
+        signal, change = "매수", "골든크로스"
+    elif above:
+        signal, change = "매수", "보유 유지"
+    elif prev_above:
+        signal, change = "매도", "데드크로스"
+    else:
+        signal, change = "매도", "현금 유지"
+    return {
+        "date": bars[today]["date"],
+        "close": closes[today],
+        "fast": fast,
+        "slow": slow,
+        "disparity": fast / slow * 100,
+        "buy": signal == "매수",
+        "wait": False,
+        "signal": signal,
+        "change": change,
+    }
+
+
+def money(value, currency):
+    if currency in ("KRW", "JPY"):
+        return f"{value:,.0f}"
+    return f"{value:,.2f}"
+
+
+def chip(row):
+    return (
+        f'<a href="{chart_url(row["symbol"])}" target="_blank">{html.escape(row["label"])}</a>'
+        f'<span>{html.escape(row["name"])}</span>'
+    )
+
+
+def blank_row(item, reason):
+    return {
+        "label": display_code(item["ticker"]),
+        "name": item["name"],
+        "currency": item.get("currency") or "",
+        "symbol": tv_symbol(item["ticker"], item.get("exchange")),
+        "date": "",
+        "close": None,
+        "fast": None,
+        "slow": None,
+        "disparity": None,
+        "buy": False,
+        "wait": False,
+        "signal": "없음",
+        "change": reason,
+        "missing": True,
+    }
+
+
+def score_items(items, strict):
+    scored = []
+    failed = []
+
+    def one(item):
+        bars = daily_closes(item["ticker"])
+        return item, bars
+
+    found = {}
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        futures = [pool.submit(one, item) for item in items]
+        for future in as_completed(futures):
+            item, bars = future.result()
+            found[item["ticker"]] = (item, bars)
+    for item in items:
+        item, bars = found[item["ticker"]]
+        if not bars or len(bars) < SLOW + 1:
+            reason = "조회 실패" if not bars else "50·200일선 없음"
+            failed.append(display_code(item["ticker"]))
+            print(f"FAIL {display_code(item['ticker'])} {reason}", file=sys.stderr)
+            if not strict:
+                scored.append(blank_row(item, reason))
+            continue
+        row = judge(bars)
+        row.update({
+            "label": item.get("label") or display_code(item["ticker"]),
+            "name": item["name"],
+            "currency": item["currency"],
+            "symbol": item.get("symbol") or tv_symbol(item["ticker"], item.get("exchange")),
+            "missing": False,
+        })
+        scored.append(row)
+        print(f"{row['label']} {row['date']} {row['signal']} {row['disparity']:.1f} {row['change']}")
+    if strict and failed:
+        raise SystemExit("시세를 받지 못했습니다: " + ", ".join(failed))
+    return scored
+
+
+def sides(rows):
+    live = [row for row in rows if not row.get("missing")]
+    buys = [row for row in live if row["buy"]]
+    waits = [row for row in live if row["wait"]]
+    sells = [row for row in live if not row["buy"] and not row["wait"]]
+    return buys, waits, sells
+
+
+def summary_block(title, rows):
+    buys, waits, sells = sides(rows)
+    buy_html = "".join(f"<li>{chip(row)}</li>" for row in buys) or "<li>없음</li>"
+    wait_box = ""
+    if waits:
+        wait_html = "".join(f"<li>{chip(row)}</li>" for row in waits)
+        wait_box = (
+            '<div class="box wait">'
+            f"<h2>대기 {len(waits)}개 · 오늘 처음 돌파, 내일 확인</h2>"
+            f"<ol>{wait_html}</ol></div>"
+        )
+    sell_html = "".join(f"<li>{chip(row)}</li>" for row in sells) or "<li>없음</li>"
+    return f"""
+  <h2 class="market">{html.escape(title)}</h2>
+  <section class="summary">
+    <div class="box buy">
+      <h2>매수 {len(buys)}개 · 골든크로스, 보유</h2>
+      <ol>{buy_html}</ol>
+    </div>
+    <div class="box sell">
+      <h2>매도 {len(sells)}개 · 데드크로스, 현금</h2>
+      <ol>{sell_html}</ol>
+    </div>
+    {wait_box}
+  </section>
+"""
+
+
+def table_block(title, rows, ranked):
+    head = "<th>순위</th>" if ranked else ""
+    body = []
+    for order, row in enumerate(rows, start=1):
+        rank = f'<td data-label="순위">{order}</td>' if ranked else ""
+        if row.get("missing"):
+            body.append(
+                f'<tr class="miss">{rank}'
+                f'<td class="code" data-label="코드">{html.escape(row["label"])}</td>'
+                f'<td class="name" data-label="종목">{html.escape(row["name"])}</td>'
+                f'<td data-label="기준일">-</td><td data-label="종가">-</td><td data-label="50일선">-</td><td data-label="200일선">-</td>'
+                f'<td data-label="50/200">-</td><td class="signal" data-label="시그널">없음</td>'
+                f'<td data-label="변화">{html.escape(row["change"])}</td></tr>'
+            )
+            continue
+        side = "buy" if row["buy"] else "wait" if row["wait"] else "sell"
+        body.append(
+            f'<tr class="{side}">{rank}'
+            f'<td class="code" data-label="코드"><a href="{chart_url(row["symbol"])}" target="_blank">{html.escape(row["label"])}</a></td>'
+            f'<td class="name" data-label="종목">{html.escape(row["name"])}</td>'
+            f'<td data-label="기준일">{row["date"]}</td>'
+            f'<td data-label="종가">{money(row["close"], row["currency"])}</td>'
+            f'<td data-label="50일선">{money(row["fast"], row["currency"])}</td>'
+            f'<td data-label="200일선">{money(row["slow"], row["currency"])}</td>'
+            f'<td class="{side}" data-label="50/200">{row["disparity"]:.1f}</td>'
+            f'<td class="signal {side}" data-label="시그널">{row["signal"]}</td>'
+            f'<td data-label="변화">{html.escape(row["change"])}</td>'
+            "</tr>"
+        )
+    return f"""
+  <h2 class="market">{html.escape(title)}</h2>
+  <section class="rank-wrap">
+    <table class="rank">
+      <thead>
+        <tr>
+          {head}<th class="code">코드</th><th class="name">종목</th><th>기준일</th><th>종가</th><th>50일선</th><th>200일선</th><th>50/200</th><th>시그널</th><th>변화</th>
+        </tr>
+      </thead>
+      <tbody>
+        {"".join(body)}
+      </tbody>
+    </table>
+  </section>
+"""
+
+
+def render(groups):
+    dated = [row["date"] for rows in groups.values() for row in rows if row.get("date")]
+    asof = max(dated) if dated else ""
+    summaries = []
+    tables = []
+    for title, rows in groups.items():
+        ranked = title != "인덱스"
+        summaries.append(summary_block(title, rows))
+        tables.append(table_block(title, rows, ranked))
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+  <script src="/Premium/gate.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>골든크로스 데드크로스 매매법</title>
+  <style>
+    body {{ background: #111; color: white; font-family: Arial, sans-serif; margin: 0; padding: 16px; }}
+    a {{ color: #4da3ff; }}
+    .home {{ color: #D8C0FF; font-size: 28px; text-decoration: none; }}
+    h1 {{ text-align: center; color: #FFFFE0; font-size: 32px; line-height: 1.35; }}
+    .note, .formula {{ color: #ccc; font-size: 18px; line-height: 1.5; max-width: 980px; margin: 8px auto; }}
+    .formula {{ color: #8a8a8a; }}
+    .rules {{ max-width: 980px; margin: 14px auto 8px; }}
+    .rules h2 {{ color: #FFFFE0; font-size: 26px; margin: 0 0 8px; }}
+    .rules ol {{ margin: 0; padding-left: 1.3em; color: #eee; font-size: 20px; line-height: 1.55; }}
+    .rules li {{ margin: 6px 0; }}
+    h2.market {{ max-width: 1100px; margin: 22px auto 8px; color: #FFFFE0; font-size: 28px; }}
+    .glance {{ max-width: 1100px; margin: 8px auto 12px; }}
+    .summary {{ max-width: 1100px; margin: 0 auto 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }}
+    .summary .box.wait {{ grid-column: 1 / -1; }}
+    .box {{ border: 1px solid #444; border-radius: 12px; padding: 14px 16px; }}
+    .box.buy {{ background: #143024; }}
+    .box.wait {{ background: #2e2a14; }}
+    .box.sell {{ background: #3a1c1c; }}
+    .box h2 {{ margin: 0 0 10px; font-size: 24px; }}
+    .box.buy h2 {{ color: #7dcea0; }}
+    .box.wait h2 {{ color: #f7dc6f; }}
+    .box.sell h2 {{ color: #f1948a; }}
+    .box ol {{ margin: 0; padding-left: 1.2em; }}
+    .box li {{ margin: 4px 0; font-size: 20px; }}
+    .box li span {{ color: #ddd; margin-left: 8px; }}
+    .rank-wrap {{ max-width: 1100px; margin: 0 auto; }}
+    table.rank {{ width: 100%; border-collapse: collapse; }}
+    table.rank th, table.rank td {{ border-bottom: 1px solid #444; padding: 12px 8px; text-align: right; font-size: 18px; }}
+    table.rank th {{ color: #D8C0FF; text-align: center; }}
+    table.rank td.code, table.rank td.name, table.rank th.code, table.rank th.name {{ text-align: left; }}
+    table.rank td.code {{ font-weight: 700; }}
+    table.rank tr.buy td.signal, table.rank td.buy {{ color: #7dcea0; font-weight: 700; }}
+    table.rank tr.wait td.signal, table.rank td.wait {{ color: #f7dc6f; font-weight: 700; }}
+    table.rank tr.sell td.signal, table.rank td.sell {{ color: #f1948a; font-weight: 700; }}
+    table.rank tr.buy {{ background: #10261c; }}
+    table.rank tr.wait {{ background: #2a2610; }}
+    table.rank tr.sell {{ background: #2a1616; }}
+    table.rank tr.miss td {{ color: #888; }}
+    @media (max-width: 800px) {{
+      h1 {{ font-size: 26px; }}
+      .summary {{ grid-template-columns: 1fr; }}
+      table.rank thead {{ display: none; }}
+      table.rank, table.rank tbody, table.rank tr, table.rank td {{ display: block; width: 100%; }}
+      table.rank tr {{ border: 1px solid #444; border-radius: 10px; margin: 0 0 12px; padding: 8px; }}
+      table.rank td {{ display: flex; justify-content: space-between; border: none; text-align: right; padding: 4px 0; }}
+      table.rank td::before {{ content: attr(data-label); color: #D8C0FF; font-weight: 700; margin-right: 12px; }}
+    }}
+  </style>
+</head>
+<body>
+  <p><a class="home" href="../index.html">← 주가 방향 날씨</a></p>
+  <h1>골든크로스 데드크로스 매매법</h1>
+  <p class="note">50일선이 200일선을 상향 돌파하면 매수하고, 하향 돌파하면 매도합니다. 신호는 더 느리지만 짧은 흔들림에 덜 휩쓸립니다. 몇년안에 몇번 이하의 장기 추세 매매에 맞습니다. 평일 미국장 마감 후 갱신됩니다. 기준일 {asof}. 매수·매도 추천이 아닙니다. 참조만 하세요.</p>
+  <div class="glance">
+    {"".join(summaries)}
+  </div>
+  <section class="rules">
+    <h2>규칙</h2>
+    <ol>
+      <li>50일 단순이동평균과 200일 단순이동평균을 계산합니다.</li>
+      <li>매수: 50일선이 200일선을 상향 돌파하면 매수합니다. 골든크로스입니다.</li>
+      <li>보유: 50일선이 200일선 위에 있는 동안 보유합니다.</li>
+      <li>매도: 50일선이 200일선을 하향 돌파하면 전량 매도하고 현금으로 대기합니다. 데드크로스입니다.</li>
+      <li>다시 상향 돌파하면 같은 규칙으로 재진입합니다.</li>
+    </ol>
+  </section>
+  <p class="formula">50/200 = 50일 이동평균 ÷ 200일 이동평균 × 100. 100 초과가 골든크로스 보유, 100 이하가 데드크로스 현금입니다.</p>
+  {"".join(tables)}
+</body>
+</html>
+"""
+
+
+def fund_items():
+    items = []
+    for ticker, label, name, currency, symbol in FUNDS:
+        items.append({
+            "ticker": ticker,
+            "label": label,
+            "name": name,
+            "currency": currency,
+            "symbol": symbol,
+            "exchange": "",
+        })
+    return items
+
+
+def main():
+    session, crumb = yahoo_session()
+    markets = [
+        ("미국 시가총액 상위 20", load_us(session, crumb)),
+        ("한국 시가총액 상위 20", load_korea()),
+        ("일본 시가총액 상위 20", load_japan(session, crumb)),
+    ]
+    for title, items in markets:
+        if len(items) < TOP_N:
+            raise SystemExit(f"{title} 목록이 {len(items)}개뿐입니다.")
+        print(title + ": " + ", ".join(display_code(item["ticker"]) for item in items), flush=True)
+    groups = {"인덱스": score_items(fund_items(), strict=True)}
+    for title, items in markets:
+        groups[title] = score_items(items, strict=False)
+    PAGE.write_text(render(groups), encoding="utf-8")
+    print(f"wrote {PAGE}")
+
+
+if __name__ == "__main__":
+    main()
