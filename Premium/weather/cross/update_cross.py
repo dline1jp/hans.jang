@@ -40,19 +40,6 @@ TV_EXCHANGES = {
     "TKS": "TSE",
     "TYO": "TSE",
 }
-TV_STUDIES = urllib.parse.quote(json.dumps([
-    {
-        "id": "MASimple@tv-basicstudies",
-        "inputs": {"length": FAST},
-        "overrides": {"MovAvgSimple.color": "#9C27B0", "MovAvgSimple.linewidth": 2},
-    },
-    {
-        "id": "MASimple@tv-basicstudies",
-        "inputs": {"length": SLOW},
-        "overrides": {"MovAvgSimple.color": "#E53935", "MovAvgSimple.linewidth": 2},
-    },
-], separators=(",", ":")))
-
 # ticker, label, name, currency, TradingView symbol
 FUNDS = [
     ("QQQ", "QQQ", "Invesco QQQ", "USD", "NASDAQ:QQQ"),
@@ -223,12 +210,8 @@ def display_code(ticker):
 
 
 def chart_url(symbol):
-    return (
-        "https://www.tradingview.com/widgetembed/?symbol="
-        + urllib.parse.quote(symbol, safe="")
-        + "&interval=D&style=1&theme=dark&hideideas=1"
-        + "&studies=" + TV_STUDIES
-    )
+    # widgetembed rejects KRX and TSE and shows its default Apple chart.
+    return "index.html?symbol=" + urllib.parse.quote(symbol, safe="")
 
 
 def daily_closes(ticker):
@@ -374,6 +357,7 @@ def score_items(items, strict):
             "name": item["name"],
             "currency": item["currency"],
             "symbol": item.get("symbol") or tv_symbol(item["ticker"], item.get("exchange")),
+            "closes": [round(bar["close"], 4) for bar in bars[-320:]],
             "missing": False,
         })
         scored.append(row)
@@ -465,9 +449,25 @@ def table_block(title, rows, ranked):
 """
 
 
+def series_json(groups):
+    payload = {}
+    for rows in groups.values():
+        for row in rows:
+            closes = row.get("closes")
+            if not closes or not row.get("symbol"):
+                continue
+            payload[row["symbol"]] = {
+                "label": row["label"],
+                "name": row["name"],
+                "closes": closes,
+            }
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).replace("<", "\\u003c")
+
+
 def render(groups):
     dated = [row["date"] for rows in groups.values() for row in rows if row.get("date")]
     asof = max(dated) if dated else ""
+    charts = series_json(groups)
     summaries = []
     tables = []
     for title, rows in groups.items():
@@ -529,9 +529,23 @@ def render(groups):
       table.rank td {{ display: flex; justify-content: space-between; border: none; text-align: right; padding: 4px 0; }}
       table.rank td::before {{ content: attr(data-label); color: #D8C0FF; font-weight: 700; margin-right: 12px; }}
     }}
+    #ma-chart {{ max-width: 1100px; margin: 0 auto; }}
+    .ma-legend {{ font-size: 18px; }}
+    .ma-legend i {{ display: inline-block; width: 28px; height: 4px; margin: 0 6px 0 14px; vertical-align: middle; }}
+    .ma-legend i.ma50 {{ background: #9C27B0; }}
+    .ma-legend i.ma200 {{ background: #E53935; }}
+    .ma-legend i.mapx {{ background: #bbbbbb; }}
+    #ma-canvas {{ width: 100%; height: 520px; background: #0c0c0c; border: 1px solid #333; }}
   </style>
 </head>
 <body>
+  <div id="ma-chart" hidden>
+    <p><a class="home" href="index.html">← 목록</a></p>
+    <h1 id="ma-chart-title"></h1>
+    <p class="ma-legend"><i class="ma50"></i>50일선 <i class="ma200"></i>200일선 <i class="mapx"></i>수정 종가</p>
+    <canvas id="ma-canvas"></canvas>
+  </div>
+  <div id="report">
   <p><a class="home" href="../index.html">← 주가 방향 날씨</a></p>
   <h1>골든크로스 데드크로스 매매법</h1>
   <p class="note">50일선이 200일선을 상향 돌파하면 매수하고, 하향 돌파하면 매도합니다. 신호는 더 느리지만 짧은 흔들림에 덜 휩쓸립니다. 몇년안에 몇번 이하의 장기 추세 매매에 맞습니다. 평일 미국장 마감 후 갱신됩니다. 기준일 {asof}. 매수·매도 추천이 아닙니다. 참조만 하세요.</p>
@@ -550,6 +564,9 @@ def render(groups):
   </section>
   <p class="formula">50/200 = 50일 이동평균 ÷ 200일 이동평균 × 100. 100 초과가 골든크로스 보유, 100 이하가 데드크로스 현금입니다.</p>
   {"".join(tables)}
+  </div>
+  <script>window.MA_SERIES = {charts};</script>
+  <script src="/Premium/weather/ma-chart.js"></script>
 </body>
 </html>
 """
