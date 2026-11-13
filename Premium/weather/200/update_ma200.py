@@ -385,11 +385,16 @@ def score_items(items, strict):
     return scored
 
 
-def render_section(title, rows, ranked):
+def sides(rows):
     live = [row for row in rows if not row.get("missing")]
     buys = [row for row in live if row["buy"]]
     waits = [row for row in live if row["wait"]]
     sells = [row for row in live if not row["buy"] and not row["wait"]]
+    return buys, waits, sells
+
+
+def summary_block(title, rows):
+    buys, waits, sells = sides(rows)
     buy_html = "".join(f"<li>{chip(row)}</li>" for row in buys) or "<li>없음</li>"
     wait_box = ""
     if waits:
@@ -400,6 +405,23 @@ def render_section(title, rows, ranked):
             f"<ol>{wait_html}</ol></div>"
         )
     sell_html = "".join(f"<li>{chip(row)}</li>" for row in sells) or "<li>없음</li>"
+    return f"""
+  <h2 class="market">{html.escape(title)}</h2>
+  <section class="summary">
+    <div class="box buy">
+      <h2>매수 {len(buys)}개 · 200일선 위, 보유</h2>
+      <ol>{buy_html}</ol>
+    </div>
+    <div class="box sell">
+      <h2>매도 {len(sells)}개 · 200일선 아래, 현금</h2>
+      <ol>{sell_html}</ol>
+    </div>
+    {wait_box}
+  </section>
+"""
+
+
+def table_block(title, rows, ranked):
     head = "<th>순위</th>" if ranked else ""
     body = []
     for order, row in enumerate(rows, start=1):
@@ -429,17 +451,6 @@ def render_section(title, rows, ranked):
         )
     return f"""
   <h2 class="market">{html.escape(title)}</h2>
-  <section class="summary">
-    <div class="box buy">
-      <h2>매수 {len(buys)}개 · 200일선 위, 보유</h2>
-      <ol>{buy_html}</ol>
-    </div>
-    {wait_box}
-    <div class="box sell">
-      <h2>매도 {len(sells)}개 · 200일선 아래, 현금</h2>
-      <ol>{sell_html}</ol>
-    </div>
-  </section>
   <section class="rank-wrap">
     <table class="rank">
       <thead>
@@ -458,10 +469,12 @@ def render_section(title, rows, ranked):
 def render(groups):
     dated = [row["date"] for rows in groups.values() for row in rows if row.get("date")]
     asof = max(dated) if dated else ""
-    sections = []
+    summaries = []
+    tables = []
     for title, rows in groups.items():
         ranked = title != "인덱스"
-        sections.append(render_section(title, rows, ranked))
+        summaries.append(summary_block(title, rows))
+        tables.append(table_block(title, rows, ranked))
     return f"""<!DOCTYPE html>
 <html>
 <head>
@@ -480,8 +493,10 @@ def render(groups):
     .rules h2 {{ color: #FFFFE0; font-size: 26px; margin: 0 0 8px; }}
     .rules ol {{ margin: 0; padding-left: 1.3em; color: #eee; font-size: 20px; line-height: 1.55; }}
     .rules li {{ margin: 6px 0; }}
-    h2.market {{ max-width: 1100px; margin: 36px auto 8px; color: #FFFFE0; font-size: 28px; }}
-    .summary {{ max-width: 980px; margin: 18px auto 28px; display: grid; gap: 14px; }}
+    h2.market {{ max-width: 1100px; margin: 22px auto 8px; color: #FFFFE0; font-size: 28px; }}
+    .glance {{ max-width: 1100px; margin: 8px auto 12px; }}
+    .summary {{ max-width: 1100px; margin: 0 auto 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }}
+    .summary .box.wait {{ grid-column: 1 / -1; }}
     .box {{ border: 1px solid #444; border-radius: 12px; padding: 14px 16px; }}
     .box.buy {{ background: #143024; }}
     .box.wait {{ background: #2e2a14; }}
@@ -508,6 +523,7 @@ def render(groups):
     table.rank tr.miss td {{ color: #888; }}
     @media (max-width: 800px) {{
       h1 {{ font-size: 26px; }}
+      .summary {{ grid-template-columns: 1fr; }}
       table.rank thead {{ display: none; }}
       table.rank, table.rank tbody, table.rank tr, table.rank td {{ display: block; width: 100%; }}
       table.rank tr {{ border: 1px solid #444; border-radius: 10px; margin: 0 0 12px; padding: 8px; }}
@@ -520,6 +536,9 @@ def render(groups):
   <p><a class="home" href="../index.html">← 주가 방향 날씨</a></p>
   <h1>200일 이동평균 추세 매매</h1>
   <p class="note">가격이 200일 이동평균 위에 있을 때만 매수(보유)하고, 아래로 내려오면 매도하고 현금으로 둡니다. 평일 미국장 마감 후 갱신됩니다. 기준일 {asof}. 매수·매도 추천이 아닙니다. 참조만 하세요.</p>
+  <div class="glance">
+    {"".join(summaries)}
+  </div>
   <section class="rules">
     <h2>규칙</h2>
     <ol>
@@ -531,7 +550,7 @@ def render(groups):
     </ol>
   </section>
   <p class="formula">이격도 = 수정 종가 ÷ 200일 이동평균 × 100. 이격도 100 초과가 하루 더 유지되면 매수, 100 이하로 내려오면 매도입니다.</p>
-  {"".join(sections)}
+  {"".join(tables)}
 </body>
 </html>
 """
