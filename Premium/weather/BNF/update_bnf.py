@@ -107,6 +107,7 @@ SHELL = """<!DOCTYPE html>
     a { color: #D8C0FF; }
     .home { font-size: clamp(20px, 2vw, 32px); }
     h1 { text-align: center; color: #FFFFE0; font-size: clamp(20px, 2vw, 32px); line-height: 1.3; margin: 8px 0; }
+    .horizon { text-align: center; color: #f7dc6f; font-size: clamp(18px, 1.6vw, 24px); font-weight: 700; line-height: 1.45; margin: 8px 0 4px; }
     h1.low { margin-top: 28px; }
     .rank-wrap { width: 100%; max-width: none; margin: 8px auto; }
     .note, .formula { margin: 8px 0; color: #ccc; font-size: clamp(13px, 1.15vw, 18px); line-height: 1.4; }
@@ -188,6 +189,7 @@ SHELL = """<!DOCTYPE html>
 </head>
 <body>
   <p><a class="home" href="../index.html">← 주가 방향 날씨</a></p>
+  <p class="horizon">중단타(몇달이내, 매일 시세 업데이트 확인 필요)</p>
   <div class="BNF">
 <style>
   .bnf-link-banner {
@@ -209,7 +211,7 @@ SHELL = """<!DOCTYPE html>
   0.02억엔으로 200억 번 BNF 전략이 맞는 시기는 이때뿐 </a> <br>
     <img src="Designer (2).png" alt="차트 4">
   </div>
-  <h1>BNF 25일선 매수점. 평일 미국장 마감 후 업데이트됩니다.</h1>
+  <h1>BNF 25일선 매수점. 미국·한국·일본 시가총액 상위 20종목입니다. 평일 미국장 마감 후 업데이트됩니다.</h1>
 <!-- BNF_START -->
 <!-- BNF_END -->
 </body>
@@ -794,7 +796,7 @@ def render_summary(rows):
     ranked.sort(key=lambda row: (-row["star_count"], row["disparity"], row.get("group") or "", row["cap_rank"]))
     ranked = ranked[:10]
     lines = [
-        '<h1 class="low">별이 많은순 10종목 랭킹 </h1>',
+        '<h1 class="low">별이 많은 10종목</h1>',
         '<section class="rank-wrap">',
         '<p class="note">미국·한국·일본·주요 목록에서 대상외를 빼고, 별이 많은 순입니다. 별이 같으면 이격도가 더 낮은 종목이 위입니다.</p>',
         '<div class="table-scroll"><table class="rank top">',
