@@ -490,6 +490,7 @@ def render(groups):
     a {{ color: #4da3ff; }}
     .home {{ color: #D8C0FF; font-size: 28px; text-decoration: none; }}
     h1 {{ text-align: center; color: #FFFFE0; font-size: 32px; line-height: 1.35; }}
+    .horizon {{ text-align: center; color: #f7dc6f; font-size: 22px; font-weight: 700; line-height: 1.45; max-width: 980px; margin: 6px auto 4px; }}
     .note, .formula {{ color: #ccc; font-size: 18px; line-height: 1.5; max-width: 980px; margin: 8px auto; }}
     .formula {{ color: #8a8a8a; }}
     .rules {{ max-width: 980px; margin: 14px auto 8px; }}
@@ -551,6 +552,7 @@ def render(groups):
   </div>
   <div id="report">
   <p><a class="home" href="../index.html">← 주가 방향 날씨</a></p>
+  <p class="horizon">장타(몇년이내, 단 매일 시세 업데이트 확인 필요)</p>
   <h1>200일 이동평균 추세 장투 매매</h1>
   <p class="note">몇년안에 몇번 이하의 빈도의 장기 추세 매매를 할때만 적용합니다. 즉 시크리컬 경기 사이클 장투 추세 매매법입니다. 장기가격이 200일 이동평균 위에 있을 때만 매수(보유)하고, 아래로 내려오면 매도하고 현금으로 둡니다. 평일 미국장 마감 후 갱신됩니다. 기준일 {asof}. 매수·매도 추천이 아닙니다. 참조만 하세요.</p>
   <div class="glance">
