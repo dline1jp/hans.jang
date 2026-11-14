@@ -26,7 +26,7 @@ TV_OVERRIDES = urllib.parse.quote(json.dumps({
     "moving average.length": 200,
 }, separators=(",", ":")))
 WEEKS = 200
-PAGE = pathlib.Path(__file__).with_name("index.html")
+PAGE = pathlib.Path(__file__).resolve().parent / "week200" / "index.html"
 SKIP_NAME = ("WARRANT", " RIGHT", " UNIT", "PREFERRED", "DEBENTURE", " NOTE", "WHEN ISSUED")
 HIGH_HEADING = (
     '<h1>1. S&P500 주봉기준 과매수 종목 후보입니다. 매주 토요일 업데이트됩니다. '
@@ -605,8 +605,32 @@ def block(above, below, high, low, market):
         low,
         render_table(qualified, below_note, "gap-low"),
     ])
+def summary_list(frame):
+    if frame is None or len(frame) == 0:
+        return "<li>없음</li>"
+    items = []
+    for row in frame.head(3).itertuples(index=False):
+        items.append(
+            f'<li><a href="{chart_url(row.ticker)}" target="_blank">{html.escape(row.label)}</a>'
+            f'<span>{html.escape(str(row.name))} {row.disparity:.1f}</span></li>'
+        )
+    return "".join(items)
+def render_summary(sp_above, nq_above, ks_above):
+    boxes = []
+    for title, frame in (
+        ("S&P500 과매수 상위 3", sp_above),
+        ("나스닥 과매수 상위 3", nq_above),
+        ("코스피 과매수 상위 3", ks_above),
+    ):
+        boxes.append(
+            '<div class="box">'
+            f"<h2>{html.escape(title)}</h2>"
+            f"<ol>{summary_list(frame)}</ol></div>"
+        )
+    return '<div class="glance"><section class="summary">' + "".join(boxes) + "</section></div>"
 def render(sp_above, sp_below, nq_above, nq_below, ks_above, ks_below, scored):
     return "\n".join([
+        render_summary(sp_above, nq_above, ks_above),
         block(sp_above, sp_below, HIGH_HEADING, LOW_HEADING, ""),
         block(nq_above, nq_below, NASDAQ_HIGH_HEADING, NASDAQ_LOW_HEADING, "나스닥"),
         block(ks_above, ks_below, KOSPI_HIGH_HEADING, KOSPI_LOW_HEADING, "코스피"),
