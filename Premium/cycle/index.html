@@ -109,23 +109,30 @@
         "stroke-linejoin": "round"
       });
     }
-    function parsePeriod(raw) {
-      var text = String(raw || "").trim();
-      var yearFirst = text.match(/^(\d{2,4})-([A-Za-z]{3})$/);
-      var monthFirst = text.match(/^([A-Za-z]{3})-(\d{2,4})$/);
-      var year;
-      var month;
-      if (yearFirst) {
-        year = Number(yearFirst[1]);
-        month = MONTH[yearFirst[2].toLowerCase()];
-      } else if (monthFirst) {
-        month = MONTH[monthFirst[1].toLowerCase()];
-        year = Number(monthFirst[2]);
-      }
-      if (!month) return null;
-      if (year < 100) year += 2000;
-      return { year: year, month: month, key: year * 100 + month };
-    }
+function parsePeriod(raw) {
+  var text = String(raw || "").trim();
+  var iso = text.match(/^(\d{4})-(\d{1,2})(?:-\d{1,2})?$/);
+  var yearFirst = text.match(/^(\d{2,4})-([A-Za-z]{3})$/);
+  var monthFirst = text.match(/^([A-Za-z]{3})-(\d{2,4})$/);
+  var year;
+  var month;
+
+  if (iso) {
+    year = Number(iso[1]);
+    month = Number(iso[2]);
+    if (month < 1 || month > 12) return null;
+  } else if (yearFirst) {
+    year = Number(yearFirst[1]);
+    month = MONTH[yearFirst[2].toLowerCase()];
+  } else if (monthFirst) {
+    month = MONTH[monthFirst[1].toLowerCase()];
+    year = Number(monthFirst[2]);
+  }
+
+  if (!month) return null;
+  if (year < 100) year += 2000;
+  return { year: year, month: month, key: year * 100 + month };
+}
     function parseMom(raw) {
       if (raw === null || raw === undefined || String(raw).trim() === "") return null;
       var value = parseFloat(String(raw).replace("%", "").replace(/,/g, ""));
