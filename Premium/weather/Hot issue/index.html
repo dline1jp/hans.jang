@@ -4,7 +4,7 @@
   <script src="/Premium/gate.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>미국증시 핫이슈</title>
+  <title>오늘의 미국증시 핫이슈</title>
   <style>
     body {
       background: #111;
@@ -115,7 +115,7 @@
     <a class="home" href="../../../index.html">← 홈</a>
     <a class="home" href="../index.html">날씨</a>
   </div>
-  <h1>미국증시 핫이슈</h1>
+  <h1>오늘의 미국증시 핫이슈</h1>
   <p class="note">미국 증시 기사에 많이 나온 이슈일수록 글자가 큽니다. 글을 누르면 관련 제목이 나옵니다.</p>
   <div class="toolbar">
     <button id="reload" type="button">다시 불러오기</button>
@@ -337,33 +337,6 @@
       return out;
     }
 
-    function applyTranslated(batch, translated) {
-      var lines = String(translated).split(/\n+/).map(function (line) {
-        return line.trim();
-      }).filter(Boolean);
-      var byNum = {};
-      lines.forEach(function (line) {
-        var m = line.match(/^(\d+)\s*[\.\)]\s*(.+)$/);
-        if (m) byNum[m[1]] = m[2].trim();
-      });
-      var numbered = batch.every(function (article, index) {
-        return byNum[String(index + 1)];
-      });
-      if (numbered) {
-        batch.forEach(function (article, index) {
-          article.ko = byNum[String(index + 1)];
-        });
-        return;
-      }
-      var cleaned = lines.map(function (line) {
-        return line.replace(/^\d+\s*[\.\)]\s*/, "").trim();
-      });
-      if (cleaned.length !== batch.length) return;
-      batch.forEach(function (article, index) {
-        if (cleaned[index]) article.ko = cleaned[index];
-      });
-    }
-
     async function translateText(text) {
       var google = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q=" + encodeURIComponent(text);
       try {
@@ -374,31 +347,33 @@
         (data[0] || []).forEach(function (row) {
           if (row && row[0]) out += row[0];
         });
-        if (!out.trim()) throw new Error("google");
+        out = out.replace(/\s+/g, " ").trim();
+        if (!out || out === text) throw new Error("google");
         return out;
       } catch (e) {
-        var memory = "https://api.mymemory.translated.net/get?langpair=en|ko&q=" + encodeURIComponent(text);
+        var chunk = text.length > 450 ? text.slice(0, 450) : text;
+        var memory = "https://api.mymemory.translated.net/get?langpair=en|ko&q=" + encodeURIComponent(chunk);
         var response2 = await fetch(memory);
         if (!response2.ok) throw new Error("memory");
         var data2 = await response2.json();
         var text2 = data2 && data2.responseData && data2.responseData.translatedText;
         if (!text2 || data2.responseStatus !== 200) throw new Error("memory");
-        return text2;
+        if (/MYMEMORY WARNING/i.test(text2)) throw new Error("memory");
+        return text2.replace(/\s+/g, " ").trim();
       }
     }
 
     async function translateHeadlines(list) {
       var articles = shownArticles(list);
-      var size = 6;
+      var size = 4;
       var index;
       for (index = 0; index < articles.length; index += size) {
         var batch = articles.slice(index, index + size);
-        var source = batch.map(function (article, n) {
-          return (n + 1) + ". " + article.title;
-        }).join("\n");
-        try {
-          applyTranslated(batch, await translateText(source));
-        } catch (e) {}
+        await Promise.all(batch.map(function (article) {
+          return translateText(article.title).then(function (ko) {
+            if (ko) article.ko = ko;
+          }).catch(function () {});
+        }));
       }
     }
 
