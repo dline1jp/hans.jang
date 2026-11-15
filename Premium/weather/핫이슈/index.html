@@ -163,11 +163,13 @@
     var COLORS = ["#ffd76a", "#7ec8ff", "#d8c0ff", "#7dcea0", "#ff9b8a", "#ffffff", "#f5c16c", "#9ad1ff"];
     var issues = [];
     var selected = "";
+
     var FEEDS = [
       "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EGSPC&region=US&lang=en-US",
       "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EIXIC&region=US&lang=en-US",
       "https://feeds.finance.yahoo.com/rss/2.0/headline?s=%5EDJI&region=US&lang=en-US"
     ];
+
     function titlesFrom(text) {
       var out = [];
       var seen = {};
@@ -181,6 +183,7 @@
       }
       return out;
     }
+
     function score(articles) {
       return TERMS.map(function (term) {
         var headlines = [];
@@ -195,9 +198,11 @@
         return b.count - a.count;
       }).slice(0, 16);
     }
+
     function overlaps(a, b) {
       return !(a.x + a.w + 10 < b.x || b.x + b.w + 10 < a.x || a.y + a.h + 8 < b.y || b.y + b.h + 8 < a.y);
     }
+
     function drawCloud() {
       var box = document.getElementById("cloud");
       box.innerHTML = "";
@@ -274,6 +279,7 @@
         el.style.top = (parseFloat(el.style.top) + dy) + "px";
       });
     }
+
     function showLists() {
       var rank = document.getElementById("rank");
       var heads = document.getElementById("heads");
@@ -302,19 +308,75 @@
         a.href = article.url;
         a.target = "_blank";
         a.rel = "noopener";
-        a.textContent = article.title;
+        a.textContent = article.ko || article.title;
         li.appendChild(a);
         heads.appendChild(li);
       });
     }
+
     function choose(label) {
       selected = label;
       drawCloud();
       showLists();
     }
+
     function setBusy(busy) {
       document.getElementById("reload").disabled = busy;
     }
+
+    function shownArticles(list) {
+      var seen = {};
+      var out = [];
+      list.forEach(function (issue) {
+        issue.headlines.forEach(function (article) {
+          if (seen[article.title]) return;
+          seen[article.title] = 1;
+          out.push(article);
+        });
+      });
+      return out;
+    }
+
+    async function translateText(text) {
+      var google = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q=" + encodeURIComponent(text);
+      try {
+        var response = await fetch(google);
+        if (!response.ok) throw new Error("google");
+        var data = await response.json();
+        var out = "";
+        (data[0] || []).forEach(function (row) {
+          if (row && row[0]) out += row[0];
+        });
+        out = out.replace(/\s+/g, " ").trim();
+        if (!out || out === text) throw new Error("google");
+        return out;
+      } catch (e) {
+        var chunk = text.length > 450 ? text.slice(0, 450) : text;
+        var memory = "https://api.mymemory.translated.net/get?langpair=en|ko&q=" + encodeURIComponent(chunk);
+        var response2 = await fetch(memory);
+        if (!response2.ok) throw new Error("memory");
+        var data2 = await response2.json();
+        var text2 = data2 && data2.responseData && data2.responseData.translatedText;
+        if (!text2 || data2.responseStatus !== 200) throw new Error("memory");
+        if (/MYMEMORY WARNING/i.test(text2)) throw new Error("memory");
+        return text2.replace(/\s+/g, " ").trim();
+      }
+    }
+
+    async function translateHeadlines(list) {
+      var articles = shownArticles(list);
+      var size = 4;
+      var index;
+      for (index = 0; index < articles.length; index += size) {
+        var batch = articles.slice(index, index + size);
+        await Promise.all(batch.map(function (article) {
+          return translateText(article.title).then(function (ko) {
+            if (ko) article.ko = ko;
+          }).catch(function () {});
+        }));
+      }
+    }
+
     async function loadIssues() {
       var status = document.getElementById("status");
       var error = document.getElementById("error");
@@ -338,6 +400,8 @@
         issues = score(articles);
         if (!issues.length) throw new Error("empty");
         if (!issues.some(function (issue) { return issue.label === selected; })) selected = issues[0].label;
+        status.textContent = "제목을 한국어로 바꾸는 중";
+        await translateHeadlines(issues);
         var now = new Date();
         status.textContent = "기사 " + articles.length + "건 · " + now.toLocaleString("ko-KR");
         drawCloud();
@@ -350,6 +414,7 @@
         setBusy(false);
       }
     }
+
     document.getElementById("reload").addEventListener("click", loadIssues);
     var resizeTimer;
     window.addEventListener("resize", function () {
