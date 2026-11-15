@@ -4,7 +4,7 @@
   <script src="/Premium/gate.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>일봉 RSI MACD</title>
+  <title>주봉 RSI MACD</title>
   <style>
     body { background: #111; color: #fff; font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; margin: 0; padding: 16px; }
     a { color: #D8C0FF; font-size: 22px; text-decoration: none; }
@@ -15,23 +15,23 @@
 </head>
 <body>
   <p><a href="index.html">← AI 혁신주 타점</a></p>
-  <h1 id="title">일봉</h1>
-  <p>일봉입니다. 아래 차트에 MACD와 RSI가 있습니다. 가격 저점 두 곳이 비슷하거나 더 낮은데 MACD와 RSI 저점은 더 높으면 상승 다이버전스입니다.</p>
-  <iframe id="chart" title="일봉 MACD RSI"></iframe>
+  <h1 id="title">주봉</h1>
+  <p>주봉입니다. 장타용으로 주봉 쌍바닥 상승다이버전스만 봅니다. 아래 차트에 MACD와 RSI가 있습니다. 가격 저점 두 곳이 비슷하거나 더 낮은데 MACD와 RSI 저점은 더 높으면 상승 다이버전스입니다.</p>
+  <iframe id="chart" title="주봉 MACD RSI"></iframe>
   <script>
     var params = new URLSearchParams(location.search);
     var code = params.get("symbol") || "";
     var name = params.get("name") || code;
     var tv = /^\d{6}$/.test(code) ? "KRX:" + code : code;
-    document.title = name + " 일봉";
-    document.getElementById("title").textContent = name + " (" + code + ") 일봉";
+    document.title = name + " 주봉";
+    document.getElementById("title").textContent = name + " (" + code + ") 주봉";
     var studies = encodeURIComponent(JSON.stringify([
       { id: "MACD@tv-basicstudies" },
       { id: "RSI@tv-basicstudies", inputs: { length: 14 } }
     ]));
     document.getElementById("chart").src =
       "https://www.tradingview.com/widgetembed/?symbol=" + encodeURIComponent(tv) +
-      "&interval=D&style=1&theme=dark&hideideas=1&studies=" + studies;
+      "&interval=W&style=1&theme=dark&hideideas=1&studies=" + studies;
   </script>
 </body>
 </html>
