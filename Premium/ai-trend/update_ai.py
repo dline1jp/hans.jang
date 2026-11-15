@@ -612,13 +612,10 @@ def card_html(stock):
     source_line = f"출처 {html.escape(source)}" if source and label != "실적 없음" else "발표된 분기 EPS가 없습니다."
     price = stock.get("close")
     price_line = "시세 없음" if price is None else f'{html.escape(stock.get("date") or "")} 종가 {fmt_price(price, currency)} {html.escape(unit)}'
-    daily = stock.get("daily") or {"percent": 0, "price": 0, "macd": 0, "rsi": 0, "low1": "", "low2": "", "formed": False}
-    weekly = stock.get("weekly") or daily
+    weekly = stock.get("weekly") or {"percent": 0, "price": 0, "macd": 0, "rsi": 0, "low1": "", "low2": "", "formed": False}
     if price is None:
-        daily_html = '<p class="pct"><b>계산 불가</b></p><p class="sub">일봉 시세가 없습니다.</p>'
         weekly_html = '<p class="pct"><b>계산 불가</b></p><p class="sub">주봉을 만들 시세가 없습니다.</p>'
     else:
-        daily_html = pct_html(daily)
         weekly_html = pct_html(weekly)
     chart = "chart.html?" + urllib.parse.urlencode({"symbol": code, "name": stock["name"]})
     return f'''<article class="card" id="{html.escape(code)}">
@@ -629,8 +626,6 @@ def card_html(stock):
       <p class="frame">주가순이익</p>
       {eps_svg(points, currency)}
       <p class="sub">{source_line} · 단위 {html.escape(unit) if unit else "-"} · 직전 분기 대비</p>
-      <p class="frame">일봉</p>
-      {daily_html}
       <p class="frame">주봉</p>
       {weekly_html}
     </article>'''
@@ -640,36 +635,34 @@ def rank_html(us_rows, kr_rows):
     scored = []
     for market, rows in (("미국주", us_rows), ("국주", kr_rows)):
         for row in rows:
-            daily = row.get("daily") or {}
             weekly = row.get("weekly") or {}
             if row.get("close") is None:
                 continue
-            day = int(daily.get("percent") or 0)
             week = int(weekly.get("percent") or 0)
             points = row.get("eps") or []
             label, _ = eps_label(points, row.get("currency") or "") if points else ("실적 없음", "flat")
             if not points or all(point["eps"] is None for point in points):
                 label = "실적 없음"
-            if max(day, week) <= 0:
+            if week <= 0:
                 continue
-            scored.append((max(day, week), day, week, market, row, label))
-    scored.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
+            scored.append((week, market, row, label))
+    scored.sort(key=lambda item: item[0], reverse=True)
     items = []
-    for index, (best, day, week, market, row, label) in enumerate(scored[:5], start=1):
+    for index, (week, market, row, label) in enumerate(scored[:5], start=1):
         code = display_code(row["ticker"])
         items.append(
             "<li>"
             f'<span><b class="n">{index}</b>'
             f'<a href="#{html.escape(code)}">{html.escape(row["name"])}</a>'
             f' <span class="sub">{html.escape(code)} · {market}</span></span>'
-            f'<span>일봉 {day}% · 주봉 {week}% · {html.escape(label)}</span>'
+            f'<span>주봉 {week}% · {html.escape(label)}</span>'
             "</li>"
         )
     body = "\n".join(items) if items else "<li>계산된 종목이 없습니다.</li>"
     return (
         '<section class="rank-top">'
         "<h2>상위 5</h2>"
-        '<p class="sub">일봉과 주봉의 쌍바닥 상승다이버전스 퍼센트 중 높은 쪽 기준입니다. MACD선이 0보다 위인 봉은 0%라서 뺍니다.</p>'
+        '<p class="sub">장타용입니다. 주봉 쌍바닥 상승다이버전스 퍼센트만 봅니다. MACD선이 0보다 위인 주봉은 0%라서 뺍니다.</p>'
         f"<ol>{body}</ol>"
         "</section>"
     )
@@ -752,9 +745,9 @@ def page_html(us_rows, kr_rows, stamped):
   </section>
   <section class="rules note">
     <h2>쌍바닥 상승다이버전스 퍼센트</h2>
-    <p>일봉과 주봉을 따로 계산합니다. MACD선은 12기간 지수이동평균에서 26기간 지수이동평균을 뺀 값이고, RSI는 14기간 Wilder입니다. 가격은 수정주가의 고가·저가·종가입니다.</p>
-    <p>스윙 저점은 일봉은 좌우 5봉, 주봉은 좌우 3봉보다 저가가 낮은 봉입니다. 오른쪽이 아직 안 찬 최근 봉은 빼서 확정된 저점만 씁니다. 가장 최근 스윙 저점과, 그보다 일봉 8~80봉(주봉 3~26봉) 앞의 스윙 저점을 비교합니다. 두 저점 사이에 고가가 두 저점보다 3% 이상 높아야 합니다. 이런 쌍이 없으면 0%입니다.</p>
-    <p>마지막 봉의 MACD선이 0보다 위에 있으면 그 일봉 또는 주봉은 0%입니다. 상승다이버전스가 이미 지난 구간이라 매수 자리가 아닙니다. 상위 5에도 넣지 않습니다.</p>
+    <p>장타용이라 주봉만 계산합니다. MACD선은 12기간 지수이동평균에서 26기간 지수이동평균을 뺀 값이고, RSI는 14기간 Wilder입니다. 가격은 수정주가의 고가·저가·종가입니다.</p>
+    <p>스윙 저점은 좌우 3봉보다 저가가 낮은 주봉입니다. 오른쪽이 아직 안 찬 최근 봉은 빼서 확정된 저점만 씁니다. 가장 최근 스윙 저점과, 그보다 3~26봉 앞의 스윙 저점을 비교합니다. 두 저점 사이에 고가가 두 저점보다 3% 이상 높아야 합니다. 이런 쌍이 없으면 0%입니다.</p>
+    <p>마지막 주봉의 MACD선이 0보다 위에 있으면 0%입니다. 상승다이버전스가 이미 지난 구간이라 매수 자리가 아닙니다. 상위 5에도 넣지 않습니다.</p>
     <p>100%는 둘째 저가가 첫째 저가의 95% 이상 103% 이하이고, 둘째 저점의 MACD선과 RSI가 둘 다 첫째 저점보다 높을 때만입니다. 하나라도 아니면 가격 비슷함 34%, MACD 33%, RSI 33%를 더해 99를 넘기지 않습니다. 가격 점수는 저가 차이가 3% 이내면 100, 10% 이상이면 0입니다. RSI는 둘째가 더 높으면 100, 15포인트 이상 낮으면 0입니다. MACD는 둘째가 더 높으면 100, 아니면 그 차이를 최근 구간의 MACD 폭으로 나눕니다. 지표가 같거나 낮으면 그 지표 점수는 99를 넘지 않습니다.</p>
     <p>분기 주당순이익은 발표된 실제치만 씁니다. 추정치는 쓰지 않습니다. 미국 종목은 Yahoo Finance, 한국 종목은 Yahoo Finance와 네이버금융 중 실제치 최근 분기가 더 새로운 쪽입니다. 네이버 컨센서스 열은 뺍니다. 숫자가 없으면 실적 없음입니다. 바로 앞 분기와 비교할 수 없으면 비교 불가입니다.</p>
   </section>
@@ -889,3 +882,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
