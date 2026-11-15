@@ -545,7 +545,7 @@ def eps_svg(points, currency):
         return pad_top + (high - value) / (high - low) * plot_h
 
     zero_y = y_of(0)
-    parts = [f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="최근 분기 EPS">']
+    parts = [f'<svg viewBox="0 0 {width} {height}" role="img" aria-label="주가순이익">']
     parts.append(
         f'<line x1="{pad_left}" y1="{zero_y:.1f}" x2="{width - pad_right}" y2="{zero_y:.1f}" stroke="#555"/>'
     )
@@ -612,11 +612,13 @@ def card_html(stock):
     else:
         daily_html = pct_html(daily)
         weekly_html = pct_html(weekly)
+    chart = "chart.html?" + urllib.parse.urlencode({"symbol": code, "name": stock["name"]})
     return f'''<article class="card" id="{html.escape(code)}">
-      <h3><span class="ticker">{html.escape(code)}</span> {html.escape(stock["name"])}</h3>
+      <h3><a href="{html.escape(chart)}"><span class="ticker">{html.escape(code)}</span> {html.escape(stock["name"])}</a></h3>
       <p class="tags">{tags}</p>
       <p class="asof">{price_line}</p>
       <p><span class="badge {kind}">{html.escape(label)}</span></p>
+      <p class="frame">주가순이익</p>
       {eps_svg(points, currency)}
       <p class="sub">{source_line} · 단위 {html.escape(unit) if unit else "-"} · 직전 분기 대비</p>
       <p class="frame">일봉</p>
@@ -635,7 +637,7 @@ def page_html(us_rows, kr_rows, stamped):
   <script src="/Premium/gate.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AI 혁신주 동향</title>
+  <title>AI 혁신주 타점</title>
   <style>
     body {{ background: #111; color: #fff; font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; margin: 0; padding: 16px; }}
     a {{ color: #4da3ff; }}
@@ -668,7 +670,7 @@ def page_html(us_rows, kr_rows, stamped):
 </head>
 <body>
   <p><a class="home" href="/index.html">← 처음</a></p>
-  <h1>AI 혁신주 동향</h1>
+  <h1>AI 혁신주 타점</h1>
   <p class="warn">투자 권유가 아닙니다. 참고용. 매수후보·매수보류는 최근 분기 주당순이익이 바로 앞 분기보다 늘었는지 줄었는지만 표시합니다.</p>
   <p class="note">기준 시각 {html.escape(stamped)}. 시세는 종목별 마지막 거래일의 수정주가입니다. 평일 미국장 마감 후 <code>python Premium/ai-trend/update_ai.py</code>로 갱신합니다.</p>
   <section class="groups">
