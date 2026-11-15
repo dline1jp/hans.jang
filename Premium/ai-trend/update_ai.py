@@ -27,7 +27,7 @@ PAGE = Path(__file__).with_name("index.html")
 KST = timezone(timedelta(hours=9))
 
 DAILY = {"wing": 5, "min_sep": 8, "max_sep": 80, "lookback": 140}
-WEEKLY = {"wing": 3, "min_sep": 3, "max_sep": 26, "lookback": 80}
+WEEKLY = {"wing": 3, "min_sep": 3, "max_sep": 26, "lookback": 80, "months": 6}
 
 US_GROUPS = [
     ("전력·그리드", [
@@ -333,6 +333,23 @@ def indicator_score(newer, older, span):
     return min(99.0, clamp_score(100.0 * (1 - (older - newer) / span)))
 
 
+def months_before(day, months):
+    month = day.month - months
+    year = day.year
+    while month <= 0:
+        month += 12
+        year -= 1
+    last_day = calendar.monthrange(year, month)[1]
+    return day.replace(year=year, month=month, day=min(day.day, last_day))
+
+
+def bar_day(bar):
+    try:
+        return datetime.fromisoformat(bar.get("date") or "").date()
+    except ValueError:
+        return None
+
+
 def price_score(low1, low2):
     if low1 <= 0 or low2 <= 0:
         return 0.0
@@ -355,6 +372,10 @@ def score_bars(bars, spec):
     rsi = rsi_series(closes)
     start = max(0, len(bars) - spec["lookback"])
     swings = [index for index in swing_lows(lows, spec["wing"]) if index >= start]
+    months = spec.get("months")
+    if months:
+        cutoff = months_before(datetime.now(KST).date(), months)
+        swings = [index for index in swings if (bar_day(bars[index]) or cutoff) >= cutoff]
     if not swings:
         return empty
     later = swings[-1]
@@ -662,7 +683,7 @@ def rank_html(us_rows, kr_rows):
     return (
         '<section class="rank-top">'
         "<h2>상위 5</h2>"
-        '<p class="sub">장타용입니다. 주봉 쌍바닥 상승다이버전스 퍼센트만 봅니다. MACD선이 0보다 위인 주봉은 0%라서 뺍니다.</p>'
+        '<p class="sub">장타용입니다. 최근 6개월 주봉의 쌍바닥 상승다이버전스 접근도만 봅니다. 6개월보다 이전 저점과, MACD선이 0보다 위인 주봉은 0%라서 뺍니다.</p>'
         f"<ol>{body}</ol>"
         "</section>"
     )
@@ -746,7 +767,7 @@ def page_html(us_rows, kr_rows, stamped):
   <section class="rules note">
     <h2>쌍바닥 상승다이버전스 퍼센트</h2>
     <p>장타용이라 주봉만 계산합니다. MACD선은 12기간 지수이동평균에서 26기간 지수이동평균을 뺀 값이고, RSI는 14기간 Wilder입니다. 가격은 수정주가의 고가·저가·종가입니다.</p>
-    <p>스윙 저점은 좌우 3봉보다 저가가 낮은 주봉입니다. 오른쪽이 아직 안 찬 최근 봉은 빼서 확정된 저점만 씁니다. 가장 최근 스윙 저점과, 그보다 3~26봉 앞의 스윙 저점을 비교합니다. 두 저점 사이에 고가가 두 저점보다 3% 이상 높아야 합니다. 이런 쌍이 없으면 0%입니다.</p>
+    <p>스윙 저점은 좌우 3봉보다 저가가 낮은 주봉입니다. 오른쪽이 아직 안 찬 최근 봉은 빼서 확정된 저점만 씁니다. 가장 최근 스윙 저점과, 그보다 3~26봉 앞의 스윙 저점을 비교합니다. 두 저점 모두 오늘부터 6개월 안이어야 합니다. 그보다 이전 차트는 비교하지 않습니다. 두 저점 사이에 고가가 두 저점보다 3% 이상 높아야 합니다. 이런 쌍이 없으면 0%입니다.</p>
     <p>마지막 주봉의 MACD선이 0보다 위에 있으면 0%입니다. 상승다이버전스가 이미 지난 구간이라 매수 자리가 아닙니다. 상위 5에도 넣지 않습니다.</p>
     <p>100%는 둘째 저가가 첫째 저가의 95% 이상 103% 이하이고, 둘째 저점의 MACD선과 RSI가 둘 다 첫째 저점보다 높을 때만입니다. 하나라도 아니면 가격 비슷함 34%, MACD 33%, RSI 33%를 더해 99를 넘기지 않습니다. 가격 점수는 저가 차이가 3% 이내면 100, 10% 이상이면 0입니다. RSI는 둘째가 더 높으면 100, 15포인트 이상 낮으면 0입니다. MACD는 둘째가 더 높으면 100, 아니면 그 차이를 최근 구간의 MACD 폭으로 나눕니다. 지표가 같거나 낮으면 그 지표 점수는 99를 넘지 않습니다.</p>
     <p>분기 주당순이익은 발표된 실제치만 씁니다. 추정치는 쓰지 않습니다. 미국 종목은 Yahoo Finance, 한국 종목은 Yahoo Finance와 네이버금융 중 실제치 최근 분기가 더 새로운 쪽입니다. 네이버 컨센서스 열은 뺍니다. 숫자가 없으면 실적 없음입니다. 바로 앞 분기와 비교할 수 없으면 비교 불가입니다.</p>
@@ -839,6 +860,7 @@ def self_test():
     bars[40]["low"] = 28
     bars[61]["low"] = 27.2
     bars[50]["high"] = 60
+    formed_bars = [dict(bar) for bar in bars]
     spec = {"wing": 2, "min_sep": 5, "max_sep": 40, "lookback": 80}
     formed = score_bars(bars, spec)
     if formed["percent"] != 100 or not formed["formed"] or formed["macd_above"]:
@@ -858,6 +880,19 @@ def self_test():
     none = score_bars(flat, DAILY)
     if none["percent"] != 0:
         raise RuntimeError(f"no swing pair must be 0, got {none}")
+    recent = []
+    old = []
+    today = datetime.now(KST).date()
+    for index, bar in enumerate(formed_bars):
+        recent.append(dict(bar, date=(today - timedelta(days=79 - index)).isoformat()))
+        old.append(dict(bar, date=(today - timedelta(days=400 + (79 - index))).isoformat()))
+    window = dict(spec, months=6)
+    kept = score_bars(recent, window)
+    if kept["percent"] != 100 or not kept["formed"]:
+        raise RuntimeError(f"a pair inside 6 months must stay 100, got {kept}")
+    dropped = score_bars(old, window)
+    if dropped["percent"] != 0 or dropped["formed"]:
+        raise RuntimeError(f"a pair older than 6 months must be 0, got {dropped}")
 
 
 def main():
@@ -882,3 +917,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
