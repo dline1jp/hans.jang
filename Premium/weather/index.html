@@ -24,110 +24,35 @@ table.rank tr.top { background: #1c1c1c; }
 table.rank td.gap-low { color: #f1948a; font-weight: 700; font-size: 27px; }
 h1.low { margin-top: 80px; }
 
-.topbar { display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; }
-.menu-slot { display: inline-flex; flex-direction: column; align-items: center; }
-.menu-horizon { color: #f7dc6f; font-size: 15px; font-weight: 700; line-height: 1.35; text-align: center; max-width: 280px; margin: 0 0 6px; }
-.mover-menu { font-size: 34px; min-width: 300px; white-space: nowrap; }
-.chart-menu {
+.topbar { display: flex; align-items: stretch; flex-wrap: wrap; gap: 0; max-width: 1100px; margin: 0 0 18px; background: #1a4fbf; border-radius: 6px; overflow: hidden; }
+.topbar > a, .menu-slot { border-right: 1px solid rgba(255,255,255,0.28); }
+.menu-slot { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; }
+.menu-horizon { color: #d7e6ff; font-size: 11px; font-weight: 600; line-height: 1.3; text-align: center; max-width: 11em; margin: 8px 8px 0; }
+.mover-menu { font-size: 16px; min-width: 0; white-space: nowrap; }
+.chart-menu, .핫이슈-menu {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 240px;
-  height: 72px;
-  padding: 0 22px;
-  margin: 6px 0 20px;
-  border: 4px solid #5c4030;
-  border-radius: 12px;
-  background-color: #140c08;
-  background-image:
-    repeating-linear-gradient(92deg, rgba(0,0,0,0.28) 0 1px, transparent 1px 6px),
-    linear-gradient(180deg, #3c2418 0%, #1c100c 40%, #0a0604 100%);
-  color: #4da3ff;
-  font-size: 47px;
+  min-width: 0;
+  height: auto;
+  min-height: 44px;
+  padding: 10px 14px;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 16px;
   font-weight: 700;
-  text-decoration: underline;
-  cursor: pointer;
-  user-select: none;
-  -webkit-tap-highlight-color: transparent;
-  box-shadow:
-    inset 0 3px 0 rgba(140,100,60,0.35),
-    inset 0 -6px 0 rgba(0,0,0,0.55),
-    0 8px 0 #070403,
-    0 14px 16px rgba(0,0,0,0.45);
-  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease, color 0.12s ease;
-}
-.chart-menu:hover {
-  border-color: #c6a15a;
-  color: #8ec8ff;
-  background-image:
-    repeating-linear-gradient(92deg, rgba(0,0,0,0.14) 0 1px, transparent 1px 6px),
-    linear-gradient(180deg, #6e4022 0%, #452414 40%, #22140c 100%);
-  transform: translateY(-3px);
-  box-shadow:
-    inset 0 3px 0 rgba(210,170,100,0.45),
-    inset 0 -6px 0 rgba(0,0,0,0.45),
-    0 11px 0 #120a06,
-    0 18px 18px rgba(20,8,4,0.5);
-}
-.chart-menu:active {
-  border-color: #e6c85a;
-  color: #ffffff;
-  transform: translateY(6px);
-  box-shadow:
-    inset 0 4px 8px rgba(0,0,0,0.55),
-    0 2px 0 #120a06;
-}
-
-.핫이슈-menu {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 240px;
-  height: 72px;
-  padding: 0 22px;
-  margin: 6px 0 20px;
-  border: 4px solid #5c4030;
-  border-radius: 12px;
-  background-color: #140c08;
-  background-image:
-    repeating-linear-gradient(92deg, rgba(0,0,0,0.28) 0 1px, transparent 1px 6px),
-    linear-gradient(180deg, #3c2418 0%, #1c100c 40%, #0a0604 100%);
-  color: #4da3ff;
-  font-size: 47px;
-  font-weight: 700;
-  text-decoration: underline;
+  text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
-  box-shadow:
-    inset 0 3px 0 rgba(140,100,60,0.35),
-    inset 0 -6px 0 rgba(0,0,0,0.55),
-    0 8px 0 #070403,
-    0 14px 16px rgba(0,0,0,0.45);
-  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  box-shadow: none;
 }
-.핫이슈-menu:hover {
-  border-color: #c6a15a;
-  color: #8ec8ff;
-  background-image:
-    repeating-linear-gradient(92deg, rgba(0,0,0,0.14) 0 1px, transparent 1px 6px),
-    linear-gradient(180deg, #6e4022 0%, #452414 40%, #22140c 100%);
-  transform: translateY(-3px);
-  box-shadow:
-    inset 0 3px 0 rgba(210,170,100,0.45),
-    inset 0 -6px 0 rgba(0,0,0,0.45),
-    0 11px 0 #120a06,
-    0 18px 18px rgba(20,8,4,0.5);
-}
-.핫이슈-menu:active {
-  border-color: #e6c85a;
-  color: #ffffff;
-  transform: translateY(6px);
-  box-shadow:
-    inset 0 4px 8px rgba(0,0,0,0.55),
-    0 2px 0 #120a06;
-}
+.chart-menu:hover, .핫이슈-menu:hover { background: rgba(255,255,255,0.16); color: #fff; }
+.chart-menu:active, .핫이슈-menu:active { background: rgba(0,0,0,0.16); color: #fff; }
 .gauge-wrap { max-width: 1100px; margin: 27px auto; }
 .gauge-note { margin: 12px 0 18px; color: #ccc; font-size: 22px; line-height: 1.45; }
 .gauge-board { width: 100%; }
@@ -251,22 +176,24 @@ table.rank td.down { color: #f1948a; font-weight: 700; }
 @media (max-width: 800px) {
   body { padding: 12px; }
   html, body { overflow-x: hidden; max-width: 100%; }
-  .topbar { gap: 10px 12px; max-width: 100%; align-items: flex-start; }
-  .menu-slot { max-width: 100%; align-items: stretch; }
-  .menu-horizon { max-width: 100%; font-size: 14px; }
+  .topbar { max-width: 100%; }
+  .menu-slot { max-width: 100%; align-items: center; }
+  .menu-horizon { max-width: 9em; font-size: 11px; }
   .home { font-size: 28px; }
   .핫이슈-menu, .chart-menu {
-    font-size: clamp(18px, 5vw, 30px);
+    font-size: 15px;
     min-width: 0;
     max-width: 100%;
     width: auto;
     height: auto;
-    min-height: 52px;
-    padding: 8px 12px;
-    margin: 4px 0 12px;
+    min-height: 40px;
+    padding: 8px 10px;
+    margin: 0;
     box-sizing: border-box;
+    white-space: normal;
+    text-align: center;
   }
-  .mover-menu { min-width: 0; font-size: clamp(18px, 5vw, 30px); }
+  .mover-menu { min-width: 0; font-size: 15px; }
   .hub-title, h1 { font-size: 28px; }
   .hub h1.low { margin-top: 16px; font-size: 24px; }
   .hub h2.sec { font-size: 24px; }
