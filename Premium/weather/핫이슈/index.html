@@ -333,8 +333,62 @@
       return out;
     }
 
+    function prepTitle(text) {
+      var swaps = [
+        ["EXCLUSIVE:", "단독:"],
+        ["Exclusive:", "단독:"],
+        ["Anthropic", "앤트로픽"],
+        ["SpaceX", "스페이스X"],
+        ["NVIDIA", "엔비디아"],
+        ["Nvidia", "엔비디아"],
+        ["Micron", "마이크론"],
+        ["Dow Jones", "다우존스"],
+        ["CoreWeave", "코어위브"],
+        ["Alphabet", "알파벳"],
+        ["Microsoft", "마이크로소프트"],
+        ["Palantir", "팔란티어"],
+        ["Broadcom", "브로드컴"]
+      ];
+      swaps.forEach(function (pair) {
+        text = text.split(pair[0]).join(pair[1]);
+      });
+      return text.replace(/\bLoom\b/g, "임박");
+    }
+
+    function briefKo(text) {
+      var rules = [
+        ["했습니다", "했음"],
+        ["하였습니다", "했음"],
+        ["하겠습니다", "하겠음"],
+        ["됐습니다", "됐음"],
+        ["되었습니다", "되었음"],
+        ["있습니다", "있음"],
+        ["없습니다", "없음"],
+        ["아닙니다", "아님"],
+        ["입니다", "임"],
+        ["합니까", "함"],
+        ["할까요", "할지"],
+        ["습니까", "는지"],
+        ["합니다", "함"],
+        ["됩니다", "됨"],
+        ["했어요", "했음"],
+        ["예요", "임"],
+        ["이에요", "임"]
+      ];
+      rules.forEach(function (pair) {
+        text = text.split(pair[0]).join(pair[1]);
+      });
+      text = text.replace(/했다(?=$|[.?!])/g, "했음");
+      text = text.replace(/였다(?=$|[.?!])/g, "였음");
+      text = text.replace(/었다(?=$|[.?!])/g, "었음");
+      text = text.replace(/았다(?=$|[.?!])/g, "았음");
+      text = text.replace(/됐다(?=$|[.?!])/g, "됐음");
+      text = text.replace(/말함/g, "언급");
+      return text.replace(/[.]+$/g, "").replace(/\s+/g, " ").trim();
+    }
+
     async function translateText(text) {
-      var google = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q=" + encodeURIComponent(text);
+      var google = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q=" + encodeURIComponent(prepTitle(text));
       try {
         var response = await fetch(google);
         if (!response.ok) throw new Error("google");
@@ -343,7 +397,7 @@
         (data[0] || []).forEach(function (row) {
           if (row && row[0]) out += row[0];
         });
-        out = out.replace(/\s+/g, " ").trim();
+        out = briefKo(out);
         if (!out || out === text) throw new Error("google");
         return out;
       } catch (e) {
@@ -355,7 +409,7 @@
         var text2 = data2 && data2.responseData && data2.responseData.translatedText;
         if (!text2 || data2.responseStatus !== 200) throw new Error("memory");
         if (/MYMEMORY WARNING/i.test(text2)) throw new Error("memory");
-        return text2.replace(/\s+/g, " ").trim();
+        return briefKo(text2);
       }
     }
 
