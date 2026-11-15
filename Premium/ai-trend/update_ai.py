@@ -626,7 +626,7 @@ def card_html(stock):
       <p class="frame">주가순이익</p>
       {eps_svg(points, currency)}
       <p class="sub">{source_line} · 단위 {html.escape(unit) if unit else "-"} · 직전 분기 대비</p>
-      <p class="frame">주봉</p>
+      <p class="frame">주봉 상승다이버전스 접근도</p>
       {weekly_html}
     </article>'''
 
@@ -655,7 +655,7 @@ def rank_html(us_rows, kr_rows):
             f'<span><b class="n">{index}</b>'
             f'<a href="#{html.escape(code)}">{html.escape(row["name"])}</a>'
             f' <span class="sub">{html.escape(code)} · {market}</span></span>'
-            f'<span>주봉 {week}% · {html.escape(label)}</span>'
+            f'<span>주봉 상승다이버전스 접근도 {week}% · {html.escape(label)}</span>'
             "</li>"
         )
     body = "\n".join(items) if items else "<li>계산된 종목이 없습니다.</li>"
@@ -882,4 +882,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
