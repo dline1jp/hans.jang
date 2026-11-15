@@ -628,6 +628,43 @@ def card_html(stock):
     </article>'''
 
 
+def rank_html(us_rows, kr_rows):
+    scored = []
+    for market, rows in (("미국주", us_rows), ("국주", kr_rows)):
+        for row in rows:
+            daily = row.get("daily") or {}
+            weekly = row.get("weekly") or {}
+            if row.get("close") is None:
+                continue
+            day = int(daily.get("percent") or 0)
+            week = int(weekly.get("percent") or 0)
+            points = row.get("eps") or []
+            label, _ = eps_label(points, row.get("currency") or "") if points else ("실적 없음", "flat")
+            if not points or all(point["eps"] is None for point in points):
+                label = "실적 없음"
+            scored.append((max(day, week), day, week, market, row, label))
+    scored.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
+    items = []
+    for index, (best, day, week, market, row, label) in enumerate(scored[:5], start=1):
+        code = display_code(row["ticker"])
+        items.append(
+            "<li>"
+            f'<span><b class="n">{index}</b>'
+            f'<a href="#{html.escape(code)}">{html.escape(row["name"])}</a>'
+            f' <span class="sub">{html.escape(code)} · {market}</span></span>'
+            f'<span>일봉 {day}% · 주봉 {week}% · {html.escape(label)}</span>'
+            "</li>"
+        )
+    body = "\n".join(items) if items else "<li>계산된 종목이 없습니다.</li>"
+    return (
+        '<section class="rank-top">'
+        "<h2>상위 5</h2>"
+        '<p class="sub">일봉과 주봉의 쌍바닥 상승다이버전스 퍼센트 중 높은 쪽 기준입니다.</p>'
+        f"<ol>{body}</ol>"
+        "</section>"
+    )
+
+
 def page_html(us_rows, kr_rows, stamped):
     us_cards = "\n".join(card_html(row) for row in us_rows)
     kr_cards = "\n".join(card_html(row) for row in kr_rows)
@@ -644,7 +681,11 @@ def page_html(us_rows, kr_rows, stamped):
     .home {{ color: #D8C0FF; font-size: 28px; text-decoration: none; }}
     h1 {{ text-align: center; color: #FFFFE0; font-size: 32px; line-height: 1.35; }}
     .warn {{ max-width: 980px; margin: 12px auto; background: #3a2a12; color: #ffe08a; border: 1px solid #8a6a2a; border-radius: 12px; padding: 14px 16px; font-size: 20px; line-height: 1.5; font-weight: 700; }}
-    .note, .groups {{ max-width: 980px; margin: 8px auto; color: #ccc; font-size: 16px; line-height: 1.55; }}
+    .note, .groups, .rank-top {{ max-width: 980px; margin: 8px auto; color: #ccc; font-size: 16px; line-height: 1.55; }}
+    .rank-top h2 {{ color: #ffd76a; font-size: 26px; margin: 8px 0; }}
+    .rank-top ol {{ margin: 0; padding: 0; list-style: none; }}
+    .rank-top li {{ display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid #333; padding: 10px 2px; font-size: 20px; color: #fff; }}
+    .rank-top .n {{ color: #ffd76a; margin-right: 8px; }}
     .groups h2, .rules h2 {{ color: #FFFFE0; font-size: 22px; margin: 18px 0 8px; }}
     .groups ul {{ margin: 0 0 8px; padding-left: 1.2em; }}
     h2.market {{ max-width: 1100px; margin: 28px auto 8px; color: #FFFFE0; font-size: 28px; }}
@@ -673,6 +714,7 @@ def page_html(us_rows, kr_rows, stamped):
   <h1>AI 혁신주 타점</h1>
   <p class="warn">투자 권유가 아닙니다. 참고용. 매수후보·매수보류는 최근 분기 주당순이익이 바로 앞 분기보다 늘었는지 줄었는지만 표시합니다.</p>
   <p class="note">기준 시각 {html.escape(stamped)}. 시세는 종목별 마지막 거래일의 수정주가입니다. 평일 미국장 마감 후 <code>python Premium/ai-trend/update_ai.py</code>로 갱신합니다.</p>
+  {rank_html(us_rows, kr_rows)}
   <section class="groups">
     <h2>산업 구분 (참고)</h2>
     <p>아래는 요청에 적힌 구분입니다. 종목 카드는 상장 시장마다 한 번씩만 보여 주고, 겹치는 산업은 카드 안에 같이 적습니다.</p>
