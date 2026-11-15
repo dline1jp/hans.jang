@@ -11,12 +11,11 @@
     .home { color: #D8C0FF; font-size: 28px; text-decoration: none; }
     h1 { text-align: center; color: #FFFFE0; font-size: 32px; line-height: 1.35; }
     .warn { max-width: 980px; margin: 12px auto; background: #3a2a12; color: #ffe08a; border: 1px solid #8a6a2a; border-radius: 12px; padding: 14px 16px; font-size: 20px; line-height: 1.5; font-weight: 700; }
-    .rank-top { max-width: 980px; margin: 8px auto; color: #ccc; font-size: 16px; line-height: 1.55; }
+    .note, .groups, .rank-top { max-width: 980px; margin: 8px auto; color: #ccc; font-size: 16px; line-height: 1.55; }
     .rank-top h2 { color: #ffd76a; font-size: 26px; margin: 8px 0; }
     .rank-top ol { margin: 0; padding: 0; list-style: none; }
     .rank-top li { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid #333; padding: 10px 2px; font-size: 20px; color: #fff; }
     .rank-top .n { color: #ffd76a; margin-right: 8px; }
-    .note, .groups { max-width: 980px; margin: 8px auto; color: #ccc; font-size: 16px; line-height: 1.55; }
     .groups h2, .rules h2 { color: #FFFFE0; font-size: 22px; margin: 18px 0 8px; }
     .groups ul { margin: 0 0 8px; padding-left: 1.2em; }
     h2.market { max-width: 1100px; margin: 28px auto 8px; color: #FFFFE0; font-size: 28px; }
@@ -44,8 +43,12 @@
   <p><a class="home" href="/index.html">← 처음</a></p>
   <h1>AI 혁신주 타점</h1>
   <p class="warn">투자 권유가 아닙니다. 참고용. 매수후보·매수보류는 최근 분기 주당순이익이 바로 앞 분기보다 늘었는지 줄었는지만 표시합니다.</p>
-  <p class="note">기준 시각 2026-11-15 12:44 KST. 시세는 종목별 마지막 거래일의 수정주가입니다. 평일 미국장 마감 후 <code>python Premium/ai-trend/update_ai.py</code>로 갱신합니다.</p>
-  <section class="rank-top"><h2>상위 5</h2><p class="sub">장타용입니다. 주봉 쌍바닥 상승다이버전스 퍼센트만 봅니다. MACD선이 0보다 위인 주봉은 0%라서 뺍니다.</p><ol><li><span><b class="n">1</b><a href="#VST">Vistra</a> <span class="sub">VST · 미국주</span></span><span>주봉 상승다이버전스 접근도 100% · 매수후보</span></li><li><span><b class="n">2</b><a href="#NVDA">NVIDIA</a> <span class="sub">NVDA · 미국주</span></span><span>주봉 상승다이버전스 접근도 99% · 매수후보</span></li><li><span><b class="n">3</b><a href="#030200">KT</a> <span class="sub">030200 · 국주</span></span><span>주봉 상승다이버전스 접근도 97% · 매수후보</span></li><li><span><b class="n">4</b><a href="#CLS">Celestica</a> <span class="sub">CLS · 미국주</span></span><span>주봉 상승다이버전스 접근도 92% · 매수후보</span></li><li><span><b class="n">5</b><a href="#VRT">Vertiv</a> <span class="sub">VRT · 미국주</span></span><span>주봉 상승다이버전스 접근도 92% · 매수후보</span></li></ol></section>
+  <p class="note">기준 시각 2026-11-15 20:15 KST. 시세는 종목별 마지막 거래일의 수정주가입니다. 평일 미국장 마감 후 <code>python Premium/ai-trend/update_ai.py</code>로 갱신합니다.</p>
+  <section class="rank-top"><h2>상위 5</h2><p class="sub">장타용입니다. 최근 6개월 주봉의 쌍바닥 상승다이버전스 접근도만 봅니다. 6개월보다 이전 저점과, MACD선이 0보다 위인 주봉은 0%라서 뺍니다.</p><ol><li><span><b class="n">1</b><a href="#VST">Vistra</a> <span class="sub">VST · 미국주</span></span><span>주봉 상승다이버전스 접근도 100% · 매수후보</span></li>
+<li><span><b class="n">2</b><a href="#NVDA">NVIDIA</a> <span class="sub">NVDA · 미국주</span></span><span>주봉 상승다이버전스 접근도 99% · 매수후보</span></li>
+<li><span><b class="n">3</b><a href="#030200">KT</a> <span class="sub">030200 · 국주</span></span><span>주봉 상승다이버전스 접근도 97% · 매수후보</span></li>
+<li><span><b class="n">4</b><a href="#CLS">Celestica</a> <span class="sub">CLS · 미국주</span></span><span>주봉 상승다이버전스 접근도 92% · 매수후보</span></li>
+<li><span><b class="n">5</b><a href="#VRT">Vertiv</a> <span class="sub">VRT · 미국주</span></span><span>주봉 상승다이버전스 접근도 92% · 매수후보</span></li></ol></section>
   <section class="groups">
     <h2>산업 구분 (참고)</h2>
     <p>아래는 요청에 적힌 구분입니다. 종목 카드는 상장 시장마다 한 번씩만 보여 주고, 겹치는 산업은 카드 안에 같이 적습니다.</p>
@@ -74,7 +77,7 @@
   <section class="rules note">
     <h2>쌍바닥 상승다이버전스 퍼센트</h2>
     <p>장타용이라 주봉만 계산합니다. MACD선은 12기간 지수이동평균에서 26기간 지수이동평균을 뺀 값이고, RSI는 14기간 Wilder입니다. 가격은 수정주가의 고가·저가·종가입니다.</p>
-    <p>스윙 저점은 좌우 3봉보다 저가가 낮은 주봉입니다. 오른쪽이 아직 안 찬 최근 봉은 빼서 확정된 저점만 씁니다. 가장 최근 스윙 저점과, 그보다 3~26봉 앞의 스윙 저점을 비교합니다. 두 저점 사이에 고가가 두 저점보다 3% 이상 높아야 합니다. 이런 쌍이 없으면 0%입니다.</p>
+    <p>스윙 저점은 좌우 3봉보다 저가가 낮은 주봉입니다. 오른쪽이 아직 안 찬 최근 봉은 빼서 확정된 저점만 씁니다. 가장 최근 스윙 저점과, 그보다 3~26봉 앞의 스윙 저점을 비교합니다. 두 저점 모두 오늘부터 6개월 안이어야 합니다. 그보다 이전 차트는 비교하지 않습니다. 두 저점 사이에 고가가 두 저점보다 3% 이상 높아야 합니다. 이런 쌍이 없으면 0%입니다.</p>
     <p>마지막 주봉의 MACD선이 0보다 위에 있으면 0%입니다. 상승다이버전스가 이미 지난 구간이라 매수 자리가 아닙니다. 상위 5에도 넣지 않습니다.</p>
     <p>100%는 둘째 저가가 첫째 저가의 95% 이상 103% 이하이고, 둘째 저점의 MACD선과 RSI가 둘 다 첫째 저점보다 높을 때만입니다. 하나라도 아니면 가격 비슷함 34%, MACD 33%, RSI 33%를 더해 99를 넘기지 않습니다. 가격 점수는 저가 차이가 3% 이내면 100, 10% 이상이면 0입니다. RSI는 둘째가 더 높으면 100, 15포인트 이상 낮으면 0입니다. MACD는 둘째가 더 높으면 100, 아니면 그 차이를 최근 구간의 MACD 폭으로 나눕니다. 지표가 같거나 낮으면 그 지표 점수는 99를 넘지 않습니다.</p>
     <p>분기 주당순이익은 발표된 실제치만 씁니다. 추정치는 쓰지 않습니다. 미국 종목은 Yahoo Finance, 한국 종목은 Yahoo Finance와 네이버금융 중 실제치 최근 분기가 더 새로운 쪽입니다. 네이버 컨센서스 열은 뺍니다. 숫자가 없으면 실적 없음입니다. 바로 앞 분기와 비교할 수 없으면 비교 불가입니다.</p>
@@ -82,7 +85,7 @@
   <h2 class="market">1. 미국주</h2>
   <div class="grid">
     <article class="card" id="GEV">
-      <h3><a href="chart.html?symbol=GEV&name=GE+Vernova"><span class="ticker">GEV</span> GE Vernova</a></h3>
+      <h3><a href="chart.html?symbol=GEV&amp;name=GE+Vernova"><span class="ticker">GEV</span> GE Vernova</a></h3>
       <p class="tags">전력·그리드</p>
       <p class="asof">2026-11-13 종가 803.13 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -90,9 +93,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="65.3" y="14.0" text-anchor="middle" fill="#fff" font-size="11">17.44</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="102.1" width="59.6" height="13.9" fill="#7dcea0"/><text x="180.0" y="98.1" text-anchor="middle" fill="#fff" font-size="11">2.47</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="89.0" width="59.6" height="27.0" fill="#7dcea0"/><text x="294.7" y="85.0" text-anchor="middle" fill="#fff" font-size="11">4.81</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>77%</b></p><p class="sub">2026-07-31 / 2026-09-18 · 가격 96% · MACD 66% · RSI 68% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>77%</b></p><p class="sub">2026-07-31 / 2026-09-18 · 가격 96% · MACD 66% · RSI 68% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="CEG">
-      <h3><a href="chart.html?symbol=CEG&name=Constellation+Energy"><span class="ticker">CEG</span> Constellation Energy</a></h3>
+      <h3><a href="chart.html?symbol=CEG&amp;name=Constellation+Energy"><span class="ticker">CEG</span> Constellation Energy</a></h3>
       <p class="tags">전력·그리드 · ESS·SMR</p>
       <p class="asof">2026-11-13 종가 280.20 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -100,9 +104,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="62.9" width="59.6" height="53.1" fill="#7dcea0"/><text x="65.3" y="58.9" text-anchor="middle" fill="#fff" font-size="11">2.74</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="66.6" width="59.6" height="49.4" fill="#7dcea0"/><text x="180.0" y="62.6" text-anchor="middle" fill="#fff" font-size="11">2.55</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">5.06</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>57%</b></p><p class="sub">2026-04-02 / 2026-07-02 · 가격 0% · MACD 89% · RSI 83% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
 <article class="card" id="VST">
-      <h3><a href="chart.html?symbol=VST&name=Vistra"><span class="ticker">VST</span> Vistra</a></h3>
+      <h3><a href="chart.html?symbol=VST&amp;name=Vistra"><span class="ticker">VST</span> Vistra</a></h3>
       <p class="tags">전력·그리드 · ESS·SMR</p>
       <p class="asof">2026-11-13 종가 133.01 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -110,9 +115,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="28.9" width="59.6" height="87.1" fill="#7dcea0"/><text x="65.3" y="24.9" text-anchor="middle" fill="#fff" font-size="11">2.87</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="92.9" width="59.6" height="23.1" fill="#7dcea0"/><text x="180.0" y="88.9" text-anchor="middle" fill="#fff" font-size="11">0.76</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">3.23</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>100%</b></p><p class="sub">2026-08-28 / 2026-10-02 · 가격 100% · MACD 100% · RSI 100% · 쌍바닥 상승다이버전스</p></article>
+      <p class="pct"><b>100%</b></p><p class="sub">2026-08-28 / 2026-10-02 · 가격 100% · MACD 100% · RSI 100% · 쌍바닥 상승다이버전스</p>
+    </article>
 <article class="card" id="ETN">
-      <h3><a href="chart.html?symbol=ETN&name=Eaton"><span class="ticker">ETN</span> Eaton</a></h3>
+      <h3><a href="chart.html?symbol=ETN&amp;name=Eaton"><span class="ticker">ETN</span> Eaton</a></h3>
       <p class="tags">전력·그리드 · 냉각·전력관리</p>
       <p class="asof">2026-11-13 종가 352.97 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -120,9 +126,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="41.2" width="59.6" height="74.8" fill="#7dcea0"/><text x="65.3" y="37.2" text-anchor="middle" fill="#fff" font-size="11">2.81</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="32.1" width="59.6" height="83.9" fill="#7dcea0"/><text x="180.0" y="28.1" text-anchor="middle" fill="#fff" font-size="11">3.15</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">3.68</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>64%</b></p><p class="sub">2026-07-31 / 2026-09-04 · 가격 33% · MACD 100% · RSI 60% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>64%</b></p><p class="sub">2026-07-31 / 2026-09-04 · 가격 33% · MACD 100% · RSI 60% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="POWL">
-      <h3><a href="chart.html?symbol=POWL&name=Powell+Industries"><span class="ticker">POWL</span> Powell Industries</a></h3>
+      <h3><a href="chart.html?symbol=POWL&amp;name=Powell+Industries"><span class="ticker">POWL</span> Powell Industries</a></h3>
       <p class="tags">전력·그리드</p>
       <p class="asof">2026-11-13 종가 142.72 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -130,9 +137,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">4Q2025</text><rect x="35.5" y="37.8" width="59.6" height="78.2" fill="#7dcea0"/><text x="65.3" y="33.8" text-anchor="middle" fill="#fff" font-size="11">1.13</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="150.2" y="29.7" width="59.6" height="86.3" fill="#7dcea0"/><text x="180.0" y="25.7" text-anchor="middle" fill="#fff" font-size="11">1.25</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">1.42</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>44%</b></p><p class="sub">2026-07-31 / 2026-09-18 · 가격 10% · MACD 63% · RSI 61% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>44%</b></p><p class="sub">2026-07-31 / 2026-09-18 · 가격 10% · MACD 63% · RSI 61% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="AMZN">
-      <h3><a href="chart.html?symbol=AMZN&name=Amazon"><span class="ticker">AMZN</span> Amazon</a></h3>
+      <h3><a href="chart.html?symbol=AMZN&amp;name=Amazon"><span class="ticker">AMZN</span> Amazon</a></h3>
       <p class="tags">데이터센터·클라우드</p>
       <p class="asof">2026-11-13 종가 266.66 USD</p>
       <p><span class="badge down">매수보류</span></p>
@@ -140,9 +148,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="68.6" width="59.6" height="47.4" fill="#7dcea0"/><text x="65.3" y="64.6" text-anchor="middle" fill="#fff" font-size="11">2.78</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="180.0" y="14.0" text-anchor="middle" fill="#fff" font-size="11">5.75</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="83.8" width="59.6" height="32.2" fill="#7dcea0"/><text x="294.7" y="79.8" text-anchor="middle" fill="#fff" font-size="11">1.89</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>0%</b></p><p class="sub">MACD선이 0 위로 올라가서 상승다이버전스가 이미 지난 구간입니다.</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">MACD선이 0 위로 올라가서 상승다이버전스가 이미 지난 구간입니다.</p>
+    </article>
 <article class="card" id="MSFT">
-      <h3><a href="chart.html?symbol=MSFT&name=Microsoft"><span class="ticker">MSFT</span> Microsoft</a></h3>
+      <h3><a href="chart.html?symbol=MSFT&amp;name=Microsoft"><span class="ticker">MSFT</span> Microsoft</a></h3>
       <p class="tags">데이터센터·클라우드</p>
       <p class="asof">2026-11-13 종가 523.88 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -150,9 +159,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="30.4" width="59.6" height="85.6" fill="#7dcea0"/><text x="65.3" y="26.4" text-anchor="middle" fill="#fff" font-size="11">4.27</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="21.0" width="59.6" height="95.0" fill="#7dcea0"/><text x="180.0" y="17.0" text-anchor="middle" fill="#fff" font-size="11">4.74</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">4.89</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>0%</b></p><p class="sub">MACD선이 0 위로 올라가서 상승다이버전스가 이미 지난 구간입니다.</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
 <article class="card" id="GOOGL">
-      <h3><a href="chart.html?symbol=GOOGL&name=Alphabet"><span class="ticker">GOOGL</span> Alphabet</a></h3>
+      <h3><a href="chart.html?symbol=GOOGL&amp;name=Alphabet"><span class="ticker">GOOGL</span> Alphabet</a></h3>
       <p class="tags">데이터센터·클라우드</p>
       <p class="asof">2026-11-13 종가 295.77 USD</p>
       <p><span class="badge down">매수보류</span></p>
@@ -160,9 +170,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="61.0" width="59.6" height="55.0" fill="#7dcea0"/><text x="65.3" y="57.0" text-anchor="middle" fill="#fff" font-size="11">5.11</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="180.0" y="14.0" text-anchor="middle" fill="#fff" font-size="11">9.11</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="93.2" width="59.6" height="22.8" fill="#7dcea0"/><text x="294.7" y="89.2" text-anchor="middle" fill="#fff" font-size="11">2.12</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>89%</b></p><p class="sub">2026-07-24 / 2026-09-11 · 가격 84% · MACD 84% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>89%</b></p><p class="sub">2026-07-24 / 2026-09-11 · 가격 84% · MACD 84% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="STX">
-      <h3><a href="chart.html?symbol=STX&name=Seagate"><span class="ticker">STX</span> Seagate</a></h3>
+      <h3><a href="chart.html?symbol=STX&amp;name=Seagate"><span class="ticker">STX</span> Seagate</a></h3>
       <p class="tags">데이터센터·클라우드</p>
       <p class="asof">2026-11-13 종가 528.29 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -170,9 +181,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="63.7" width="59.6" height="52.3" fill="#7dcea0"/><text x="65.3" y="59.7" text-anchor="middle" fill="#fff" font-size="11">4.10</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="43.1" width="59.6" height="72.9" fill="#7dcea0"/><text x="180.0" y="39.1" text-anchor="middle" fill="#fff" font-size="11">5.71</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">7.68</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>57%</b></p><p class="sub">2026-07-31 / 2026-09-18 · 가격 22% · MACD 77% · RSI 74% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>57%</b></p><p class="sub">2026-07-31 / 2026-09-18 · 가격 22% · MACD 77% · RSI 74% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="META">
-      <h3><a href="chart.html?symbol=META&name=Meta"><span class="ticker">META</span> Meta</a></h3>
+      <h3><a href="chart.html?symbol=META&amp;name=Meta"><span class="ticker">META</span> Meta</a></h3>
       <p class="tags">데이터센터·클라우드</p>
       <p class="asof">2026-11-13 종가 641.69 USD</p>
       <p><span class="badge down">매수보류</span></p>
@@ -180,9 +192,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="65.3" y="14.0" text-anchor="middle" fill="#fff" font-size="11">10.44</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="58.0" width="59.6" height="58.0" fill="#7dcea0"/><text x="180.0" y="54.0" text-anchor="middle" fill="#fff" font-size="11">6.18</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="80.0" width="59.6" height="36.0" fill="#7dcea0"/><text x="294.7" y="76.0" text-anchor="middle" fill="#fff" font-size="11">3.83</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>0%</b></p><p class="sub">MACD선이 0 위로 올라가서 상승다이버전스가 이미 지난 구간입니다.</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">MACD선이 0 위로 올라가서 상승다이버전스가 이미 지난 구간입니다.</p>
+    </article>
 <article class="card" id="ORCL">
-      <h3><a href="chart.html?symbol=ORCL&name=Oracle"><span class="ticker">ORCL</span> Oracle</a></h3>
+      <h3><a href="chart.html?symbol=ORCL&amp;name=Oracle"><span class="ticker">ORCL</span> Oracle</a></h3>
       <p class="tags">데이터센터·클라우드</p>
       <p class="asof">2026-11-13 종가 125.35 USD</p>
       <p><span class="badge down">매수보류</span></p>
@@ -190,9 +203,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="32.9" width="59.6" height="83.1" fill="#7dcea0"/><text x="65.3" y="28.9" text-anchor="middle" fill="#fff" font-size="11">1.79</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="180.0" y="14.0" text-anchor="middle" fill="#fff" font-size="11">2.11</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="26.8" width="59.6" height="89.2" fill="#7dcea0"/><text x="294.7" y="22.8" text-anchor="middle" fill="#fff" font-size="11">1.92</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>66%</b></p><p class="sub">2026-04-10 / 2026-07-31 · 가격 0% · MACD 100% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
 <article class="card" id="NBIS">
-      <h3><a href="chart.html?symbol=NBIS&name=Nebius"><span class="ticker">NBIS</span> Nebius</a></h3>
+      <h3><a href="chart.html?symbol=NBIS&amp;name=Nebius"><span class="ticker">NBIS</span> Nebius</a></h3>
       <p class="tags">데이터센터·클라우드</p>
       <p class="asof">2026-11-13 종가 115.88 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -200,9 +214,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="92.1" x2="352" y2="92.1" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="18.0" width="59.6" height="74.1" fill="#7dcea0"/><text x="65.3" y="14.0" text-anchor="middle" fill="#fff" font-size="11">2.11</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="92.1" width="59.6" height="23.9" fill="#f1948a"/><text x="180.0" y="112.0" text-anchor="middle" fill="#fff" font-size="11">-0.68</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="92.1" width="59.6" height="4.6" fill="#f1948a"/><text x="294.7" y="108.7" text-anchor="middle" fill="#fff" font-size="11">-0.13</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>66%</b></p><p class="sub">2026-02-06 / 2026-07-31 · 가격 0% · MACD 100% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
 <article class="card" id="NVDA">
-      <h3><a href="chart.html?symbol=NVDA&name=NVIDIA"><span class="ticker">NVDA</span> NVIDIA</a></h3>
+      <h3><a href="chart.html?symbol=NVDA&amp;name=NVIDIA"><span class="ticker">NVDA</span> NVIDIA</a></h3>
       <p class="tags">AI 칩</p>
       <p class="asof">2026-11-13 종가 162.85 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -210,9 +225,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">4Q2025</text><rect x="35.5" y="44.5" width="59.6" height="71.5" fill="#7dcea0"/><text x="65.3" y="40.5" text-anchor="middle" fill="#fff" font-size="11">1.62</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="150.2" y="33.5" width="59.6" height="82.5" fill="#7dcea0"/><text x="180.0" y="29.5" text-anchor="middle" fill="#fff" font-size="11">1.87</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">2.22</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>99%</b></p><p class="sub">2026-07-02 / 2026-07-31 · 가격 100% · MACD 96% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>99%</b></p><p class="sub">2026-07-02 / 2026-07-31 · 가격 100% · MACD 96% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="AMD">
-      <h3><a href="chart.html?symbol=AMD&name=AMD"><span class="ticker">AMD</span> AMD</a></h3>
+      <h3><a href="chart.html?symbol=AMD&amp;name=AMD"><span class="ticker">AMD</span> AMD</a></h3>
       <p class="tags">AI 칩</p>
       <p class="asof">2026-11-13 종가 534.06 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -220,9 +236,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="51.8" width="59.6" height="64.2" fill="#7dcea0"/><text x="65.3" y="47.8" text-anchor="middle" fill="#fff" font-size="11">1.37</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="38.2" width="59.6" height="77.8" fill="#7dcea0"/><text x="180.0" y="34.2" text-anchor="middle" fill="#fff" font-size="11">1.66</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">2.09</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>0%</b></p><p class="sub">MACD선이 0 위로 올라가서 상승다이버전스가 이미 지난 구간입니다.</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">MACD선이 0 위로 올라가서 상승다이버전스가 이미 지난 구간입니다.</p>
+    </article>
 <article class="card" id="ALAB">
-      <h3><a href="chart.html?symbol=ALAB&name=Astera+Labs"><span class="ticker">ALAB</span> Astera Labs</a></h3>
+      <h3><a href="chart.html?symbol=ALAB&amp;name=Astera+Labs"><span class="ticker">ALAB</span> Astera Labs</a></h3>
       <p class="tags">AI 칩</p>
       <p class="asof">2026-11-13 종가 221.83 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -230,9 +247,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="70.7" width="59.6" height="45.3" fill="#7dcea0"/><text x="65.3" y="66.7" text-anchor="middle" fill="#fff" font-size="11">0.61</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="56.6" width="59.6" height="59.4" fill="#7dcea0"/><text x="180.0" y="52.6" text-anchor="middle" fill="#fff" font-size="11">0.80</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">1.32</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>83%</b></p><p class="sub">2026-07-31 / 2026-09-18 · 가격 100% · MACD 68% · RSI 82% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>83%</b></p><p class="sub">2026-07-31 / 2026-09-18 · 가격 100% · MACD 68% · RSI 82% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="AVGO">
-      <h3><a href="chart.html?symbol=AVGO&name=Broadcom"><span class="ticker">AVGO</span> Broadcom</a></h3>
+      <h3><a href="chart.html?symbol=AVGO&amp;name=Broadcom"><span class="ticker">AVGO</span> Broadcom</a></h3>
       <p class="tags">AI 칩 · 기타</p>
       <p class="asof">2026-11-13 종가 347.01 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -240,9 +258,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">4Q2025</text><rect x="35.5" y="55.5" width="59.6" height="60.5" fill="#7dcea0"/><text x="65.3" y="51.5" text-anchor="middle" fill="#fff" font-size="11">2.05</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="150.2" y="44.0" width="59.6" height="72.0" fill="#7dcea0"/><text x="180.0" y="40.0" text-anchor="middle" fill="#fff" font-size="11">2.44</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">3.32</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>73%</b></p><p class="sub">2026-07-02 / 2026-09-18 · 가격 60% · MACD 71% · RSI 90% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>73%</b></p><p class="sub">2026-07-02 / 2026-09-18 · 가격 60% · MACD 71% · RSI 90% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="MRVL">
-      <h3><a href="chart.html?symbol=MRVL&name=Marvell"><span class="ticker">MRVL</span> Marvell</a></h3>
+      <h3><a href="chart.html?symbol=MRVL&amp;name=Marvell"><span class="ticker">MRVL</span> Marvell</a></h3>
       <p class="tags">AI 칩</p>
       <p class="asof">2026-11-13 종가 156.76 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -250,9 +269,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">4Q2025</text><rect x="35.5" y="32.6" width="59.6" height="83.4" fill="#7dcea0"/><text x="65.3" y="28.6" text-anchor="middle" fill="#fff" font-size="11">0.80</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="150.2" y="32.6" width="59.6" height="83.4" fill="#7dcea0"/><text x="180.0" y="28.6" text-anchor="middle" fill="#fff" font-size="11">0.80</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">0.94</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>0%</b></p><p class="sub">MACD선이 0 위로 올라가서 상승다이버전스가 이미 지난 구간입니다.</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">MACD선이 0 위로 올라가서 상승다이버전스가 이미 지난 구간입니다.</p>
+    </article>
 <article class="card" id="MU">
-      <h3><a href="chart.html?symbol=MU&name=Micron"><span class="ticker">MU</span> Micron</a></h3>
+      <h3><a href="chart.html?symbol=MU&amp;name=Micron"><span class="ticker">MU</span> Micron</a></h3>
       <p class="tags">AI 칩</p>
       <p class="asof">2026-11-13 종가 778.31 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -260,9 +280,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="80.2" width="59.6" height="35.8" fill="#7dcea0"/><text x="65.3" y="76.2" text-anchor="middle" fill="#fff" font-size="11">12.20</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="42.4" width="59.6" height="73.6" fill="#7dcea0"/><text x="180.0" y="38.4" text-anchor="middle" fill="#fff" font-size="11">25.11</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">33.42</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>0%</b></p><p class="sub">MACD선이 0 위로 올라가서 상승다이버전스가 이미 지난 구간입니다.</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
 <article class="card" id="CLS">
-      <h3><a href="chart.html?symbol=CLS&name=Celestica"><span class="ticker">CLS</span> Celestica</a></h3>
+      <h3><a href="chart.html?symbol=CLS&amp;name=Celestica"><span class="ticker">CLS</span> Celestica</a></h3>
       <p class="tags">AI 칩</p>
       <p class="asof">2026-11-13 종가 240.34 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -270,9 +291,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="51.9" width="59.6" height="64.1" fill="#7dcea0"/><text x="65.3" y="47.9" text-anchor="middle" fill="#fff" font-size="11">2.16</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="40.6" width="59.6" height="75.4" fill="#7dcea0"/><text x="180.0" y="36.6" text-anchor="middle" fill="#fff" font-size="11">2.54</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">3.30</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>92%</b></p><p class="sub">2026-07-17 / 2026-09-04 · 가격 100% · MACD 76% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>92%</b></p><p class="sub">2026-07-17 / 2026-09-04 · 가격 100% · MACD 76% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="VRT">
-      <h3><a href="chart.html?symbol=VRT&name=Vertiv"><span class="ticker">VRT</span> Vertiv</a></h3>
+      <h3><a href="chart.html?symbol=VRT&amp;name=Vertiv"><span class="ticker">VRT</span> Vertiv</a></h3>
       <p class="tags">냉각·전력관리</p>
       <p class="asof">2026-11-13 종가 202.07 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -280,9 +302,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="64.1" width="59.6" height="51.9" fill="#7dcea0"/><text x="65.3" y="60.1" text-anchor="middle" fill="#fff" font-size="11">1.17</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="48.6" width="59.6" height="67.4" fill="#7dcea0"/><text x="180.0" y="44.6" text-anchor="middle" fill="#fff" font-size="11">1.52</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">2.21</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>92%</b></p><p class="sub">2026-07-31 / 2026-09-18 · 가격 100% · MACD 76% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>92%</b></p><p class="sub">2026-07-31 / 2026-09-18 · 가격 100% · MACD 76% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="NEE">
-      <h3><a href="chart.html?symbol=NEE&name=NextEra+Energy"><span class="ticker">NEE</span> NextEra Energy</a></h3>
+      <h3><a href="chart.html?symbol=NEE&amp;name=NextEra+Energy"><span class="ticker">NEE</span> NextEra Energy</a></h3>
       <p class="tags">ESS·SMR</p>
       <p class="asof">2026-11-13 종가 85.12 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -290,9 +313,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="29.9" width="59.6" height="86.1" fill="#7dcea0"/><text x="65.3" y="25.9" text-anchor="middle" fill="#fff" font-size="11">1.09</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="25.1" width="59.6" height="90.9" fill="#7dcea0"/><text x="180.0" y="21.1" text-anchor="middle" fill="#fff" font-size="11">1.15</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">1.24</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>20%</b></p><p class="sub">2026-06-05 / 2026-10-02 · 가격 5% · MACD 39% · RSI 16% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>20%</b></p><p class="sub">2026-06-05 / 2026-10-02 · 가격 5% · MACD 39% · RSI 16% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="OKLO">
-      <h3><a href="chart.html?symbol=OKLO&name=Oklo"><span class="ticker">OKLO</span> Oklo</a></h3>
+      <h3><a href="chart.html?symbol=OKLO&amp;name=Oklo"><span class="ticker">OKLO</span> Oklo</a></h3>
       <p class="tags">ESS·SMR</p>
       <p class="asof">2026-11-13 종가 23.92 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -300,9 +324,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="18.0" x2="352" y2="18.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><text x="65.3" y="148" text-anchor="middle" fill="#888" font-size="11">없음</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="18.0" width="59.6" height="98.0" fill="#f1948a"/><text x="180.0" y="112.0" text-anchor="middle" fill="#fff" font-size="11">-0.28</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="77.0" fill="#f1948a"/><text x="294.7" y="107.0" text-anchor="middle" fill="#fff" font-size="11">-0.22</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>62%</b></p><p class="sub">2026-04-02 / 2026-07-31 · 가격 0% · MACD 100% · RSI 89% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
 <article class="card" id="SMR">
-      <h3><a href="chart.html?symbol=SMR&name=NuScale"><span class="ticker">SMR</span> NuScale</a></h3>
+      <h3><a href="chart.html?symbol=SMR&amp;name=NuScale"><span class="ticker">SMR</span> NuScale</a></h3>
       <p class="tags">ESS·SMR</p>
       <p class="asof">2026-11-13 종가 4.66 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -310,9 +335,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="18.0" x2="352" y2="18.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="18.0" width="59.6" height="98.0" fill="#f1948a"/><text x="65.3" y="112.0" text-anchor="middle" fill="#fff" font-size="11">-0.14</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="18.0" width="59.6" height="91.0" fill="#f1948a"/><text x="180.0" y="112.0" text-anchor="middle" fill="#fff" font-size="11">-0.13</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="77.0" fill="#f1948a"/><text x="294.7" y="107.0" text-anchor="middle" fill="#fff" font-size="11">-0.11</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>61%</b></p><p class="sub">2026-06-12 / 2026-07-17 · 가격 0% · MACD 100% · RSI 84% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>61%</b></p><p class="sub">2026-06-12 / 2026-07-17 · 가격 0% · MACD 100% · RSI 84% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="CRDO">
-      <h3><a href="chart.html?symbol=CRDO&name=Credo"><span class="ticker">CRDO</span> Credo</a></h3>
+      <h3><a href="chart.html?symbol=CRDO&amp;name=Credo"><span class="ticker">CRDO</span> Credo</a></h3>
       <p class="tags">ESS·SMR</p>
       <p class="asof">2026-11-13 종가 131.51 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -320,9 +346,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">4Q2025</text><rect x="35.5" y="28.6" width="59.6" height="87.4" fill="#7dcea0"/><text x="65.3" y="24.6" text-anchor="middle" fill="#fff" font-size="11">1.07</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="150.2" y="21.3" width="59.6" height="94.7" fill="#7dcea0"/><text x="180.0" y="17.3" text-anchor="middle" fill="#fff" font-size="11">1.16</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">1.20</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>38%</b></p><p class="sub">2026-07-31 / 2026-09-18 · 가격 0% · MACD 64% · RSI 52% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>38%</b></p><p class="sub">2026-07-31 / 2026-09-18 · 가격 0% · MACD 64% · RSI 52% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="IREN">
-      <h3><a href="chart.html?symbol=IREN&name=IREN"><span class="ticker">IREN</span> IREN</a></h3>
+      <h3><a href="chart.html?symbol=IREN&amp;name=IREN"><span class="ticker">IREN</span> IREN</a></h3>
       <p class="tags">비트코인에서 데이터센터</p>
       <p class="asof">2026-11-13 종가 18.17 USD</p>
       <p><span class="badge flat">비교 불가</span></p>
@@ -330,9 +357,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="18.0" x2="352" y2="18.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="18.0" width="59.6" height="61.7" fill="#f1948a"/><text x="65.3" y="91.7" text-anchor="middle" fill="#fff" font-size="11">-0.16</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="18.0" width="59.6" height="98.0" fill="#f1948a"/><text x="180.0" y="112.0" text-anchor="middle" fill="#fff" font-size="11">-0.25</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><text x="294.7" y="148" text-anchor="middle" fill="#888" font-size="11">없음</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>64%</b></p><p class="sub">2026-07-31 / 2026-08-28 · 가격 0% · MACD 97% · RSI 97% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>64%</b></p><p class="sub">2026-07-31 / 2026-08-28 · 가격 0% · MACD 97% · RSI 97% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="MARA">
-      <h3><a href="chart.html?symbol=MARA&name=MARA"><span class="ticker">MARA</span> MARA</a></h3>
+      <h3><a href="chart.html?symbol=MARA&amp;name=MARA"><span class="ticker">MARA</span> MARA</a></h3>
       <p class="tags">비트코인에서 데이터센터</p>
       <p class="asof">2026-11-13 종가 6.99 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -340,9 +368,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="18.0" x2="352" y2="18.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="18.0" width="59.6" height="98.0" fill="#f1948a"/><text x="65.3" y="112.0" text-anchor="middle" fill="#fff" font-size="11">-3.31</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="18.0" width="59.6" height="18.4" fill="#f1948a"/><text x="180.0" y="48.4" text-anchor="middle" fill="#fff" font-size="11">-0.62</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="16.2" fill="#f1948a"/><text x="294.7" y="46.2" text-anchor="middle" fill="#fff" font-size="11">-0.55</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>66%</b></p><p class="sub">2026-04-02 / 2026-08-21 · 가격 0% · MACD 100% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
 <article class="card" id="RIOT">
-      <h3><a href="chart.html?symbol=RIOT&name=Riot+Platforms"><span class="ticker">RIOT</span> Riot Platforms</a></h3>
+      <h3><a href="chart.html?symbol=RIOT&amp;name=Riot+Platforms"><span class="ticker">RIOT</span> Riot Platforms</a></h3>
       <p class="tags">비트코인에서 데이터센터</p>
       <p class="asof">2026-11-13 종가 17.52 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -350,9 +379,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="35.6" x2="352" y2="35.6" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="35.6" width="59.6" height="48.5" fill="#f1948a"/><text x="65.3" y="96.1" text-anchor="middle" fill="#fff" font-size="11">-0.35</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="35.6" width="59.6" height="80.4" fill="#f1948a"/><text x="180.0" y="112.0" text-anchor="middle" fill="#fff" font-size="11">-0.58</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="17.6" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">0.13</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>90%</b></p><p class="sub">2026-07-17 / 2026-09-04 · 가격 100% · MACD 70% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>90%</b></p><p class="sub">2026-07-17 / 2026-09-04 · 가격 100% · MACD 70% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="WULF">
-      <h3><a href="chart.html?symbol=WULF&name=TeraWulf"><span class="ticker">WULF</span> TeraWulf</a></h3>
+      <h3><a href="chart.html?symbol=WULF&amp;name=TeraWulf"><span class="ticker">WULF</span> TeraWulf</a></h3>
       <p class="tags">비트코인에서 데이터센터</p>
       <p class="asof">2026-11-13 종가 12.62 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -360,9 +390,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="18.0" x2="352" y2="18.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="18.0" width="59.6" height="58.0" fill="#f1948a"/><text x="65.3" y="88.0" text-anchor="middle" fill="#fff" font-size="11">-0.20</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="18.0" width="59.6" height="98.0" fill="#f1948a"/><text x="180.0" y="112.0" text-anchor="middle" fill="#fff" font-size="11">-0.33</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="40.9" fill="#f1948a"/><text x="294.7" y="70.9" text-anchor="middle" fill="#fff" font-size="11">-0.14</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>34%</b></p><p class="sub">2026-03-13 / 2026-09-04 · 가격 9% · MACD 70% · RSI 22% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
 <article class="card" id="CORZ">
-      <h3><a href="chart.html?symbol=CORZ&name=Core+Scientific"><span class="ticker">CORZ</span> Core Scientific</a></h3>
+      <h3><a href="chart.html?symbol=CORZ&amp;name=Core+Scientific"><span class="ticker">CORZ</span> Core Scientific</a></h3>
       <p class="tags">비트코인에서 데이터센터</p>
       <p class="asof">2026-11-13 종가 14.52 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -370,9 +401,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="93.1" x2="352" y2="93.1" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="93.1" width="59.6" height="22.9" fill="#f1948a"/><text x="65.3" y="112.0" text-anchor="middle" fill="#fff" font-size="11">-0.11</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="93.1" width="59.6" height="9.1" fill="#f1948a"/><text x="180.0" y="112.0" text-anchor="middle" fill="#fff" font-size="11">-0.04</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="75.1" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">0.36</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>51%</b></p><p class="sub">2026-04-02 / 2026-09-04 · 가격 0% · MACD 94% · RSI 59% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
 <article class="card" id="PLTR">
-      <h3><a href="chart.html?symbol=PLTR&name=Palantir"><span class="ticker">PLTR</span> Palantir</a></h3>
+      <h3><a href="chart.html?symbol=PLTR&amp;name=Palantir"><span class="ticker">PLTR</span> Palantir</a></h3>
       <p class="tags">AI 보안</p>
       <p class="asof">2026-11-13 종가 167.99 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -380,9 +412,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="42.5" width="59.6" height="73.5" fill="#7dcea0"/><text x="65.3" y="38.5" text-anchor="middle" fill="#fff" font-size="11">0.33</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="24.7" width="59.6" height="91.3" fill="#7dcea0"/><text x="180.0" y="20.7" text-anchor="middle" fill="#fff" font-size="11">0.41</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">0.44</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>0%</b></p><p class="sub">MACD선이 0 위로 올라가서 상승다이버전스가 이미 지난 구간입니다.</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">MACD선이 0 위로 올라가서 상승다이버전스가 이미 지난 구간입니다.</p>
+    </article>
 <article class="card" id="PANW">
-      <h3><a href="chart.html?symbol=PANW&name=Palo+Alto+Networks"><span class="ticker">PANW</span> Palo Alto Networks</a></h3>
+      <h3><a href="chart.html?symbol=PANW&amp;name=Palo+Alto+Networks"><span class="ticker">PANW</span> Palo Alto Networks</a></h3>
       <p class="tags">AI 보안</p>
       <p class="asof">2026-11-13 종가 322.24 USD</p>
       <p><span class="badge up">매수후보</span></p>
@@ -390,12 +423,13 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">4Q2025</text><rect x="35.5" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="65.3" y="14.0" text-anchor="middle" fill="#fff" font-size="11">1.03</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="150.2" y="35.1" width="59.6" height="80.9" fill="#7dcea0"/><text x="180.0" y="31.1" text-anchor="middle" fill="#fff" font-size="11">0.85</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="264.9" y="19.0" width="59.6" height="97.0" fill="#7dcea0"/><text x="294.7" y="15.0" text-anchor="middle" fill="#fff" font-size="11">1.02</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 USD · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>0%</b></p><p class="sub">MACD선이 0 위로 올라가서 상승다이버전스가 이미 지난 구간입니다.</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">MACD선이 0 위로 올라가서 상승다이버전스가 이미 지난 구간입니다.</p>
+    </article>
   </div>
   <h2 class="market">2. 국주</h2>
   <div class="grid">
     <article class="card" id="298040">
-      <h3><a href="chart.html?symbol=298040&name=%ED%9A%A8%EC%84%B1%EC%A4%91%EA%B3%B5%EC%97%85"><span class="ticker">298040</span> 효성중공업</a></h3>
+      <h3><a href="chart.html?symbol=298040&amp;name=%ED%9A%A8%EC%84%B1%EC%A4%91%EA%B3%B5%EC%97%85"><span class="ticker">298040</span> 효성중공업</a></h3>
       <p class="tags">전력망·전력장비 · 냉각·전력관리</p>
       <p class="asof">2026-11-13 종가 1,807,000 원</p>
       <p><span class="badge up">매수후보</span></p>
@@ -403,9 +437,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="77.1" width="59.6" height="38.9" fill="#7dcea0"/><text x="65.3" y="73.1" text-anchor="middle" fill="#fff" font-size="11">9,370</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="39.0" width="59.6" height="77.0" fill="#7dcea0"/><text x="180.0" y="35.0" text-anchor="middle" fill="#fff" font-size="11">18,534</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">23,584</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 원 · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>24%</b></p><p class="sub">2026-03-06 / 2026-07-31 · 가격 0% · MACD 73% · RSI 0% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
 <article class="card" id="000500">
-      <h3><a href="chart.html?symbol=000500&name=%EA%B0%80%EC%98%A8%EC%A0%84%EC%84%A0"><span class="ticker">000500</span> 가온전선</a></h3>
+      <h3><a href="chart.html?symbol=000500&amp;name=%EA%B0%80%EC%98%A8%EC%A0%84%EC%84%A0"><span class="ticker">000500</span> 가온전선</a></h3>
       <p class="tags">전력망·전력장비</p>
       <p class="asof">2026-11-13 종가 219,000 원</p>
       <p><span class="badge up">매수후보</span></p>
@@ -413,9 +448,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">2025.12.</text><rect x="35.5" y="102.9" width="59.6" height="13.1" fill="#7dcea0"/><text x="65.3" y="98.9" text-anchor="middle" fill="#fff" font-size="11">103</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.03.</text><rect x="150.2" y="31.7" width="59.6" height="84.3" fill="#7dcea0"/><text x="180.0" y="27.7" text-anchor="middle" fill="#fff" font-size="11">661</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.06.</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">768</text></svg>
       <p class="sub">출처 네이버금융 · 단위 원 · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>0%</b></p><p class="sub">MACD선이 0 위로 올라가서 상승다이버전스가 이미 지난 구간입니다.</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
 <article class="card" id="267260">
-      <h3><a href="chart.html?symbol=267260&name=HD%ED%98%84%EB%8C%80%EC%9D%BC%EB%A0%89%ED%8A%B8%EB%A6%AD"><span class="ticker">267260</span> HD현대일렉트릭</a></h3>
+      <h3><a href="chart.html?symbol=267260&amp;name=HD%ED%98%84%EB%8C%80%EC%9D%BC%EB%A0%89%ED%8A%B8%EB%A6%AD"><span class="ticker">267260</span> HD현대일렉트릭</a></h3>
       <p class="tags">전력망·전력장비</p>
       <p class="asof">2026-11-13 종가 416,000 원</p>
       <p><span class="badge down">매수보류</span></p>
@@ -423,9 +459,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">2025.12.</text><rect x="35.5" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="65.3" y="14.0" text-anchor="middle" fill="#fff" font-size="11">6,797</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.03.</text><rect x="150.2" y="32.8" width="59.6" height="83.2" fill="#7dcea0"/><text x="180.0" y="28.8" text-anchor="middle" fill="#fff" font-size="11">5,772</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.06.</text><rect x="264.9" y="33.4" width="59.6" height="82.6" fill="#7dcea0"/><text x="294.7" y="29.4" text-anchor="middle" fill="#fff" font-size="11">5,732</text></svg>
       <p class="sub">출처 네이버금융 · 단위 원 · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>19%</b></p><p class="sub">2026-06-12 / 2026-07-31 · 가격 0% · MACD 56% · RSI 0% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>19%</b></p><p class="sub">2026-06-12 / 2026-07-31 · 가격 0% · MACD 56% · RSI 0% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="010120">
-      <h3><a href="chart.html?symbol=010120&name=LS%EC%9D%BC%EB%A0%89%ED%8A%B8%EB%A6%AD"><span class="ticker">010120</span> LS일렉트릭</a></h3>
+      <h3><a href="chart.html?symbol=010120&amp;name=LS%EC%9D%BC%EB%A0%89%ED%8A%B8%EB%A6%AD"><span class="ticker">010120</span> LS일렉트릭</a></h3>
       <p class="tags">전력망·전력장비 · ESS·SMR</p>
       <p class="asof">2026-11-13 종가 123,300 원</p>
       <p><span class="badge down">매수보류</span></p>
@@ -433,9 +470,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">2025.12.</text><rect x="35.5" y="48.3" width="59.6" height="67.7" fill="#7dcea0"/><text x="65.3" y="44.3" text-anchor="middle" fill="#fff" font-size="11">555</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.03.</text><rect x="150.2" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="180.0" y="14.0" text-anchor="middle" fill="#fff" font-size="11">803</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.06.</text><rect x="264.9" y="19.6" width="59.6" height="96.4" fill="#7dcea0"/><text x="294.7" y="15.6" text-anchor="middle" fill="#fff" font-size="11">790</text></svg>
       <p class="sub">출처 네이버금융 · 단위 원 · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>31%</b></p><p class="sub">2026-03-06 / 2026-07-31 · 가격 0% · MACD 95% · RSI 0% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
 <article class="card" id="017670">
-      <h3><a href="chart.html?symbol=017670&name=SK%ED%85%94%EB%A0%88%EC%BD%A4"><span class="ticker">017670</span> SK텔레콤</a></h3>
+      <h3><a href="chart.html?symbol=017670&amp;name=SK%ED%85%94%EB%A0%88%EC%BD%A4"><span class="ticker">017670</span> SK텔레콤</a></h3>
       <p class="tags">데이터센터·클라우드</p>
       <p class="asof">2026-11-13 종가 83,900 원</p>
       <p><span class="badge down">매수보류</span></p>
@@ -443,9 +481,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="49.3" width="59.6" height="66.7" fill="#7dcea0"/><text x="65.3" y="45.3" text-anchor="middle" fill="#fff" font-size="11">1,488</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="180.0" y="14.0" text-anchor="middle" fill="#fff" font-size="11">2,185</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="30.0" width="59.6" height="86.0" fill="#7dcea0"/><text x="294.7" y="26.0" text-anchor="middle" fill="#fff" font-size="11">1,917</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 원 · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>20%</b></p><p class="sub">2026-05-08 / 2026-07-31 · 가격 0% · MACD 61% · RSI 0% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
 <article class="card" id="030200">
-      <h3><a href="chart.html?symbol=030200&name=KT"><span class="ticker">030200</span> KT</a></h3>
+      <h3><a href="chart.html?symbol=030200&amp;name=KT"><span class="ticker">030200</span> KT</a></h3>
       <p class="tags">데이터센터·클라우드</p>
       <p class="asof">2026-11-13 종가 51,000 원</p>
       <p><span class="badge up">매수후보</span></p>
@@ -453,9 +492,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">2025.12.</text><rect x="35.5" y="91.1" width="59.6" height="24.9" fill="#7dcea0"/><text x="65.3" y="87.1" text-anchor="middle" fill="#fff" font-size="11">443</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.03.</text><rect x="150.2" y="37.5" width="59.6" height="78.5" fill="#7dcea0"/><text x="180.0" y="33.5" text-anchor="middle" fill="#fff" font-size="11">1,398</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.06.</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">1,746</text></svg>
       <p class="sub">출처 네이버금융 · 단위 원 · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>97%</b></p><p class="sub">2026-06-26 / 2026-07-24 · 가격 100% · MACD 92% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>97%</b></p><p class="sub">2026-06-26 / 2026-07-24 · 가격 100% · MACD 92% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="005930">
-      <h3><a href="chart.html?symbol=005930&name=%EC%82%BC%EC%84%B1%EC%A0%84%EC%9E%90"><span class="ticker">005930</span> 삼성전자</a></h3>
+      <h3><a href="chart.html?symbol=005930&amp;name=%EC%82%BC%EC%84%B1%EC%A0%84%EC%9E%90"><span class="ticker">005930</span> 삼성전자</a></h3>
       <p class="tags">AI 가속기·반도체·메모리</p>
       <p class="asof">2026-11-13 종가 206,000 원</p>
       <p><span class="badge up">매수후보</span></p>
@@ -463,9 +503,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="55.1" width="59.6" height="60.9" fill="#7dcea0"/><text x="65.3" y="51.1" text-anchor="middle" fill="#fff" font-size="11">7,123</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="23.2" width="59.6" height="92.8" fill="#7dcea0"/><text x="180.0" y="19.2" text-anchor="middle" fill="#fff" font-size="11">10,849</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">11,462</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 원 · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>33%</b></p><p class="sub">2026-03-13 / 2026-07-31 · 가격 0% · MACD 100% · RSI 0% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
 <article class="card" id="000660">
-      <h3><a href="chart.html?symbol=000660&name=SK%ED%95%98%EC%9D%B4%EB%8B%89%EC%8A%A4"><span class="ticker">000660</span> SK하이닉스</a></h3>
+      <h3><a href="chart.html?symbol=000660&amp;name=SK%ED%95%98%EC%9D%B4%EB%8B%89%EC%8A%A4"><span class="ticker">000660</span> SK하이닉스</a></h3>
       <p class="tags">AI 가속기·반도체·메모리</p>
       <p class="asof">2026-11-13 종가 1,216,000 원</p>
       <p><span class="badge up">매수후보</span></p>
@@ -473,9 +514,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">2025.12.</text><rect x="35.5" y="100.4" width="59.6" height="15.6" fill="#7dcea0"/><text x="65.3" y="96.4" text-anchor="middle" fill="#fff" font-size="11">20,906</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.03.</text><rect x="150.2" y="74.3" width="59.6" height="41.7" fill="#7dcea0"/><text x="180.0" y="70.3" text-anchor="middle" fill="#fff" font-size="11">56,066</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.06.</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">131,640</text></svg>
       <p class="sub">출처 네이버금융 · 단위 원 · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>49%</b></p><p class="sub">2026-04-03 / 2026-07-31 · 가격 0% · MACD 100% · RSI 48% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
 <article class="card" id="417200">
-      <h3><a href="chart.html?symbol=417200&name=LS%EB%A8%B8%ED%8A%B8%EB%A6%AC%EC%96%BC%EC%A6%88"><span class="ticker">417200</span> LS머트리얼즈</a></h3>
+      <h3><a href="chart.html?symbol=417200&amp;name=LS%EB%A8%B8%ED%8A%B8%EB%A6%AC%EC%96%BC%EC%A6%88"><span class="ticker">417200</span> LS머트리얼즈</a></h3>
       <p class="tags">냉각·전력관리</p>
       <p class="asof">2026-11-13 종가 10,060 원</p>
       <p><span class="badge up">매수후보</span></p>
@@ -483,9 +525,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="80.1" x2="352" y2="80.1" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">2025.12.</text><rect x="35.5" y="18.0" width="59.6" height="62.1" fill="#7dcea0"/><text x="65.3" y="14.0" text-anchor="middle" fill="#fff" font-size="11">19</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.03.</text><rect x="150.2" y="80.1" width="59.6" height="35.9" fill="#f1948a"/><text x="180.0" y="112.0" text-anchor="middle" fill="#fff" font-size="11">-11</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.06.</text><rect x="264.9" y="47.4" width="59.6" height="32.7" fill="#7dcea0"/><text x="294.7" y="43.4" text-anchor="middle" fill="#fff" font-size="11">10</text></svg>
       <p class="sub">출처 네이버금융 · 단위 원 · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>63%</b></p><p class="sub">2026-07-31 / 2026-09-04 · 가격 0% · MACD 92% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>63%</b></p><p class="sub">2026-07-31 / 2026-09-04 · 가격 0% · MACD 92% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="083450">
-      <h3><a href="chart.html?symbol=083450&name=%EC%A7%80%EC%97%90%EC%8A%A4%ED%8B%B0"><span class="ticker">083450</span> 지에스티</a></h3>
+      <h3><a href="chart.html?symbol=083450&amp;name=%EC%A7%80%EC%97%90%EC%8A%A4%ED%8B%B0"><span class="ticker">083450</span> 지에스티</a></h3>
       <p class="tags">냉각·전력관리</p>
       <p class="asof">2026-11-13 종가 42,300 원</p>
       <p><span class="badge down">매수보류</span></p>
@@ -493,9 +536,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">2025.12.</text><rect x="35.5" y="44.4" width="59.6" height="71.6" fill="#7dcea0"/><text x="65.3" y="40.4" text-anchor="middle" fill="#fff" font-size="11">687</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.03.</text><rect x="150.2" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="180.0" y="14.0" text-anchor="middle" fill="#fff" font-size="11">940</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.06.</text><rect x="264.9" y="47.1" width="59.6" height="68.9" fill="#7dcea0"/><text x="294.7" y="43.1" text-anchor="middle" fill="#fff" font-size="11">661</text></svg>
       <p class="sub">출처 네이버금융 · 단위 원 · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>58%</b></p><p class="sub">2026-07-31 / 2026-09-04 · 가격 0% · MACD 81% · RSI 95% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>58%</b></p><p class="sub">2026-07-31 / 2026-09-04 · 가격 0% · MACD 81% · RSI 95% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="373220">
-      <h3><a href="chart.html?symbol=373220&name=LG%EC%97%90%EB%84%88%EC%A7%80%EC%86%94%EB%A3%A8%EC%85%98"><span class="ticker">373220</span> LG에너지솔루션</a></h3>
+      <h3><a href="chart.html?symbol=373220&amp;name=LG%EC%97%90%EB%84%88%EC%A7%80%EC%86%94%EB%A3%A8%EC%85%98"><span class="ticker">373220</span> LG에너지솔루션</a></h3>
       <p class="tags">ESS·SMR</p>
       <p class="asof">2026-11-13 종가 324,500 원</p>
       <p><span class="badge down">매수보류</span></p>
@@ -503,9 +547,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="18.0" x2="352" y2="18.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="18.0" width="59.6" height="98.0" fill="#f1948a"/><text x="65.3" y="112.0" text-anchor="middle" fill="#fff" font-size="11">-2,889</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="18.0" width="59.6" height="54.7" fill="#f1948a"/><text x="180.0" y="84.7" text-anchor="middle" fill="#fff" font-size="11">-1,613</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="18.0" width="59.6" height="69.8" fill="#f1948a"/><text x="294.7" y="99.8" text-anchor="middle" fill="#fff" font-size="11">-2,058</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 원 · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>38%</b></p><p class="sub">2026-03-06 / 2026-07-31 · 가격 0% · MACD 57% · RSI 58% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
 <article class="card" id="034020">
-      <h3><a href="chart.html?symbol=034020&name=%EB%91%90%EC%82%B0%EC%97%90%EB%84%88%EB%B9%8C%EB%A6%AC%ED%8B%B0"><span class="ticker">034020</span> 두산에너빌리티</a></h3>
+      <h3><a href="chart.html?symbol=034020&amp;name=%EB%91%90%EC%82%B0%EC%97%90%EB%84%88%EB%B9%8C%EB%A6%AC%ED%8B%B0"><span class="ticker">034020</span> 두산에너빌리티</a></h3>
       <p class="tags">ESS·SMR</p>
       <p class="asof">2026-11-13 종가 46,850 원</p>
       <p><span class="badge down">매수보류</span></p>
@@ -513,9 +558,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="108.3" x2="352" y2="108.3" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">1Q2026</text><rect x="35.5" y="108.0" width="59.6" height="1.0" fill="#7dcea0"/><text x="65.3" y="104.0" text-anchor="middle" fill="#fff" font-size="11">1</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2Q2026</text><rect x="150.2" y="18.0" width="59.6" height="90.3" fill="#7dcea0"/><text x="180.0" y="14.0" text-anchor="middle" fill="#fff" font-size="11">247</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">3Q2026</text><rect x="264.9" y="108.3" width="59.6" height="7.7" fill="#f1948a"/><text x="294.7" y="112.0" text-anchor="middle" fill="#fff" font-size="11">-21</text></svg>
       <p class="sub">출처 Yahoo Finance · 단위 원 · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>12%</b></p><p class="sub">2026-04-03 / 2026-07-31 · 가격 0% · MACD 36% · RSI 0% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
 <article class="card" id="006400">
-      <h3><a href="chart.html?symbol=006400&name=%EC%82%BC%EC%84%B1SDI"><span class="ticker">006400</span> 삼성SDI</a></h3>
+      <h3><a href="chart.html?symbol=006400&amp;name=%EC%82%BC%EC%84%B1SDI"><span class="ticker">006400</span> 삼성SDI</a></h3>
       <p class="tags">ESS·SMR</p>
       <p class="asof">2026-11-13 종가 478,000 원</p>
       <p><span class="badge up">매수후보</span></p>
@@ -523,9 +569,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="68.3" x2="352" y2="68.3" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">2025.12.</text><rect x="35.5" y="68.3" width="59.6" height="47.7" fill="#f1948a"/><text x="65.3" y="112.0" text-anchor="middle" fill="#fff" font-size="11">-3,945</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.03.</text><rect x="150.2" y="68.3" width="59.6" height="4.1" fill="#f1948a"/><text x="180.0" y="84.5" text-anchor="middle" fill="#fff" font-size="11">-342</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.06.</text><rect x="264.9" y="18.0" width="59.6" height="50.3" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">4,163</text></svg>
       <p class="sub">출처 네이버금융 · 단위 원 · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>0%</b></p><p class="sub">MACD선이 0 위로 올라가서 상승다이버전스가 이미 지난 구간입니다.</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
 <article class="card" id="307950">
-      <h3><a href="chart.html?symbol=307950&name=%ED%98%84%EB%8C%80%EC%98%A4%ED%86%A0%EC%97%90%EB%B2%84"><span class="ticker">307950</span> 현대오토에버</a></h3>
+      <h3><a href="chart.html?symbol=307950&amp;name=%ED%98%84%EB%8C%80%EC%98%A4%ED%86%A0%EC%97%90%EB%B2%84"><span class="ticker">307950</span> 현대오토에버</a></h3>
       <p class="tags">기타</p>
       <p class="asof">2026-11-13 종가 285,500 원</p>
       <p><span class="badge up">매수후보</span></p>
@@ -533,9 +580,10 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">2025.12.</text><rect x="35.5" y="39.9" width="59.6" height="76.1" fill="#7dcea0"/><text x="65.3" y="35.9" text-anchor="middle" fill="#fff" font-size="11">1,931</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.03.</text><rect x="150.2" y="90.3" width="59.6" height="25.7" fill="#7dcea0"/><text x="180.0" y="86.3" text-anchor="middle" fill="#fff" font-size="11">653</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.06.</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">2,487</text></svg>
       <p class="sub">출처 네이버금융 · 단위 원 · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>60%</b></p><p class="sub">2026-07-31 / 2026-09-18 · 가격 0% · MACD 81% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>60%</b></p><p class="sub">2026-07-31 / 2026-09-18 · 가격 0% · MACD 81% · RSI 100% · 아직 쌍바닥 상승다이버전스가 아닙니다</p>
+    </article>
 <article class="card" id="042700">
-      <h3><a href="chart.html?symbol=042700&name=%ED%95%9C%EB%AF%B8%EB%B0%98%EB%8F%84%EC%B2%B4"><span class="ticker">042700</span> 한미반도체</a></h3>
+      <h3><a href="chart.html?symbol=042700&amp;name=%ED%95%9C%EB%AF%B8%EB%B0%98%EB%8F%84%EC%B2%B4"><span class="ticker">042700</span> 한미반도체</a></h3>
       <p class="tags">기타</p>
       <p class="asof">2026-11-13 종가 181,700 원</p>
       <p><span class="badge up">매수후보</span></p>
@@ -543,7 +591,8 @@
       <svg viewBox="0 0 360 156" role="img" aria-label="주가순이익"><line x1="8" y1="116.0" x2="352" y2="116.0" stroke="#555"/><text x="65.3" y="134" text-anchor="middle" fill="#ccc" font-size="11">2025.12.</text><rect x="35.5" y="89.9" width="59.6" height="26.1" fill="#7dcea0"/><text x="65.3" y="85.9" text-anchor="middle" fill="#fff" font-size="11">303</text><text x="180.0" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.03.</text><rect x="150.2" y="98.8" width="59.6" height="17.2" fill="#7dcea0"/><text x="180.0" y="94.8" text-anchor="middle" fill="#fff" font-size="11">200</text><text x="294.7" y="134" text-anchor="middle" fill="#ccc" font-size="11">2026.06.</text><rect x="264.9" y="18.0" width="59.6" height="98.0" fill="#7dcea0"/><text x="294.7" y="14.0" text-anchor="middle" fill="#fff" font-size="11">1,138</text></svg>
       <p class="sub">출처 네이버금융 · 단위 원 · 직전 분기 대비</p>
       <p class="frame">주봉 상승다이버전스 접근도</p>
-      <p class="pct"><b>12%</b></p><p class="sub">2026-04-03 / 2026-07-31 · 가격 0% · MACD 37% · RSI 0% · 아직 쌍바닥 상승다이버전스가 아닙니다</p></article>
+      <p class="pct"><b>0%</b></p><p class="sub">확정된 스윙 저점 쌍이 없습니다.</p>
+    </article>
   </div>
 </body>
 </html>
