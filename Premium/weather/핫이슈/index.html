@@ -15,18 +15,18 @@
     }
     a { color: #D8C0FF; }
     .topbar { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
-    .home { font-size: 32px; }
+    .home { font-size: 21px; }
     h1 {
       text-align: center;
       color: #3C9DDE;
-      font-size: 40px;
+      font-size: 26px;
       line-height: 1.35;
       margin: 18px 0 8px;
     }
     .note {
       text-align: center;
       color: #ccc;
-      font-size: 22px;
+      font-size: 14px;
       margin: 0 0 18px;
     }
     .toolbar {
@@ -44,12 +44,12 @@
       border-radius: 12px;
       background: #1c100c;
       color: #4da3ff;
-      font-size: 26px;
+      font-size: 17px;
       font-weight: 700;
       cursor: pointer;
     }
     #reload:disabled { opacity: 0.55; cursor: default; }
-    .status { color: #8a8a8a; font-size: 20px; }
+    .status { color: #8a8a8a; font-size: 13px; }
     .cloud-wrap {
       position: relative;
       width: min(1100px, 100%);
@@ -77,7 +77,7 @@
     }
     .panel h2 {
       color: #ffd76a;
-      font-size: 32px;
+      font-size: 21px;
       margin: 8px 0;
     }
     .rank {
@@ -90,23 +90,23 @@
     }
     .rank button {
       min-height: 52px;
-      font-size: 22px;
+      font-size: 14px;
       color: #fff;
     }
     .heads { margin: 0; padding: 0; list-style: none; }
     .heads li {
       border-bottom: 1px solid #333;
       padding: 14px 4px;
-      font-size: 24px;
+      font-size: 16px;
       line-height: 1.4;
     }
     .heads a { color: #8ec8ff; }
-    .error { color: #f1948a; text-align: center; font-size: 26px; }
+    .error { color: #f1948a; text-align: center; font-size: 17px; }
     @media (max-width: 700px) {
       body { padding: 16px; }
-      h1 { font-size: 30px; }
+      h1 { font-size: 20px; }
       .cloud-wrap { height: 560px; }
-      .heads li { font-size: 20px; }
+      .heads li { font-size: 13px; }
     }
   </style>
 </head>
@@ -206,7 +206,7 @@
       var width = box.clientWidth;
       var height = box.clientHeight;
       var maxCount = issues[0].count;
-      var maxFont = Math.max(46, Math.min(104, width / 8));
+      var maxFont = Math.max(30, Math.min(68, width * 0.08125));
       var placed = [];
       issues.forEach(function (issue, index) {
         var el = document.createElement("button");
@@ -214,7 +214,7 @@
         el.className = "word" + (issue.label === selected ? " on" : "");
         el.textContent = issue.label;
         el.style.color = COLORS[index % COLORS.length];
-        el.style.fontSize = Math.round(28 + Math.sqrt(issue.count / maxCount) * (maxFont - 28)) + "px";
+        el.style.fontSize = Math.round(18 + Math.sqrt(issue.count / maxCount) * (maxFont - 18)) + "px";
         el.style.background = "transparent";
         el.style.border = "0";
         el.style.padding = "0";
@@ -226,7 +226,7 @@
         var guard = 0;
         while (w > width - 20 && guard < 20) {
           var next = parseFloat(el.style.fontSize) - 4;
-          if (next < 22) break;
+          if (next < 14) break;
           el.style.fontSize = next + "px";
           rect = el.getBoundingClientRect();
           w = rect.width;
