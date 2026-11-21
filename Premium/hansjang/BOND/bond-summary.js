@@ -1,0 +1,1 @@
+window.BOND_SUMMARY = {"asof":"2026-11-20","tnx":4.912,"tnxPercentile":98.3,"tnxMin":0.536,"tnxMax":5.277,"sellLine":2.16,"buyLine":3.65,"band":"buy","bandText":"매수 확률 높음","message":"TNX 20년 백분위 98%로 장기 고점 부근입니다. 금리가 고점에서 꺾이면 TLT·EDV 가격이 올라 매수 확률이 높아집니다. 금리 고점이 확인된 뒤 분할 매수를 검토합니다.","TLT":{"close":81.45},"EDV":{"close":58.94}};

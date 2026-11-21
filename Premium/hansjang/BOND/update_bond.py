@@ -16,6 +16,7 @@ import requests
 
 HERE = pathlib.Path(__file__).resolve().parent
 PAGE = HERE / "index.html"
+SUMMARY_JS = HERE / "bond-summary.js"
 
 CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
@@ -93,6 +94,56 @@ def replace_region(text, start, end, body):
     return pattern.sub(lambda _match: start + "\n" + body + "\n" + end, text, count=1)
 
 
+def summary_payload(rows, asof):
+    """한스장 소개 페이지에 넣을 간략 서머리(판정) 데이터를 만듭니다."""
+    by_label = {row["label"]: row for row in rows}
+    tnx_closes = by_label["TNX"]["closes"]
+    current = tnx_closes[-1]
+    ordered = sorted(tnx_closes)
+    count = len(ordered)
+    percentile = 100.0 * sum(1 for value in tnx_closes if value <= current) / count
+    p30 = ordered[int(round(0.3 * (count - 1)))]
+    p70 = ordered[int(round(0.7 * (count - 1)))]
+    if percentile >= 70:
+        band = "buy"
+        band_text = "매수 확률 높음"
+        message = (
+            "TNX 20년 백분위 %d%%로 장기 고점 부근입니다. 금리가 고점에서 꺾이면 "
+            "TLT·EDV 가격이 올라 매수 확률이 높아집니다. 금리 고점이 확인된 뒤 분할 매수를 검토합니다."
+            % round(percentile)
+        )
+    elif percentile <= 30:
+        band = "sell"
+        band_text = "매도 확률 높음"
+        message = (
+            "TNX 20년 백분위 %d%%로 장기 저점 부근입니다. 금리가 저점에서 반등하면 "
+            "TLT·EDV 가격이 내려 매도 확률이 높아집니다. 금리 저점이 확인된 뒤 분할 매도(이익 실현)를 검토합니다."
+            % round(percentile)
+        )
+    else:
+        band = "wait"
+        band_text = "중립"
+        message = (
+            "TNX가 20년 범위의 중간 구간(백분위 %d%%)이라 매수·매도 확률이 모두 낮습니다. "
+            "인플레이션·연준·유가 이벤트의 결과가 나오고 방향이 확인된 뒤 판단합니다."
+            % round(percentile)
+        )
+    return {
+        "asof": asof,
+        "tnx": round(current, 3),
+        "tnxPercentile": round(percentile, 1),
+        "tnxMin": round(min(tnx_closes), 3),
+        "tnxMax": round(max(tnx_closes), 3),
+        "sellLine": round(p30, 2),
+        "buyLine": round(p70, 2),
+        "band": band,
+        "bandText": band_text,
+        "message": message,
+        "TLT": {"close": round(by_label["TLT"]["closes"][-1], 2)},
+        "EDV": {"close": round(by_label["EDV"]["closes"][-1], 2)},
+    }
+
+
 def main():
     rows = []
     for ticker, label, name in SYMBOLS:
@@ -122,9 +173,18 @@ def main():
     with open(str(PAGE), "w", encoding="utf-8", newline="") as handle:
         handle.write(text)
 
+    summary = summary_payload(rows, asof)
+    summary_body = "window.BOND_SUMMARY = %s;\n" % json.dumps(
+        summary, ensure_ascii=False, separators=(",", ":")
+    ).replace("<", "\\u003c")
+    with open(str(SUMMARY_JS), "w", encoding="utf-8", newline="") as handle:
+        handle.write(summary_body)
+
     print()
     print("기준일: %s" % asof)
+    print("판정: %s (TNX %s%%, 20년 백분위 %s%%)" % (summary["bandText"], summary["tnx"], summary["tnxPercentile"]))
     print("갱신 완료: %s" % PAGE)
+    print("갱신 완료: %s" % SUMMARY_JS)
 
 
 if __name__ == "__main__":
