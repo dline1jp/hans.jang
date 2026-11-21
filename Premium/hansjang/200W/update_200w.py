@@ -11,6 +11,7 @@
 갱신 대상
 1. Premium/hansjang/200W/index.html  (기준일 / 서머리 카드 / 표 / MA_SERIES)
 2. Premium/hansjang/summary-data.js  (상단 소개 페이지가 읽는 서머리 데이터)
+3. Premium/hansjang/index.html       (상단 소개 페이지의 기준일 안내문)
 """
 import datetime
 import html
@@ -25,6 +26,7 @@ import requests
 HERE = pathlib.Path(__file__).resolve().parent
 PAGE = HERE / "index.html"
 SUMMARY_JS = HERE.parent / "summary-data.js"
+LANDING = HERE.parent / "index.html"
 
 CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
@@ -292,11 +294,18 @@ def main():
     with open(str(SUMMARY_JS), "w", encoding="utf-8", newline="") as handle:
         handle.write(summary_json(rows).replace("\n", newline))
 
+    # 상단 소개 페이지의 기준일 안내문도 같은 날짜로 맞춥니다.
+    landing_text = LANDING.read_text(encoding="utf-8")
+    landing_text = replace_region(landing_text, "<!-- NOTE_START -->", "<!-- NOTE_END -->", note)
+    with open(str(LANDING), "w", encoding="utf-8", newline="") as handle:
+        handle.write(landing_text)
+
     print()
     print("서머리 카드: %s" % ", ".join(picks))
     print("기준일: %s" % asof.isoformat())
     print("갱신 완료: %s" % PAGE)
     print("갱신 완료: %s" % SUMMARY_JS)
+    print("갱신 완료: %s" % LANDING)
 
 
 if __name__ == "__main__":

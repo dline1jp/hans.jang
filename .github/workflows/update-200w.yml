@@ -19,6 +19,6 @@ jobs:
       - run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Premium/hansjang/200W/index.html Premium/hansjang/summary-data.js
+          git add Premium/hansjang/200W/index.html Premium/hansjang/summary-data.js Premium/hansjang/index.html
           git diff --cached --quiet || git commit -m "Update weekly 200-week buy points"
           git push
