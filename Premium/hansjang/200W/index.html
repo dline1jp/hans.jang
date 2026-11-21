@@ -21,6 +21,7 @@
     table.rank tr.buy td.prob { color: #7dcea0; }
     table.rank tr.wait td.prob { color: #f7dc6f; }
     table.rank tr.miss td.prob { color: #888; }
+    .summary { max-width: 980px; margin: 16px auto 0; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
     @media (max-width: 800px) {
       h1 { font-size: 24px; }
       table.rank thead { display: none; }
@@ -28,6 +29,7 @@
       table.rank tr { border: 1px solid #444; border-radius: 10px; margin: 0 0 12px; padding: 8px; }
       table.rank td { display: flex; justify-content: space-between; border: none; text-align: right; padding: 4px 0; }
       table.rank td::before { content: attr(data-label); color: #D8C0FF; font-weight: 700; margin-right: 12px; }
+      .summary { grid-template-columns: 1fr; }
     }
     #ma-chart { max-width: 1100px; margin: 0 auto; }
     .ma-legend { font-size: 18px; }
@@ -35,6 +37,17 @@
     .ma-legend i.ma200 { background: #E53935; }
     .ma-legend i.mapx { background: #bbbbbb; }
     #ma-canvas { width: 100%; height: 520px; background: #0c0c0c; border: 1px solid #333; }
+    .stock-card { border: 1px solid #444; border-radius: 12px; padding: 14px 16px; }
+    .stock-card.miss { background: #1b1b1b; }
+    .stock-card.buy { background: #143024; }
+    .stock-card h2 { margin: 0 0 8px; font-size: 24px; color: #FFFFE0; }
+    .stock-card.miss h2 { color: #f7dc6f; }
+    .stock-card.buy h2 { color: #7dcea0; }
+    .stock-meta { margin: 0 0 8px; font-size: 18px; font-weight: 700; color: #D8C0FF; }
+    .stock-desc { margin: 0 0 10px; font-size: 18px; line-height: 1.5; color: #ddd; }
+    .stock-card .ma-legend { margin: 0 0 8px; }
+    .mini-canvas { display: block; width: 100%; height: 220px; background: #0c0c0c; border: 1px solid #333; border-radius: 8px; }
+    .jump { margin: 10px 0 0; font-size: 17px; }
   </style>
 </head>
 <body>
@@ -47,17 +60,35 @@
   <div id="report">
     <h1>한스장 시크리컬 200주 매수타점(단 버블기는 예외)</h1>
     <p class="note">기준일 2026-11-20. 시세가 200주 이동평균선에 접근할수록 확률이 높아지고, 200주선 아래로 내려오면 100%입니다. 시세가 200주선에 오면 매수를 검토할 수 있습니다. </p>
+    <section class="summary">
+      <div class="stock-card miss">
+        <h2>QQQ · Invesco QQQ · 확률 78%</h2>
+        <p class="stock-meta">종가 645.04 · 200주선 505.26 · 200주선 대비 +27.7%</p>
+        <p class="stock-desc">시세가 200주선보다 27.7% 위에 있어 아직 매수 구간이 아닙니다. 200주선에 가까워질수록 확률이 높아지고, 200주선 아래로 내려오면 100%가 됩니다. 아래 그래프는 클릭 없이 바로 보이는 주봉 종가(회색)와 200주선(빨강)입니다.</p>
+        <p class="ma-legend"><i class="ma200"></i>200주선 <i class="mapx"></i>주봉 종가</p>
+        <canvas class="mini-canvas" data-symbol="QQQ" width="1100" height="220"></canvas>
+        <p class="jump"><a href="#row-QQQ">▼ 표에서 QQQ 행 보기</a></p>
+      </div>
+      <div class="stock-card buy">
+        <h2>BTC-USD · 비트코인 · 확률 100%</h2>
+        <p class="stock-meta">종가 61,875.72 · 200주선 68,365.51 · 200주선 대비 -9.5%</p>
+        <p class="stock-desc">시세가 200주선 아래로 내려와 확률 100%인 종목입니다. 다만 버블기 종목은 예외로 봅니다. 아래 그래프는 클릭 없이 바로 보이는 주봉 종가(회색)와 200주선(빨강)입니다.</p>
+        <p class="ma-legend"><i class="ma200"></i>200주선 <i class="mapx"></i>주봉 종가</p>
+        <canvas class="mini-canvas" data-symbol="BTC-USD" width="1100" height="220"></canvas>
+        <p class="jump"><a href="#row-BTC-USD">▼ 표에서 BTC-USD 행 보기</a></p>
+      </div>
+    </section>
     <div class="rank-wrap">
       <table class="rank">
         <thead><tr><th class="code">종목</th><th class="name">이름</th><th>종가</th><th>200주선</th><th class="prob">확률</th></tr></thead>
         <tbody>
-<tr class="miss"><td class="code" data-label="종목"><a href="index.html?symbol=QQQ">QQQ</a></td><td class="name" data-label="이름">Invesco QQQ</td><td data-label="종가">645.04</td><td data-label="200주선">505.26</td><td class="prob" data-label="확률">78%</td></tr>
+<tr class="miss" id="row-QQQ"><td class="code" data-label="종목"><a href="index.html?symbol=QQQ">QQQ</a></td><td class="name" data-label="이름">Invesco QQQ</td><td data-label="종가">645.04</td><td data-label="200주선">505.26</td><td class="prob" data-label="확률">78%</td></tr>
 <tr class="miss"><td class="code" data-label="종목"><a href="index.html?symbol=SPY">SPY</a></td><td class="name" data-label="이름">SPDR S&P 500 ETF</td><td data-label="종가">715.87</td><td data-label="200주선">568.63</td><td class="prob" data-label="확률">79%</td></tr>
 <tr class="miss"><td class="code" data-label="종목"><a href="index.html?symbol=VOO">VOO</a></td><td class="name" data-label="이름">Vanguard S&P 500 ETF</td><td data-label="종가">658.01</td><td data-label="200주선">522.13</td><td class="prob" data-label="확률">79%</td></tr>
 <tr class="miss"><td class="code" data-label="종목"><a href="index.html?symbol=SMH">SMH</a></td><td class="name" data-label="이름">VanEck 반도체 ETF</td><td data-label="종가">447.48</td><td data-label="200주선">287.90</td><td class="prob" data-label="확률">64%</td></tr>
 <tr class="miss"><td class="code" data-label="종목"><a href="index.html?symbol=SOXX">SOXX</a></td><td class="name" data-label="이름">iShares 반도체 ETF</td><td data-label="종가">137.95</td><td data-label="200주선">89.03</td><td class="prob" data-label="확률">65%</td></tr>
 <tr class="miss"><td class="code" data-label="종목"><a href="index.html?symbol=SCHD">SCHD</a></td><td class="name" data-label="이름">Schwab 미국 배당주 ETF</td><td data-label="종가">34.20</td><td data-label="200주선">26.00</td><td class="prob" data-label="확률">76%</td></tr>
-<tr class="buy"><td class="code" data-label="종목"><a href="index.html?symbol=BTC-USD">BTC-USD</a></td><td class="name" data-label="이름">비트코인</td><td data-label="종가">61,875.72</td><td data-label="200주선">68,365.51</td><td class="prob" data-label="확률">100%</td></tr>
+<tr class="buy" id="row-BTC-USD"><td class="code" data-label="종목"><a href="index.html?symbol=BTC-USD">BTC-USD</a></td><td class="name" data-label="이름">비트코인</td><td data-label="종가">61,875.72</td><td data-label="200주선">68,365.51</td><td class="prob" data-label="확률">100%</td></tr>
 <tr class="wait"><td class="code" data-label="종목"><a href="index.html?symbol=GLD">GLD</a></td><td class="name" data-label="이름">SPDR 금 ETF</td><td data-label="종가">335.18</td><td data-label="200주선">280.94</td><td class="prob" data-label="확률">84%</td></tr>
 <tr class="buy"><td class="code" data-label="종목"><a href="index.html?symbol=SLV">SLV</a></td><td class="name" data-label="이름">iShares 은 ETF</td><td data-label="종가">39.64</td><td data-label="200주선">36.27</td><td class="prob" data-label="확률">91%</td></tr>
         </tbody>
@@ -134,6 +165,78 @@
       ctx.font = "13px Arial";
       ctx.fillText(String(Math.round(hi)), 8, 24);
       ctx.fillText(String(Math.round(lo)), 8, height - 28);
+    })();
+  </script>
+  <script>
+    (function () {
+      function average(values, length, index) {
+        var sum = 0;
+        for (var i = index - length + 1; i <= index; i++) sum += values[i];
+        return sum / length;
+      }
+      function drawMini(canvas) {
+        var row = (window.MA_SERIES || {})[canvas.getAttribute("data-symbol")];
+        if (!row) return;
+        var closes = row.closes;
+        var points = [];
+        for (var i = 199; i < closes.length; i++) {
+          points.push({ c: closes[i], m200: average(closes, 200, i) });
+        }
+        if (!points.length) return;
+        var width = Math.max(240, Math.round(canvas.clientWidth || canvas.parentNode.clientWidth || 1100));
+        var height = 220;
+        var dpr = window.devicePixelRatio || 1;
+        canvas.style.width = width + "px";
+        canvas.style.height = height + "px";
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        var ctx = canvas.getContext("2d");
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.fillStyle = "#0c0c0c";
+        ctx.fillRect(0, 0, width, height);
+        var lo = Infinity;
+        var hi = -Infinity;
+        points.forEach(function (point) {
+          lo = Math.min(lo, point.c, point.m200);
+          hi = Math.max(hi, point.c, point.m200);
+        });
+        var pad = (hi - lo) * 0.08 || 1;
+        lo -= pad;
+        hi += pad;
+        function xOf(index) {
+          return 8 + (width - 16) * (index / Math.max(points.length - 1, 1));
+        }
+        function yOf(value) {
+          return 10 + (height - 20) * (1 - (value - lo) / (hi - lo));
+        }
+        function stroke(key, color, lineWidth) {
+          ctx.beginPath();
+          ctx.strokeStyle = color;
+          ctx.lineWidth = lineWidth;
+          points.forEach(function (point, index) {
+            var x = xOf(index);
+            var y = yOf(point[key]);
+            if (index === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          });
+          ctx.stroke();
+        }
+        stroke("m200", "#E53935", 2.5);
+        stroke("c", "#bbbbbb", 1.25);
+        ctx.fillStyle = "#888";
+        ctx.font = "12px Arial";
+        ctx.fillText(String(Math.round(hi)), 6, 14);
+        ctx.fillText(String(Math.round(lo)), 6, height - 8);
+      }
+      var minis = document.querySelectorAll("canvas.mini-canvas");
+      for (var i = 0; i < minis.length; i++) drawMini(minis[i]);
+      var resizeTimer = null;
+      window.addEventListener("resize", function () {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () {
+          for (var j = 0; j < minis.length; j++) drawMini(minis[j]);
+        }, 150);
+      });
     })();
   </script>
 </body>
