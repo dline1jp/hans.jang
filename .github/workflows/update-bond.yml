@@ -15,10 +15,10 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install requests
-      - run: python Premium/hansjang/bond/update_bond.py
+      - run: python Premium/hansjang/BOND/update_bond.py
       - run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Premium/hansjang/bond/index.html
+          git add Premium/hansjang/BOND/index.html
           git diff --cached --quiet || git commit -m "Update bond entry point charts"
           git push

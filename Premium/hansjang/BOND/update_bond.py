@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """미국 장기채권(TLT·EDV) vs TNX 주봉 20년 차트 데이터를 갱신합니다.
 
-- 야후 파이낸스 주봉(1wk) 20년 종가를 읽어 Premium/hansjang/bond/index.html 의
+- 야후 파이낸스 주봉(1wk) 20년 종가를 읽어 Premium/hansjang/BOND/index.html 의
   window.BOND_SERIES 를 새로 심고, 기준일 안내문(.note)을 갱신합니다.
 - GitHub Actions(.github/workflows/update-bond.yml)에서 매주 토요일 실행합니다.
 """
