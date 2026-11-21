@@ -1,0 +1,14 @@
+{
+  "redirects": [
+    {
+      "source": "/Premium/hansjang/bond",
+      "destination": "/Premium/hansjang/BOND",
+      "permanent": true
+    },
+    {
+      "source": "/Premium/hansjang/bond/:path*",
+      "destination": "/Premium/hansjang/BOND/:path*",
+      "permanent": true
+    }
+  ]
+}
