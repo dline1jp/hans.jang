@@ -1,6 +1,6 @@
 /* TLT · EDV vs TNX 주봉 20년 차트 (클릭 없이 바로 표시)
  * - window.BOND_SERIES: { asof, TLT:{dates,closes}, EDV:{...}, TNX:{...} }
- * - 메인 패널: ETF 주봉 종가 + 20/50/200주선, TNX는 오른쪽 축
+ * - 메인 패널: ETF 주봉 종가 + 20/50주선, TNX는 오른쪽 축
  * - 아래 패널: RSI(14), MACD(12,26,9)
  * - TNX 20년 백분위로 TLT·EDV의 매수/매도 확률을 판정합니다.
  */
@@ -9,7 +9,6 @@
     close: "#e6e6e6",
     ma20: "#7dcea0",
     ma50: "#d8c0ff",
-    ma200: "#E53935",
     tnx: "#6cb6ff",
     rsi: "#dddddd",
     macd: "#ffd76a",
@@ -142,7 +141,6 @@
     var tnxAt = alignTo(etf, tnx);
     var ma20 = [];
     var ma50 = [];
-    var ma200 = [];
     var rsiLine = rsi(closes, 14);
     var rsiNow = lastNumber(rsiLine);
     var macdData = macd(closes);
@@ -151,7 +149,6 @@
     for (i = 0; i < n; i++) {
       ma20.push(average(closes, 20, i));
       ma50.push(average(closes, 50, i));
-      ma200.push(average(closes, 200, i));
     }
 
     var width = Math.max(320, Math.round(canvas.clientWidth || canvas.parentNode.clientWidth || 1100));
@@ -181,7 +178,7 @@
 
     var lo = Infinity;
     var hi = -Infinity;
-    var sources = [closes, ma20, ma50, ma200];
+    var sources = [closes, ma20, ma50];
     for (i = 0; i < n; i++) {
       for (var s = 0; s < sources.length; s++) {
         var drawPrice = sources[s][i];
@@ -294,7 +291,6 @@
     ctx.fillText("MACD(12,26,9)", padLeft, macdTop - 5);
 
     stroke(tnxAt, yTnx, C.tnx, 1.1, 0.95);
-    stroke(ma200, yPrice, C.ma200, 2.2);
     stroke(ma50, yPrice, C.ma50, 1.4);
     stroke(ma20, yPrice, C.ma20, 1.2);
     stroke(closes, yPrice, C.close, 1.3);
