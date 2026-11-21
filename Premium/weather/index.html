@@ -432,6 +432,7 @@ table.rank td.down { color: #f1948a; font-weight: 700; }
     function drawCloud() {
       var box = document.getElementById("cloud");
       box.innerHTML = "";
+      box.style.height = "";
       if (!issues.length) return;
       var width = box.clientWidth;
       var height = box.clientHeight;
@@ -498,12 +499,14 @@ table.rank td.down { color: #f1948a; font-weight: 700; }
         maxX = Math.max(maxX, p.x + p.w);
         maxY = Math.max(maxY, p.y + p.h);
       });
+      var contentHeight = Math.min(height, (maxY - minY) + 16);
       var dx = (width - (maxX - minX)) / 2 - minX;
-      var dy = (height - (maxY - minY)) / 2 - minY;
+      var dy = (contentHeight - (maxY - minY)) / 2 - minY;
       Array.prototype.forEach.call(box.children, function (el) {
         el.style.left = (parseFloat(el.style.left) + dx) + "px";
         el.style.top = (parseFloat(el.style.top) + dy) + "px";
       });
+      box.style.height = contentHeight + "px";
     }
 
     function showLists() {
