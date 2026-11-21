@@ -94,6 +94,7 @@
         '<p class="stock-desc">' + desc + "</p>" +
         '<p class="ma-legend"><i class="ma200"></i>200주선 <i class="mapx"></i>주봉 종가</p>' +
         '<canvas class="mini-canvas" data-symbol="' + symbol + '" width="1100" height="220"></canvas>' +
+      '<p class="jump"><a href="200W/index.html#row-' + symbol + '">▼ 200주 페이지에서 ' + row.label + ' 행 보기</a></p>' +
       "</div>";
   }
 
