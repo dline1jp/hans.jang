@@ -82,10 +82,11 @@
   <div id="summary" class="summary"></div>
   <section class="bond-now" aria-label="채권 타점 요약">
     <h2><a href="BOND/index.html">미국 장기채권 타점 · TLT · EDV vs TNX</a></h2>
-    <p class="bond-note" id="bond-note">기준일 2026-11-20. TLT·EDV(미국 장기국채 ETF)와 TNX(미국 10년 국채금리) 주봉 20년 기준 간략 판정입니다. 제목을 누르면 자세한 차트가 바로 보입니다.</p>
+    <p class="bond-note" id="bond-note">기준일 2026-11-20. TLT·EDV(미국 장기국채 ETF)와 TNX(미국 10년 국채금리)의 주봉 20년 차트입니다. 클릭 없이 바로 보이며, 데이터는 매주 자동 갱신됩니다.</p>
     <div class="bond-rule">
-      <p><strong>TLT·EDV는 TNX와 반비례</strong>합니다. TNX가 장기 최저점 부근이면 <strong>매도 확률</strong>이, 장기 최고점 부근이면 <strong>매수 확률</strong>이 높아집니다. TNX는 인플레이션·연준 기준금리 인상·유가 상승/경기 호황에 상승하고, 반대면 하락합니다. 유가 등은 이벤트성이라 예측이 어려우므로 결과가 나온 뒤 매수·매도를 결정하는 것이 좋습니다.</p>
-      <p>현재 20년 백분위 기준: 매도 우위 <strong>TNX ≤ <span id="bond-sell-line">-</span></strong> · 매수 우위 <strong>TNX ≥ <span id="bond-buy-line">-</span></strong></p>
+      <p>TLT(iShares 20+년 국채 ETF)와 EDV(Vanguard 초장기 국채 ETF)는 <strong>미국 10년 국채금리 TNX와 반비례</strong>합니다. 금리가 오르면 채권 가격은 내려가고, 금리가 내리면 채권 가격은 올라갑니다. 만기가 긴 TLT·EDV는 이 움직임이 크게 나타나며, 특히 EDV가 더 민감합니다.</p>
+      <p>20년 가까운 주봉 차트에서 <strong>TNX가 장기 최저점 부근이면 TLT·EDV 가격은 장기 고점 부근</strong>이므로 <strong>매도 확률이 높아집니다.</strong> 반대로 <strong>TNX가 장기 최고점 부근이면 TLT·EDV 가격은 장기 저점 부근</strong>이므로 <strong>매수 확률이 높아집니다.</strong></p>
+      <p>현재 20년 백분위 기준: 매도 우위 <strong>TNX ≤ <span id="bond-sell-line">-</span></strong> · 매수 우위 <strong>TNX ≥ <span id="bond-buy-line">-</span></strong> (백분위 30% / 70%)</p>
     </div>
     <div class="bond-grid">
       <article class="bond-card" id="bond-TLT">
@@ -109,7 +110,7 @@
       if (!data) return;
       var note = document.getElementById("bond-note");
       if (note) {
-        note.textContent = "기준일 " + data.asof + ". TLT·EDV(미국 장기국채 ETF)와 TNX(미국 10년 국채금리) 주봉 20년 기준 간략 판정입니다. 제목을 누르면 자세한 차트가 바로 보입니다.";
+        note.textContent = "기준일 " + data.asof + ". TLT·EDV(미국 장기국채 ETF)와 TNX(미국 10년 국채금리)의 주봉 20년 차트입니다. 클릭 없이 바로 보이며, 데이터는 매주 자동 갱신됩니다.";
       }
       var sell = document.getElementById("bond-sell-line");
       if (sell) sell.textContent = Number(data.sellLine).toFixed(2) + "%";
