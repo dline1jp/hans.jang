@@ -584,7 +584,7 @@ def hybrid_section():
     )
     scope = "이 구간은 참고용 백테스트다. 위의 본표는 팔지 않고 매달 넣는 방법이다."
     return (
-        "<h2>200이평 매도 매수 하이브리드법</h2>\n"
+        "<h2>200이평 매도 매수 하이브리드법(참조만 할것)</h2>\n"
         f'  <p class="note">{html.escape(rules)}</p>\n'
         '  <table class="hybrid">\n'
         f"    <thead>{head}</thead>\n"
