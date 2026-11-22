@@ -1,0 +1,1 @@
+window.MUHAN_SUMMARY = {"asof":"2026-11-20","lastClose":41.2,"T":37.0,"phase":"후반전","avg":64.21,"targetPrice":70.63,"buyNow":true,"sellNow":false,"buyLimit":58.75,"sellLimit":58.75,"action":"매수","actionCls":"buy","actionText":"매수 구간입니다. 다음 거래일 LOC 매수가 지정가 이하에서 체결됩니다.","toTargetPct":71.4,"cycleNo":19,"returnPct":30.82,"total":3081.91};

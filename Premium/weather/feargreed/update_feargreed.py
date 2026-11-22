@@ -22,6 +22,7 @@ import requests
 
 HERE = pathlib.Path(__file__).resolve().parent
 PAGE = HERE / "index.html"
+SUMMARY = HERE / "feargreed-summary.js"
 
 CNN_URL = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata"
 YAHOO_URL = "https://query1.finance.yahoo.com/v8/finance/chart/%s"
@@ -243,6 +244,31 @@ def replace_region(text, start, end, body):
     return pattern.sub(lambda _match: start + "\n" + body + "\n" + end, text, count=1)
 
 
+def make_summary(state):
+    """주가 방향 날씨 페이지의 서머리에 넣을 CNN 공포지수 요약을 만듭니다."""
+    return {
+        "asof": state["asof"],
+        "score": state["score"],
+        "rating": state["rating"],
+        "ratingKo": state["ratingKo"],
+        "threshold": state["threshold"],
+        "signalOn": state["signalOn"],
+        "probability": state["probability"],
+        "horizon": state["horizon"],
+        "splits": state["splits"],
+        "targets": [
+            {"symbol": target["symbol"], "name": target["name"], "price": target["price"]}
+            for target in state["targets"]
+        ],
+        "chart": state["chart"],
+    }
+
+
+def summary_json(summary):
+    body = json.dumps(summary, ensure_ascii=False, separators=(",", ":"))
+    return "window.FEARGREED_SUMMARY = %s;" % body.replace("<", "\\u003c")
+
+
 def main():
     state = build_state()
 
@@ -267,6 +293,9 @@ def main():
     text = replace_region(text, "<!-- DATA_START -->", "<!-- DATA_END -->", series_json(state))
     with open(str(PAGE), "w", encoding="utf-8", newline="") as handle:
         handle.write(text)
+
+    SUMMARY.write_text(summary_json(make_summary(state)) + "\n", encoding="utf-8")
+    print("서머리 갱신:", SUMMARY)
 
     print(
         "기준일 %s | 공포지수 %.2f (%s) | 시그널 %s | 확률 %d%% | QQQ %s"

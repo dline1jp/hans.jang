@@ -361,12 +361,54 @@
     });
   }
 
+  function renderToday(data) {
+    var trade = data.trade || {};
+    var box = document.getElementById("today");
+    if (box) box.className = "today " + (trade.actionCls || "hold");
+
+    var buyChip = document.getElementById("today-buy");
+    if (buyChip) {
+      buyChip.textContent = trade.buyNow ? "오늘 매수 ✅" : "오늘 매수 ✖";
+      buyChip.className = "trade-chip " + (trade.buyNow ? "on-buy" : "off");
+    }
+    var sellChip = document.getElementById("today-sell");
+    if (sellChip) {
+      sellChip.textContent = trade.sellNow ? "오늘 매도 ✅" : "오늘 매도 ✖";
+      sellChip.className = "trade-chip " + (trade.sellNow ? "on-sell" : "off");
+    }
+    var actChip = document.getElementById("today-action");
+    if (actChip) {
+      var cls = trade.actionCls === "sell" || trade.actionCls === "both" ? "on-sell"
+        : trade.actionCls === "buy" ? "on-buy" : "off";
+      actChip.textContent = "→ " + (trade.action || "-");
+      actChip.className = "trade-chip " + cls;
+    }
+
+    var line = document.getElementById("today-line");
+    if (line) {
+      var parts = [];
+      if (trade.actionText) parts.push(escapeHtml(trade.actionText));
+      parts.push(
+        "현재가 " + money(trade.lastClose) + " · 평단 " + money(trade.avg) +
+        " · 매수 지정가 " + money(trade.buyLimit) + " 이하 · 매도 지정가 " + money(trade.sellLimit) + " 이상"
+      );
+      if (typeof trade.toTargetPct === "number") {
+        parts.push(
+          "지정가 매도(" + money(trade.targetPrice) + ")까지 " +
+          (trade.toTargetPct > 0 ? "+" : "") + trade.toTargetPct + "%"
+        );
+      }
+      line.innerHTML = parts.join(" ");
+    }
+  }
+
   function renderAll() {
     var data = window.MUHAN_DATA || {};
     if (!data || !data.asof) {
       setText("orders-note", "데이터를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.");
       return;
     }
+    renderToday(data);
     renderHero(data);
     renderTbar(data);
     renderOrders(data);

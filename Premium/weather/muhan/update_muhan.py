@@ -25,6 +25,7 @@ import requests
 
 HERE = pathlib.Path(__file__).resolve().parent
 PAGE = HERE / "index.html"
+SUMMARY = HERE / "muhan-summary.js"
 
 CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/TQQQ"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
@@ -324,6 +325,78 @@ def replace_region(text, start, end, body):
     return pattern.sub(lambda _match: start + "\n" + body + "\n" + end, text, count=1)
 
 
+def trade_state(state):
+    """지금 매수/매도 중 무엇이 체결되는지 판정합니다.
+
+    - buyNow : 현재가가 매수 지정가(들) 이하 -> LOC 매수 체결
+    - sellNow: 현재가가 매도 지정가(들) 이상 -> LOC 매도 / 지정가 매도 체결
+    """
+    orders = state.get("orders") or []
+    buys = [order["price"] for order in orders if order["type"] == "buy" and order.get("price")]
+    sells = [order["price"] for order in orders if order["type"] == "sell" and order.get("price")]
+    buy_limit = max(buys) if buys else None
+    sell_limit = min(sells) if sells else None
+    price = state["lastClose"]
+    buy_now = buy_limit is not None and price <= buy_limit
+    sell_now = sell_limit is not None and price >= sell_limit
+    if sell_now and buy_now:
+        action, action_cls = "매수·매도", "both"
+        action_text = "매수와 매도 주문이 함께 체결되는 구간입니다."
+    elif sell_now:
+        action, action_cls = "매도", "sell"
+        action_text = "매도 구간입니다. 지정가 이상이라 보유 일부(1/4·3/4)가 매도됩니다."
+    elif buy_now:
+        action, action_cls = "매수", "buy"
+        action_text = "매수 구간입니다. 다음 거래일 LOC 매수가 지정가 이하에서 체결됩니다."
+    else:
+        action, action_cls = "관망", "hold"
+        action_text = "관망 구간입니다. 지정가에 닿지 않아 매수·매도가 체결되지 않습니다."
+    target = state.get("targetPrice") or 0
+    to_target = round((target / price - 1.0) * 100.0, 1) if price and target else None
+    return {
+        "buyNow": buy_now,
+        "sellNow": sell_now,
+        "buyLimit": buy_limit,
+        "sellLimit": sell_limit,
+        "targetPrice": target,
+        "lastClose": price,
+        "avg": state.get("avg"),
+        "action": action,
+        "actionCls": action_cls,
+        "actionText": action_text,
+        "toTargetPct": to_target,
+    }
+
+
+def make_summary(state):
+    """주가 방향 날씨 페이지의 서머리에 넣을 무한매수 요약을 만듭니다."""
+    trade = state.get("trade") or {}
+    return {
+        "asof": state["asof"],
+        "lastClose": state["lastClose"],
+        "T": state["T"],
+        "phase": state["phase"],
+        "avg": state["avg"],
+        "targetPrice": state["targetPrice"],
+        "buyNow": trade.get("buyNow"),
+        "sellNow": trade.get("sellNow"),
+        "buyLimit": trade.get("buyLimit"),
+        "sellLimit": trade.get("sellLimit"),
+        "action": trade.get("action"),
+        "actionCls": trade.get("actionCls"),
+        "actionText": trade.get("actionText"),
+        "toTargetPct": trade.get("toTargetPct"),
+        "cycleNo": state["cycleNo"],
+        "returnPct": state["returnPct"],
+        "total": state["total"],
+    }
+
+
+def summary_json(summary):
+    body = json.dumps(summary, ensure_ascii=False, separators=(",", ":"))
+    return "window.MUHAN_SUMMARY = %s;" % body.replace("<", "\\u003c")
+
+
 def main():
     bars = daily_bars()
     if not bars:
@@ -332,6 +405,7 @@ def main():
     if not state:
         raise SystemExit("시뮬레이션할 일봉이 부족합니다.")
     state["orders"] = make_orders(state)
+    state["trade"] = trade_state(state)
 
     note = (
         '<p class="note">기준일 %s · TQQQ %s · 시드 $%s · %d분할 · 라오어 %s · '
@@ -350,6 +424,9 @@ def main():
     text = replace_region(text, "<!-- DATA_START -->", "<!-- DATA_END -->", series_json(state))
     with open(str(PAGE), "w", encoding="utf-8", newline="") as handle:
         handle.write(text)
+
+    SUMMARY.write_text(summary_json(make_summary(state)) + "\n", encoding="utf-8")
+    print("서머리 갱신:", SUMMARY)
 
     print(
         "기준일 %s | TQQQ %.2f | T %.1f | 평단 %.2f | 보유 %.2f주 | 누적매수 $%.2f | 총손익 $%.2f"

@@ -19,6 +19,6 @@ jobs:
       - run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add Premium/weather/muhan/index.html
+          git add Premium/weather/muhan/index.html Premium/weather/muhan/muhan-summary.js
           git diff --cached --quiet || git commit -m "Update TQQQ infinite buying orders"
           git push
