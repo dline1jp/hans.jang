@@ -247,6 +247,7 @@ body.menu-open { overflow: hidden; }
     <strong>전체 메뉴</strong>
     <button type="button" class="menu-close" id="menu-close" aria-label="메뉴 닫기">×</button>
   </div>
+  <div id="menu-body">
   <nav class="menu-group">
     <h3>한스장 타점</h3>
     <a href="Premium/hansjang/index.html">한스장 타점</a>
@@ -276,6 +277,7 @@ body.menu-open { overflow: hidden; }
     <a href="Premium/index.html">프리미엄 홈</a>
     <a href="index.html">한스장랩 홈</a>
   </nav>
+  </div>
 </aside>
   <nav class="top-menu">
 <a class="menu-btn" href="Premium/hansjang/index.html" target="_blank">한스장 타점</a>
@@ -883,6 +885,7 @@ style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 
     document.body.classList.toggle("menu-open", open);
     panel.setAttribute("aria-hidden", open ? "false" : "true");
     btn.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) ensureMenu();
   }
   btn.addEventListener("click", function () {
     setOpen(!panel.classList.contains("open"));
@@ -892,6 +895,117 @@ style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") setOpen(false);
   });
+
+  /* 전체 메뉴를 상단 메뉴(.top-menu)와 각 허브 페이지의 하위 메뉴(.topbar a)에서
+     자동으로 읽어 구성한다. 메뉴를 추가하면 별도 수정 없이 그대로 반영된다. */
+  var EXTRA = [
+    { title: "프리미엄 홈", path: "/Premium/index.html" },
+    { title: "한스장랩 홈", path: "/index.html" }
+  ];
+  var menuState = "idle";
+
+  function toPath(href, base) {
+    try {
+      var u = new URL(href, base || location.href);
+      if (u.origin !== location.origin) return null;
+      if (!/\.html?$/i.test(u.pathname)) return null;
+      return u.pathname + u.search;
+    } catch (e) {
+      return null;
+    }
+  }
+  function sectionList() {
+    var out = [];
+    Array.prototype.forEach.call(document.querySelectorAll(".top-menu a"), function (a) {
+      var path = toPath(a.getAttribute("href"));
+      var title = (a.textContent || "").trim();
+      if (!path || !title) return;
+      out.push({ title: title, path: path });
+    });
+    return out;
+  }
+  function subList(doc, basePath) {
+    var out = [];
+    var seen = {};
+    Array.prototype.forEach.call(doc.querySelectorAll(".topbar a"), function (a) {
+      var path = toPath(a.getAttribute("href"), location.origin + basePath);
+      var title = (a.textContent || "").trim();
+      if (!path || !title || path === basePath) return;
+      var key = path + "|" + title;
+      if (seen[key]) return;
+      seen[key] = 1;
+      out.push({ title: title, path: path });
+    });
+    return out;
+  }
+  function makeGroup(title, mainPath, subs) {
+    var nav = document.createElement("nav");
+    nav.className = "menu-group";
+    var h3 = document.createElement("h3");
+    h3.textContent = title;
+    nav.appendChild(h3);
+    if (mainPath) {
+      var main = document.createElement("a");
+      main.href = mainPath;
+      main.textContent = title;
+      nav.appendChild(main);
+    }
+    (subs || []).forEach(function (s) {
+      var a = document.createElement("a");
+      a.className = "sub";
+      a.href = s.path;
+      a.textContent = s.title;
+      nav.appendChild(a);
+    });
+    return nav;
+  }
+  function renderMenu(sections, subsByPath) {
+    var body = document.getElementById("menu-body");
+    if (!body) return;
+    var frag = document.createDocumentFragment();
+    sections.forEach(function (sec) {
+      frag.appendChild(makeGroup(sec.title, sec.path, subsByPath[sec.path]));
+    });
+    var extra = document.createElement("nav");
+    extra.className = "menu-group";
+    var eh = document.createElement("h3");
+    eh.textContent = "그 외";
+    extra.appendChild(eh);
+    EXTRA.forEach(function (e) {
+      var a = document.createElement("a");
+      a.href = e.path;
+      a.textContent = e.title;
+      extra.appendChild(a);
+    });
+    frag.appendChild(extra);
+    body.innerHTML = "";
+    body.appendChild(frag);
+  }
+  function ensureMenu() {
+    if (menuState === "ready" || menuState === "loading") return;
+    var sections = sectionList();
+    if (!sections.length) return;
+    menuState = "loading";
+    var jobs = sections.map(function (sec) {
+      return fetch(sec.path, { credentials: "same-origin" }).then(function (res) {
+        if (!res.ok) throw new Error(String(res.status));
+        return res.text();
+      }).then(function (html) {
+        var doc = new DOMParser().parseFromString(html, "text/html");
+        return { path: sec.path, subs: subList(doc, sec.path) };
+      }).catch(function () {
+        return { path: sec.path, subs: [] };
+      });
+    });
+    Promise.all(jobs).then(function (results) {
+      var map = {};
+      results.forEach(function (r) { map[r.path] = r.subs; });
+      renderMenu(sections, map);
+      menuState = "ready";
+    }).catch(function () {
+      menuState = "idle";
+    });
+  }
 })();
 </script>
 </body>
