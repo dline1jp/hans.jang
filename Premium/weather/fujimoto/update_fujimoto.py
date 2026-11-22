@@ -18,6 +18,8 @@ KST = timezone(timedelta(hours=9))
 START_CASH = 10000.0
 # Initial stake I, then +10% of cost, then +25% of the new cost => 1.375 I.
 RESERVE = 1.375
+INITIAL_INVEST_PCT = 100.0 / RESERVE
+INITIAL_CASH_PCT = 100.0 - INITIAL_INVEST_PCT
 CUTOFF = "2026-11-22"
 SYMBOLS = [
     ("SPY", "SPY", "미국 S&P 500"),
@@ -245,6 +247,7 @@ def page(results, stamped):
             f'<article class="signal {kind}">'
             f'<h2>{html.escape(item["label"])} <span>{html.escape(item["code"])}</span></h2>'
             f'<p class="badge">{html.escape(label)}</p>'
+            f'<p class="split">현금 보유 {item["cash_pct"]:.1f}% · 투자(주식) {item["invest_pct"]:.1f}%</p>'
             f'<p>{html.escape(reason)}{html.escape(late)}</p>'
             f'</article>'
         )
@@ -293,7 +296,10 @@ def page(results, stamped):
     .signal.sell .badge {{ color: #f1948a; }}
     .signal.hold .badge {{ color: #f7dc6f; }}
     .signal p {{ margin: 0; color: #ddd; font-size: 18px; line-height: 1.5; }}
+    .split {{ margin: 0 0 8px; color: #fff; font-size: 20px; font-weight: 700; }}
     table {{ max-width: 980px; width: 100%; margin: 8px auto 16px; border-collapse: collapse; }}
+    table.ladder {{ max-width: 640px; margin: 12px 0; }}
+    table.ladder th, table.ladder td {{ text-align: left; }}
     th, td {{ border-bottom: 1px solid #333; padding: 10px 8px; text-align: right; font-size: 18px; }}
     th {{ color: #D8C0FF; }}
     td:first-child, th:first-child, td:nth-child(2), th:nth-child(2) {{ text-align: left; }}
@@ -310,6 +316,7 @@ def page(results, stamped):
   <p><a class="home" href="/Premium/weather/index.html">← 주가 방향 날씨</a></p>
   <h1>후지모토 시게루 타점</h1>
   <p class="note">투자 권유가 아닙니다. 기준 시각 {html.escape(stamped)}. 퍼센트는 평단 대비이고, 배당은 종가로 재투자했습니다. 2026-11-22는 일요일이라 그 이전 마지막 거래일 종가까지입니다.</p>
+  <p class="note">첫 매수는 계좌의 100%가 아닙니다. 처음에는 평가액의 {INITIAL_INVEST_PCT:.1f}%만 사고, {INITIAL_CASH_PCT:.1f}%는 15% 추가매수와 그 뒤 25% 추가매수를 위해 현금으로 남겨 둡니다. 아래 현금·투자 비중은 {html.escape(results[0]["ended"])} 종가 기준 각 계좌입니다.</p>
   <h2 class="sec">지금 판단</h2>
   <div class="signals">
     {''.join(cards)}
@@ -317,6 +324,20 @@ def page(results, stamped):
   <h2 class="sec">매매법 개요</h2>
   <div class="rules">
     <p>후지모토 시게루의 가격 규칙은 평단을 기준으로 내리면 나눠 사고, 오르면 나눠 파는 것입니다. 5% 하락은 그대로 둡니다. 15% 하락이면 그때 투자금의 10%를 더 사고, 25% 하락이면 투자금의 25%를 더 삽니다. 5%에서 15% 사이 상승은 보유입니다. 25% 상승에 보유 수량의 10%, 35%에 20%, 45%에 30%, 60%에 40%를 팔고, 100% 상승이면 남은 수량을 모두 팝니다.</p>
+    <table class="ladder">
+      <thead><tr><th>평단 대비</th><th>행동</th></tr></thead>
+      <tbody>
+        <tr><td>5% 하락</td><td>그대로 둠</td></tr>
+        <tr><td>15% 하락</td><td>투자금의 10% 추가 매수</td></tr>
+        <tr><td>25% 하락</td><td>투자금의 25% 추가 매수</td></tr>
+        <tr><td>5~15% 상승</td><td>보유</td></tr>
+        <tr><td>25% 상승</td><td>보유 수량의 10% 매도</td></tr>
+        <tr><td>35% 상승</td><td>20% 매도</td></tr>
+        <tr><td>45% 상승</td><td>30% 매도</td></tr>
+        <tr><td>60% 상승</td><td>40% 매도</td></tr>
+        <tr><td>100% 상승</td><td>전량 매도</td></tr>
+      </tbody>
+    </table>
     <p>같은 구간은 한 번만 실행합니다. 가격이 평단으로 돌아오면 그 구간을 다시 켭니다. 보유가 없으면 다음 거래일에 전체 자금의 약 72.7%로 다시 시작합니다. 나머지는 15%와 25% 추가 매수 현금입니다. 현금이 모자라면 있는 만큼만 삽니다. 배당금은 그 날 종가로 같은 종목을 더 사서 평단에 반영합니다. 수수료는 없습니다.</p>
   </div>
   <h2 class="sec">배당 재투자 누적 수익률</h2>
@@ -344,6 +365,8 @@ def main():
         curve, state = run(rows, dividends)
         label_text, kind, reason = judgment(state)
         end = curve[-1]
+        stock_value = state["shares"] * state["price"]
+        account = stock_value + state["cash"]
         results.append({
             "code": code,
             "label": label,
@@ -351,10 +374,20 @@ def main():
             "ended": rows[-1]["date"].isoformat(),
             "return_pct": (end / START_CASH - 1.0) * 100.0,
             "multiple": end / START_CASH,
+            "cash_pct": 100.0 * state["cash"] / account,
+            "invest_pct": 100.0 * stock_value / account,
             "signal": (label_text, kind, reason),
             "curve": [value / START_CASH * 100.0 for value in curve],
         })
-        print(code, results[-1]["started"], results[-1]["ended"], f'{results[-1]["return_pct"]:.1f}%', label_text)
+        print(
+            code,
+            results[-1]["started"],
+            results[-1]["ended"],
+            f'{results[-1]["return_pct"]:.1f}%',
+            label_text,
+            f'cash {results[-1]["cash_pct"]:.1f}%',
+            f'invest {results[-1]["invest_pct"]:.1f}%',
+        )
         print(reason)
     stamped = datetime.now(KST).strftime("%Y-%m-%d %H:%M KST")
     PAGE.write_text(page(results, stamped), encoding="utf-8")
