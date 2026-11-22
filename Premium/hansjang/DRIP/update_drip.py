@@ -27,7 +27,7 @@ REDIRECT = HERE.parents[1] / "weather" / "fujimoto" / "index.html"
 KST = timezone(timedelta(hours=9))
 CUTOFF = "2026-11-22"
 MONTHLY_KRW = 300_000.0
-TITLE = "버핏옹 그냥 보유법"
+TITLE = "버핏 적립보유법"
 LINE = "매달 1일경 30만 원씩 넣고, 배당은 전액 다시 사며, 팔지 않는다."
 
 INSTRUMENTS = [
@@ -158,12 +158,12 @@ def won(amount):
     return f"{amount:,.0f}원"
 
 
-def result_row(name, code, started, contributed, ending, dividends, current=None):
+def result_row(name, code, started, contributed, ending, dividends, ticker=""):
     gain = (ending / contributed - 1.0) * 100.0
-    label = name if not current else f"{name} (지금 {current})"
     return {
-        "name": label,
+        "name": name,
         "code": code,
+        "ticker": ticker,
         "started": started,
         "contributed": contributed,
         "ending": ending,
@@ -267,8 +267,9 @@ def simulate_sleeve(leaders, books, to_native, to_krw):
     ending = to_krw(shares * last_price, last_day)
     if ending is None:
         return None
-    current = leader_on(leaders, last_day)[2]
-    stats = result_row("", "", started.isoformat(), contributed, ending, paid, current)
+    current = leader_on(leaders, last_day)
+    stats = result_row("", "", started.isoformat(), contributed, ending, paid, current[1])
+    stats["holding"] = current[2]
     return stats
 
 
@@ -317,9 +318,12 @@ def table_rows(rows, compact):
     for item in rows:
         div = "" if compact else ("<td>배당 없음</td>" if item["dividends"] == 0 else "<td>배당 재투자</td>")
         end = "" if compact else f"<td>{won(item['ending'])}</td>"
+        label = item["name"]
+        if item.get("ticker"):
+            label = label + " " + item["ticker"]
         body.append(
             "<tr>"
-            f"<td>{html.escape(item['name'])}</td>"
+            f"<td>{html.escape(label)}</td>"
             f"<td>{html.escape(item['started'])}</td>"
             f"<td>{won(item['contributed'])}</td>"
             f"{end}"
@@ -416,9 +420,10 @@ def redirect_page():
 
 def patch_hub(block):
     text = HUB.read_text(encoding="utf-8")
-    if 'href="DRIP/index.html">버핏옹 그냥 보유법' not in text:
+    text = text.replace("버핏옹 그냥 보유법", TITLE)
+    if 'href="DRIP/index.html"' not in text:
         old = '<a class="topbar-link" href="BOND/index.html">채권 타점</a></span>'
-        new = old + '\n    <span class="menu-slot"><span class="menu-horizon">장기(매달 1일경 30만 원, 배당 재투자)</span><a class="topbar-link" href="DRIP/index.html">버핏옹 그냥 보유법</a></span>'
+        new = old + '\n    <span class="menu-slot"><span class="menu-horizon">장기(매달 1일경 30만 원, 배당 재투자)</span><a class="topbar-link" href="DRIP/index.html">' + TITLE + '</a></span>'
         if old not in text:
             raise SystemExit("한스장 메뉴에서 채권 타점을 찾지 못했습니다.")
         text = text.replace(old, new, 1)
@@ -474,6 +479,7 @@ def main():
             continue
         stats["name"] = name
         stats["code"] = code
+        stats["ticker"] = ticker
         if stats["dividends"] == 0:
             pass
         rows.append(stats)
@@ -494,14 +500,7 @@ def main():
             failed.append(code)
             print("sleeve fail", name)
             continue
-        stats["name"] = f"{name} (지금 {stats['name'].split('지금 ')[-1].rstrip(')')})" if False else stats["name"]
-        # result_row already set current into name when current is passed. simulate_sleeve returns name via result_row("", "", ..., current)
-        # Fix: simulate_sleeve calls result_row with empty name and current. result_row does f"{name} (지금 {current})" if current else name.
-        # I passed current so name becomes " (지금 애플)". Need to fix that.
-        current = stats["name"]
-        if current.startswith(" (지금 "):
-            current = current[len(" (지금 "):-1]
-        stats["name"] = f"{name} (지금 {current})"
+        stats["name"] = name
         stats["code"] = code
         rows.append(stats)
         print(name, stats["started"], won(stats["contributed"]), f'{stats["gain"]:+.1f}%')
