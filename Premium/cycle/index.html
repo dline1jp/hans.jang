@@ -60,6 +60,16 @@
     </div>
         <p id="clock-status"></p>
   </section>
+  <section class="clock">
+    <div class="clock-top">
+      <h2>2. G20 경기사이클</h2>
+      <span id="g20-asof">2000.01 ~ 2026.10</span>
+    </div>
+    <div class="chart-scroll">
+      <svg id="clock-g20" viewBox="0 0 520 1500" role="img" aria-label="G20 경기 시계. 가로는 경기선행지수, 세로는 전월대비차"></svg>
+    </div>
+    <p id="g20-status" class="clock-note"></p>
+  </section>
   <script>
     var SUPABASE_URL = "https://vlvblacfffkalojefjwp.supabase.co";
     var SUPABASE_ANON_KEY = "sb_publishable_C4BZUGCN_QyMZkVe3PIysQ_ZkqosPCL";
@@ -78,6 +88,9 @@
       "South Africa": "#6a45b0", Trkiye: "#b43333", G20: "#5c6b7a", G7: "#7c3aed", NAFTA: "#1b7eab",
       "Major five Asia economies": "#0e7c8a", "Major four European countries": "#5d8a32"
     };
+    var OECD_G20_URL = "https://sdmx.oecd.org/public/rest/data/OECD.SDD.STES,DSD_STES@DF_CLI,4.1/"
+      + "G20.M.LI.IX._Z.AA.IX._Z.H?startPeriod=1999-12&endPeriod=2026-10"
+      + "&format=csvfilewithlabels&dimensionAtObservation=AllDimensions";
     function svgEl(name, attrs) {
       var node = document.createElementNS("http://www.w3.org/2000/svg", name);
       Object.keys(attrs || {}).forEach(function (key) { node.setAttribute(key, attrs[key]); });
@@ -331,6 +344,201 @@ svg.appendChild(plant);
         });
       }
     }
+    function splitCsvLine(line) {
+      var out = [];
+      var cur = "";
+      var quoted = false;
+      for (var i = 0; i < line.length; i++) {
+        var ch = line.charAt(i);
+        if (quoted) {
+          if (ch === "\"") {
+            if (line.charAt(i + 1) === "\"") { cur += "\""; i += 1; }
+            else quoted = false;
+          } else {
+            cur += ch;
+          }
+        } else if (ch === "\"") {
+          quoted = true;
+        } else if (ch === ",") {
+          out.push(cur);
+          cur = "";
+        } else {
+          cur += ch;
+        }
+      }
+      out.push(cur);
+      return out;
+    }
+    function oecdG20Rows(csv) {
+      var values = {};
+      String(csv || "").split(/\r?\n/).forEach(function (line) {
+        if (line.indexOf("DATAFLOW") !== 0) return;
+        var fields = splitCsvLine(line);
+        var period = String(fields[22] || "").trim();
+        var value = String(fields[24] || "").trim();
+        if (!/^\d{4}-\d{2}$/.test(period) || !value) return;
+        var obs = parseFloat(value);
+        if (!isNaN(obs)) values[period] = obs;
+      });
+      var keys = Object.keys(values).sort();
+      var rows = [];
+      for (var i = 1; i < keys.length; i++) {
+        var obs = values[keys[i]];
+        var prev = values[keys[i - 1]];
+        var mom = Math.round((obs / prev - 1) * 100 * 100) / 100;
+        rows.push({ reference_area: "G20", time_period: keys[i] + "-01", obs_value: obs, mom: mom.toFixed(2) + "%" });
+      }
+      return rows;
+    }
+    function loadG20History() {
+      return fetch(OECD_G20_URL, { headers: { Accept: "application/vnd.sdmx.data+csv;version=1.0.0" } })
+        .then(function (res) {
+          if (!res.ok) throw new Error(String(res.status));
+          return res.text();
+        })
+        .then(oecdG20Rows);
+    }
+    function g20SeriesFrom(rows) {
+      var points = [];
+      rows.forEach(function (row) {
+        if (String(row.reference_area || "").trim() !== "G20") return;
+        var period = parsePeriod(row.time_period);
+        var obs = parseFloat(row.obs_value);
+        var mom = parseMom(row.mom);
+        if (!period || isNaN(obs) || mom === null) return;
+        points.push({ key: period.key, month: period.month, year: period.year, obs: obs, mom: mom });
+      });
+      return points.sort(function (a, b) { return a.key - b.key; });
+    }
+    function drawG20(points) {
+      var svg = document.getElementById("clock-g20");
+      if (!svg) return;
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      var status = document.getElementById("g20-status");
+      var asof = document.getElementById("g20-asof");
+      if (!points || points.length < 2) {
+        if (status) status.textContent = "G20 이력 데이터를 불러오는 중입니다… (Supabase에 G20 이력이 없으면 OECD 원본에서 불러옵니다.)";
+        return;
+      }
+      if (status) status.textContent = "";
+      points = points.filter(function (point) {
+        return point && isFinite(point.obs) && isFinite(point.mom);
+      });
+      if (points.length < 2) {
+        if (status) status.textContent = "G20 이력 데이터를 표시할 수 없습니다.";
+        return;
+      }
+      var plot = { left: 46, top: 36, right: 500, bottom: 1450 };
+      plot.w = plot.right - plot.left;
+      plot.h = plot.bottom - plot.top;
+      var maxObs = 0.5;
+      var maxMom = 0.5;
+      points.forEach(function (point) {
+        maxObs = Math.max(maxObs, Math.abs(point.obs - 100));
+        maxMom = Math.max(maxMom, Math.abs(point.mom));
+      });
+      var obsAbs = Math.ceil(maxObs * 1.05 * 2) / 2;
+      var momAbs = Math.ceil(maxMom * 1.05 * 2) / 2;
+      function xOf(value) { return plot.left + ((value - (100 - obsAbs)) / (obsAbs * 2)) * plot.w; }
+      function yOf(mom) { return plot.top + ((momAbs - mom) / (momAbs * 2)) * plot.h; }
+      var cx = xOf(100);
+      var cy = yOf(0);
+      var zones = [
+        { x: plot.left, y: plot.top, w: cx - plot.left, h: cy - plot.top, fill: "#d4edc4", title: "회복", tx: plot.left + 16, ty: plot.top + 28, anchor: "start", fillText: "#1f7a32" },
+        { x: cx, y: plot.top, w: plot.right - cx, h: cy - plot.top, fill: "#d5e4f7", title: "확장", tx: plot.right - 16, ty: plot.top + 28, anchor: "end", fillText: "#3d5678" },
+        { x: plot.left, y: cy, w: cx - plot.left, h: plot.bottom - cy, fill: "#e4e6ea", title: "수축", tx: plot.left + 16, ty: plot.bottom - 18, anchor: "start", fillText: "#4e555c" },
+        { x: cx, y: cy, w: plot.right - cx, h: plot.bottom - cy, fill: "#f8e6c4", title: "둔화", tx: plot.right - 16, ty: plot.bottom - 18, anchor: "end", fillText: "#8a5a28" }
+      ];
+      zones.forEach(function (zone) {
+        svg.appendChild(svgEl("rect", { x: zone.x, y: zone.y, width: zone.w, height: zone.h, fill: zone.fill }));
+        var zoneLabel = svgEl("text", { x: zone.tx, y: zone.ty, fill: zone.fillText, "font-size": "26", "font-weight": "700", "text-anchor": zone.anchor });
+        zoneLabel.textContent = zone.title;
+        svg.appendChild(zoneLabel);
+      });
+      svg.appendChild(svgEl("line", { x1: cx, y1: plot.top, x2: cx, y2: plot.bottom, stroke: "#c5c9ce", "stroke-width": "1.2" }));
+      svg.appendChild(svgEl("line", { x1: plot.left, y1: cy, x2: plot.right, y2: cy, stroke: "#c5c9ce", "stroke-width": "1.2" }));
+      var momStep = momAbs > 2 ? 1 : (momAbs > 0.6 ? 0.2 : 0.1);
+      for (var tick = -momAbs; tick <= momAbs + 0.001; tick += momStep) {
+        var rounded = Math.round(tick * 10) / 10;
+        if (Math.abs(rounded) < 0.001) continue;
+        var tickText = svgEl("text", { x: plot.left - 8, y: yOf(rounded) + 4, fill: "#8b939c", "font-size": "11", "text-anchor": "end" });
+        tickText.textContent = (rounded > 0 ? "+" : "") + rounded.toFixed(1);
+        svg.appendChild(tickText);
+      }
+      var obsStep = obsAbs > 4 ? 2 : (obsAbs > 1.5 ? 1 : 0.5);
+      for (var step = -obsAbs; step <= obsAbs + 0.001; step += obsStep) {
+        var obsTick = Math.round((100 + step) * 10) / 10;
+        if (Math.abs(obsTick - 100) < 0.001) continue;
+        var obsText = svgEl("text", { x: xOf(obsTick), y: plot.bottom + 20, fill: "#8b939c", "font-size": "11", "text-anchor": "middle" });
+        obsText.textContent = obsTick % 1 === 0 ? obsTick.toFixed(0) : obsTick.toFixed(1);
+        svg.appendChild(obsText);
+      }
+      var color = COLOR.G20 || "#5c6b7a";
+      var group = svgEl("g", { class: "series" });
+      group.dataset.area = "G20";
+      group.appendChild(svgEl("polyline", {
+        points: points.map(function (point) { return xOf(point.obs).toFixed(1) + "," + yOf(point.mom).toFixed(1); }).join(" "),
+        fill: "none",
+        stroke: color,
+        "stroke-width": "1.6",
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round"
+      }));
+      points.forEach(function (point, index) {
+        var tip = svgEl("title");
+        tip.textContent = "G20 " + point.year + "." + point.month + "  경기선행지수 " + point.obs.toFixed(2) + "  전월대비차 " + (point.mom > 0 ? "+" : "") + point.mom.toFixed(2) + "%";
+        if (index === points.length - 1) {
+          var prev = points[index - 1] || point;
+          var arrow = directionArrow(xOf(prev.obs), yOf(prev.mom), xOf(point.obs), yOf(point.mom), color, point.mom);
+          arrow.appendChild(tip);
+          group.appendChild(arrow);
+          return;
+        }
+        var dot = svgEl("circle", { cx: xOf(point.obs).toFixed(1), cy: yOf(point.mom).toFixed(1), r: "2.6", fill: color });
+        dot.appendChild(tip);
+        group.appendChild(dot);
+      });
+      svg.appendChild(group);
+      var first = points[0];
+      var latest = points[points.length - 1];
+      var labelX = xOf(latest.obs) + 12;
+      var labelY = yOf(latest.mom) + 6;
+      if (labelX + 70 > plot.right - 6) labelX = xOf(latest.obs) - 70;
+      if (labelY < plot.top + 30) labelY = plot.top + 30;
+      if (labelY > plot.bottom - 10) labelY = plot.bottom - 10;
+      var label = svgEl("text", {
+        x: labelX.toFixed(1),
+        y: labelY.toFixed(1),
+        fill: color,
+        "font-size": "24",
+        "font-weight": "700",
+        "paint-order": "stroke",
+        stroke: "#f6f5f1",
+        "stroke-width": "4",
+        "stroke-linejoin": "round"
+      });
+      label.textContent = "G20";
+      svg.appendChild(label);
+      var watermark = svgEl("g", { "pointer-events": "none" });
+      [260, 620, 980, 1340].forEach(function (markY) {
+        var mark = svgEl("text", {
+          x: "260",
+          y: String(markY),
+          fill: "#243041",
+          "fill-opacity": "0.22",
+          "font-size": "18",
+          "font-weight": "700",
+          "text-anchor": "middle",
+          transform: "rotate(-24 260 " + markY + ")"
+        });
+        mark.textContent = "출처 네이버 프리미엄 콘텐츠 버핏2배랩";
+        watermark.appendChild(mark);
+      });
+      svg.appendChild(watermark);
+      if (asof) {
+        asof.textContent = first.year + "." + String(first.month).padStart(2, "0") + " ~ " + latest.year + "." + String(latest.month).padStart(2, "0");
+      }
+    }
     function loadSupabase() {
       return fetch(SUPABASE_URL + "/rest/v1/hangjang-table?select=reference_area,time_period,obs_value,mom", {
         headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY }
@@ -343,6 +551,14 @@ svg.appendChild(plant);
       var series = seriesFrom(rows);
       if (!series.length) throw new Error("empty");
       draw(series);
+      var g20 = g20SeriesFrom(rows);
+      drawG20(g20);
+      if (g20.length < 12) {
+        loadG20History().then(function (full) {
+          var points = g20SeriesFrom(full);
+          if (points.length > g20.length) drawG20(points);
+        }).catch(function () {});
+      }
       document.getElementById("clock-status").textContent = message || "";
     }
     function bindUpdate() {
