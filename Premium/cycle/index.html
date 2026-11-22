@@ -92,6 +92,7 @@
       + "G20.M.LI.IX._Z.AA.IX._Z.H?startPeriod=1999-12&endPeriod=2026-10"
       + "&format=csvfilewithlabels&dimensionAtObservation=AllDimensions";
     var G20_HISTORY = "2022-09:98.97507|2022-10:98.95235|2022-11:98.98391|2022-12:99.07819|2023-01:99.20235|2023-02:99.33992|2023-03:99.4824|2023-04:99.61408|2023-05:99.7422|2023-06:99.85714|2023-07:99.9419|2023-08:99.99733|2023-09:100.0137|2023-10:100.0076|2023-11:99.99488|2023-12:99.98395|2024-01:99.97428|2024-02:99.96524|2024-03:99.95287|2024-04:99.93346|2024-05:99.91127|2024-06:99.89402|2024-07:99.89539|2024-08:99.92306|2024-09:99.97973|2024-10:100.0543|2024-11:100.1273|2024-12:100.1802|2025-01:100.2026|2025-02:100.1966|2025-03:100.1681|2025-04:100.1385|2025-05:100.1292|2025-06:100.1395|2025-07:100.1611|2025-08:100.1904|2025-09:100.2258|2025-10:100.2672|2025-11:100.3141|2025-12:100.3593|2026-01:100.3926|2026-02:100.3966|2026-03:100.3661|2026-04:100.3116|2026-05:100.2477|2026-06:100.1872|2026-07:100.131|2026-08:100.075|2026-09:100.0193|2026-10:99.96521";
+    var G20_START_KEY = 202210;
     function svgEl(name, attrs) {
       var node = document.createElementNS("http://www.w3.org/2000/svg", name);
       Object.keys(attrs || {}).forEach(function (key) { node.setAttribute(key, attrs[key]); });
@@ -441,7 +442,7 @@ svg.appendChild(plant);
       }
       if (status) status.textContent = "";
       points = points.filter(function (point) {
-        return point && isFinite(point.obs) && isFinite(point.mom);
+        return point && isFinite(point.obs) && isFinite(point.mom) && point.key >= G20_START_KEY;
       });
       if (points.length < 2) {
         if (status) status.textContent = "G20 이력 데이터를 표시할 수 없습니다.";
