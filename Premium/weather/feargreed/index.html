@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <script src="/Premium/gate.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CNN 공포지수 매수 시그널 · QQQ·SPY·VOO</title>
+  <style>
+    body { background: #111; color: #fff; font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; margin: 0; padding: 16px; }
+    a { color: #4da3ff; }
+    .topbar { display: flex; justify-content: center; flex-wrap: wrap; gap: 0; max-width: 1100px; margin: 0 auto 18px; background: #1a4fbf; border-radius: 6px; overflow: hidden; }
+    .topbar a { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 12px 22px; color: #fff; font-size: 22px; font-weight: 700; text-decoration: none; border-right: 1px solid rgba(255,255,255,0.28); border-bottom: 1px solid rgba(255,255,255,0.28); }
+    .topbar a:hover { background: rgba(255,255,255,0.16); }
+    h1.page-title { text-align: center; color: #FFFFE0; font-size: 32px; line-height: 1.35; margin: 4px 0 6px; }
+    .horizon { text-align: center; color: #f7dc6f; font-size: 21px; font-weight: 700; line-height: 1.45; max-width: 1100px; margin: 0 auto 6px; }
+    h2.sec { color: #D8C0FF; font-size: 24px; max-width: 1100px; margin: 30px auto 10px; }
+    .note { color: #ccc; font-size: 17px; line-height: 1.5; max-width: 1100px; margin: 6px auto 12px; }
+    .doc { max-width: 1100px; margin: 0 auto; color: #d5d5d5; font-size: 17px; line-height: 1.6; }
+    .doc p { margin: 8px 0; }
+    .doc li { margin: 6px 0; }
+    .doc strong { color: #FFFFE0; }
+
+    .signal { max-width: 1100px; margin: 0 auto 16px; border: 2px solid #555; border-radius: 14px; padding: 18px 20px; background: #141414; }
+    .signal.on { border-color: #7dcea0; background: linear-gradient(180deg, #12261b, #101410); box-shadow: 0 0 0 1px rgba(125,206,160,0.3) inset; }
+    .signal.off { border-color: #7a6a2e; background: #1a1810; }
+    .signal-badge { display: inline-block; font-size: 18px; font-weight: 800; padding: 4px 14px; border-radius: 999px; margin-bottom: 10px; }
+    .signal.on .signal-badge { background: #1f7a4d; color: #eafff3; }
+    .signal.off .signal-badge { background: #6b5a1f; color: #fff6d8; }
+    .signal-title { font-size: 34px; font-weight: 800; line-height: 1.3; margin: 2px 0 8px; }
+    .signal.on .signal-title { color: #8ff0b6; }
+    .signal.off .signal-title { color: #ffd76a; }
+    .signal-sub { font-size: 20px; color: #d8d8d8; line-height: 1.5; }
+    .signal-prob { display: inline-block; margin-top: 12px; font-size: 46px; font-weight: 900; color: #ffd76a; }
+    .signal-prob small { font-size: 18px; color: #bbb; font-weight: 600; margin-left: 8px; }
+    .signal-tags { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .tag { font-size: 16px; font-weight: 700; padding: 6px 12px; border-radius: 8px; background: #222; border: 1px solid #444; color: #eee; }
+    .tag.hot { background: #2a1414; border-color: #a33; color: #ffb3b3; }
+    .tag.hold { background: #161f2b; border-color: #2e6da4; color: #bcdcff; }
+
+    .hero { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; max-width: 1100px; margin: 0 auto 16px; }
+    .hero-card { background: #171717; border: 1px solid #444; border-radius: 12px; padding: 14px 16px; }
+    .hero-label { display: block; color: #aaa; font-size: 14px; }
+    .hero-value { display: block; font-size: 30px; font-weight: 800; color: #FFFFE0; margin: 4px 0; }
+    .hero-value.good { color: #7dcea0; }
+    .hero-value.bad { color: #ff8a8a; }
+    .hero-value.gold { color: #ffd76a; }
+    .hero-sub { display: block; color: #999; font-size: 13px; line-height: 1.4; }
+
+    .targets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 1100px; margin: 0 auto 16px; }
+    .target { background: #0f0f0f; border: 1px solid #444; border-radius: 12px; padding: 14px 16px; }
+    .target.on { border-color: #2e7d5b; background: #12241a; }
+    .target h3 { margin: 0 0 4px; font-size: 24px; color: #FFFFE0; }
+    .target .tname { color: #aaa; font-size: 14px; }
+    .target .price { font-size: 28px; font-weight: 800; color: #ffd76a; margin: 8px 0 2px; }
+    .target .split { color: #D8C0FF; font-size: 15px; line-height: 1.5; }
+
+    .chart-card { background: #0f0f0f; border: 1px solid #444; border-radius: 12px; padding: 14px 16px; max-width: 1100px; margin: 0 auto 16px; }
+    .chart-card h2 { margin: 0 0 6px; font-size: 23px; color: #FFFFE0; }
+    .chart-legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 15px; color: #ccc; margin: 4px 0 10px; }
+    .chart-legend i { display: inline-block; width: 22px; height: 3px; margin-right: 6px; vertical-align: middle; }
+    .chart-wrap { position: relative; width: 100%; height: 420px; }
+    canvas#fg-chart { width: 100%; height: 100%; display: block; }
+    .chart-help { color: #8f8f8f; font-size: 13px; line-height: 1.5; margin: 8px 0 0; }
+
+    .error { color: #f1948a; font-size: 20px; text-align: center; }
+    .site-foot { max-width: 1100px; margin: 24px auto 8px; color: #888; font-size: 14px; }
+    .home { display: inline-block; margin: 8px 0 0; font-size: 22px; text-decoration: none; }
+    .warn { color: #ff9b8a; font-size: 15px; line-height: 1.55; max-width: 1100px; margin: 8px auto 0; }
+
+    @media (max-width: 900px) {
+      body { padding: 12px; }
+      .hero { grid-template-columns: repeat(2, 1fr); }
+      .targets { grid-template-columns: 1fr; }
+      h1.page-title { font-size: 24px; }
+      .signal-title { font-size: 26px; }
+      .signal-prob { font-size: 38px; }
+      .chart-wrap { height: 320px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a href="../../index.html">← 전체 메뉴</a>
+    <a href="../index.html">주가 방향 날씨</a>
+    <a href="https://edition.cnn.com/markets/fear-and-greed" target="_blank" rel="noopener">CNN 원본</a>
+  </div>
+
+  <h1 class="page-title">CNN 공포지수 매수 시그널 · QQQ · SPY · VOO</h1>
+  <p class="horizon">중단타(몇달이내, 매일 시세 업데이트 확인 필요) · 장타 아님</p>
+
+  <!-- NOTE_START -->
+<p class="note">기준일 2026-11-20 · CNN 공포·탐욕 지수 9.67 (극단적 공포) · 시그널 ON · 지수 10 이하 · 이 신호는 장타가 아닌 중타(몇달) 기준입니다 · 미국장 마감 후 매일 자동 갱신</p>
+<!-- NOTE_END -->
+
+  <section class="signal off" id="signal">
+    <span class="signal-badge" id="signal-badge">확인 중</span>
+    <div class="signal-title" id="signal-title">CNN 공포지수를 확인하고 있습니다.</div>
+    <div class="signal-sub" id="signal-sub">잠시만 기다려 주세요.</div>
+    <div><span class="signal-prob" id="signal-prob">-</span><small id="signal-prob-note">지수 10 이하일 때 표시</small></div>
+    <div class="signal-tags">
+      <span class="tag">대상: QQQ · SPY · VOO</span>
+      <span class="tag hold">중타(몇달) · 장타 아님</span>
+      <span class="tag" id="signal-count">분할 5회</span>
+    </div>
+  </section>
+
+  <section class="hero">
+    <div class="hero-card">
+      <span class="hero-label">CNN 공포·탐욕 지수</span>
+      <span class="hero-value" id="hero-score">-</span>
+      <span class="hero-sub" id="hero-rating">-</span>
+    </div>
+    <div class="hero-card">
+      <span class="hero-label">시그널 기준</span>
+      <span class="hero-value">10 이하</span>
+      <span class="hero-sub" id="hero-threshold">극단적 공포 구간</span>
+    </div>
+    <div class="hero-card">
+      <span class="hero-label">시그널 확률(규칙)</span>
+      <span class="hero-value gold" id="hero-prob">100%</span>
+      <span class="hero-sub">10 이하이면 항상 표시</span>
+    </div>
+    <div class="hero-card">
+      <span class="hero-label">매매 기간</span>
+      <span class="hero-value" id="hero-horizon">중타 · 몇달</span>
+      <span class="hero-sub">장타(몇년) 아님</span>
+    </div>
+  </section>
+
+  <section class="chart-card">
+    <h2>CNN 공포지수 · QQQ 겹쳐보기</h2>
+    <div class="chart-legend">
+      <span><i style="background:#ff9b6b"></i>CNN 공포·탐욕 지수 (왼쪽 0~100)</span>
+      <span><i style="background:#4da3ff"></i>QQQ 종가 (오른쪽, $)</span>
+      <span><i style="background:rgba(255,107,107,0.5);height:12px;width:12px;border-radius:3px"></i>공포지수 10 이하 = 매수 구간</span>
+    </div>
+    <div class="chart-wrap"><canvas id="fg-chart"></canvas></div>
+    <p class="chart-help" id="chart-help">차트를 불러오는 중입니다. 빨간 점은 공포지수가 10 이하로 내려간 날입니다. 신호는 장타가 아니라 중타(몇달 안에 정리) 기준입니다.</p>
+  </section>
+
+  <h2 class="sec">분할 매수 대상</h2>
+  <section class="targets" id="targets"></section>
+
+  <h2 class="sec">이 신호가 나온 이유</h2>
+  <section class="doc">
+    <p>CNN 공포·탐욕 지수(Fear &amp; Greed Index)는 <strong>0~100</strong> 범위이며, 낮을수록 시장이 극단적 공포 상태라는 뜻입니다. 이 페이지는 지수가 <strong>10 이하(극단적 공포)</strong>로 내려가면 QQQ·SPY·VOO에 <strong>분할 매수 시그널이 왔다</strong>고 표시합니다.</p>
+    <p>지수가 10 이하이면 화면에 <strong>확률 100%</strong>로 표시합니다. 이 100%는 "조건(10 이하)이 충족되면 예외 없이 신호를 켠다"는 <strong>규칙 신뢰도</strong>를 뜻하며, 미래 수익을 보장하는 숫자가 아닙니다.</p>
+    <p>이 신호는 오래 들고 가는 <strong>장타(몇년)가 아니라 중타</strong>입니다. 극단적 공포는 대개 몇 주~<strong>몇 달</strong> 안에 되돌려지는 경우가 많아, 매매 기간을 몇개월로 잡고 정리하는 것을 기준으로 합니다.</p>
+    <p id="doc-stats"></p>
+  </section>
+
+
+  <h2 class="sec">분할 매수 방법(예시)</h2>
+  <section class="doc">
+    <ol>
+      <li>시그널이 켜지면(지수 10 이하) 대상 ETF(QQQ·SPY·VOO)를 정합니다. 한 종목만 골라도 되고, 세 종목에 나눠도 됩니다.</li>
+      <li>한 번에 사지 않고 <strong>5회로 나눠</strong> 매수합니다. 1회차는 신호 당일에, 나머지는 며칠 텀을 두고 나눠 들어갑니다.</li>
+      <li>지수가 10 이하를 벗어나 반등이 오면 남은 회차는 서두르지 않고, 정해둔 <strong>몇 달 안</strong>에 분할 청산을 목표로 합니다.</li>
+      <li>중간에 규칙을 바꾸지 않는 것이 중요합니다. 신호는 <strong>중타</strong> 기준이므로 몇년 보유를 전제로 하지 않습니다.</li>
+    </ol>
+    <p class="warn">분할 예시(5회)는 매수 비중을 정하는 참고용이며, 매수·매도 추천이 아닙니다.</p>
+  </section>
+
+  <h2 class="sec">리스크와 주의</h2>
+  <section class="doc">
+    <ul>
+      <li><strong>공포는 더 깊어질 수 있습니다.</strong> 10 이하가 곧 바닥이라는 보장은 없습니다. 2008년·2020년·2022년처럼 극단적 공포가 오래 이어진 구간도 있었습니다.</li>
+      <li><strong>중타 기준입니다.</strong> 며칠 안에 결과를 내는 단타도, 몇년 묻어두는 장타도 아닙니다. 몇 달을 기준으로 계획합니다.</li>
+      <li><strong>분할의 이유</strong>는 한 점에 몰빵하지 않기 위해서입니다. 신호가 켜져도 한 번에 전액 매수하지 않습니다.</li>
+      <li><strong>데이터 지연</strong>이 있을 수 있습니다. CNN 지수는 미국장 기준으로 하루 한 번 갱신되며, 휴장일에는 직전 값이 유지됩니다.</li>
+      <li><strong>투자 책임</strong>: 이 페이지는 학습·참고 도구이며 매수·매도 추천이 아닙니다. 투자 판단과 책임은 본인에게 있습니다.</li>
+    </ul>
+  </section>
+
+  <h2 class="sec">데이터 기준</h2>
+  <section class="doc">
+    <p>공포·탐욕 지수는 CNN(production.dataviz.cnn.io)에서, QQQ·SPY·VOO 시세는 Yahoo Finance 일봉에서 읽습니다. 지수 이력과 주가를 같은 날짜 축으로 맞춰 한 차트에 겹쳐 그립니다. GitHub Actions가 미국장 마감 후 매일 자동으로 갱신합니다.</p>
+  </section>
+
+  <a class="home" href="../index.html">← 주가 방향 날씨</a>
+  <p class="site-foot">데이터: CNN 공포·탐욕 지수 + Yahoo Finance 일봉 · 매일 자동 갱신 · 투자 추천이 아닙니다.</p>
+
+  <!-- DATA_START -->
+  <script>window.FEARGREED_DATA = {"asof":"2026-11-20","updated":"2026-11-22 00:48","score":9.67,"rating":"extreme fear","ratingKo":"극단적 공포","timestamp":"2026-11-20T23:59:52+00:00","previousClose":18.68,"previous1Week":37.37,"previous1Month":28.74,"previous1Year":5.17,"threshold":10.0,"signalOn":true,"probability":100,"horizon":"중단타(몇달이내)","splits":5,"stats":{"episodes":3,"forwardDays":63,"forwardAvg":27.7,"forwardBest":28.7,"forwardWorst":26.8,"forwardCount":2},"targets":[{"symbol":"QQQ","name":"Invesco QQQ Trust","price":608.45,"splits":5,"priceAsof":"2026-11-20"},{"symbol":"SPY","name":"SPDR S&P 500 ETF","price":689.81,"splits":5,"priceAsof":"2026-11-20"},{"symbol":"VOO","name":"Vanguard S&P 500 ETF","price":635.54,"splits":5,"priceAsof":"2026-11-20"}],"chart":{"dates":["2025-11-24","2025-11-25","2025-11-26","2025-11-28","2025-12-01","2025-12-02","2025-12-03","2025-12-04","2025-12-05","2025-12-08","2025-12-09","2025-12-10","2025-12-11","2025-12-12","2025-12-15","2025-12-16","2025-12-17","2025-12-18","2025-12-19","2025-12-22","2025-12-23","2025-12-24","2025-12-26","2025-12-29","2025-12-30","2025-12-31","2026-01-02","2026-01-05","2026-01-06","2026-01-07","2026-01-08","2026-01-09","2026-01-12","2026-01-13","2026-01-14","2026-01-15","2026-01-16","2026-01-20","2026-01-21","2026-01-22","2026-01-23","2026-01-26","2026-01-27","2026-01-28","2026-01-29","2026-01-30","2026-02-02","2026-02-03","2026-02-04","2026-02-05","2026-02-06","2026-02-09","2026-02-10","2026-02-11","2026-02-12","2026-02-13","2026-02-17","2026-02-18","2026-02-19","2026-02-20","2026-02-23","2026-02-24","2026-02-25","2026-02-26","2026-02-27","2026-03-02","2026-03-03","2026-03-04","2026-03-05","2026-03-06","2026-03-09","2026-03-10","2026-03-11","2026-03-13","2026-03-16","2026-03-17","2026-03-18","2026-03-19","2026-03-20","2026-03-23","2026-03-24","2026-03-25","2026-03-26","2026-03-27","2026-03-30","2026-03-31","2026-04-01","2026-04-02","2026-04-06","2026-04-07","2026-04-08","2026-04-09","2026-04-10","2026-04-13","2026-04-14","2026-04-15","2026-04-16","2026-04-17","2026-04-20","2026-04-21","2026-04-22","2026-04-23","2026-04-24","2026-04-27","2026-04-28","2026-04-29","2026-04-30","2026-05-01","2026-05-04","2026-05-05","2026-05-06","2026-05-07","2026-05-08","2026-05-11","2026-05-12","2026-05-13","2026-05-14","2026-05-15","2026-05-18","2026-05-19","2026-05-20","2026-05-21","2026-05-22","2026-05-26","2026-05-27","2026-05-28","2026-05-29","2026-06-01","2026-06-02","2026-06-03","2026-06-04","2026-06-05","2026-06-08","2026-06-09","2026-06-10","2026-06-11","2026-06-12","2026-06-15","2026-06-16","2026-06-17","2026-06-18","2026-06-22","2026-06-23","2026-06-24","2026-06-25","2026-06-26","2026-06-29","2026-06-30","2026-07-01","2026-07-02","2026-07-06","2026-07-07","2026-07-08","2026-07-09","2026-07-10","2026-07-13","2026-07-14","2026-07-15","2026-07-16","2026-07-17","2026-07-20","2026-07-21","2026-07-22","2026-07-23","2026-07-24","2026-07-27","2026-07-28","2026-07-29","2026-07-30","2026-07-31","2026-08-03","2026-08-04","2026-08-05","2026-08-06","2026-08-07","2026-08-10","2026-08-11","2026-08-12","2026-08-13","2026-08-14","2026-08-17","2026-08-18","2026-08-19","2026-08-20","2026-08-21","2026-08-24","2026-08-25","2026-08-26","2026-08-27","2026-08-28","2026-08-31","2026-09-01","2026-09-02","2026-09-03","2026-09-04","2026-09-08","2026-09-09","2026-09-10","2026-09-11","2026-09-14","2026-09-15","2026-09-16","2026-09-17","2026-09-18","2026-09-21","2026-09-22","2026-09-23","2026-09-24","2026-09-25","2026-09-28","2026-09-29","2026-09-30","2026-10-01","2026-10-02","2026-10-05","2026-10-06","2026-10-07","2026-10-08","2026-10-09","2026-10-12","2026-10-13","2026-10-14","2026-10-15","2026-10-16","2026-10-19","2026-10-20","2026-10-21","2026-10-22","2026-10-23","2026-10-26","2026-10-27","2026-10-28","2026-10-29","2026-10-30","2026-11-02","2026-11-03","2026-11-04","2026-11-05","2026-11-06","2026-11-09","2026-11-10","2026-11-11","2026-11-12","2026-11-13","2026-11-16","2026-11-17","2026-11-18","2026-11-19","2026-11-20"],"fng":[13.69,15.03,17.66,21.77,22.09,23.26,24.77,36.03,38.14,40.77,40.94,36.37,43.74,39.29,49.31,46.4,37.69,42.37,44.2,54.89,58.57,58.0,54.86,47.89,46.11,43.26,45.23,47.6,52.86,48.57,48.37,54.11,58.0,59.09,58.63,63.66,63.77,50.86,53.86,54.77,54.89,57.66,64.97,65.54,63.83,58.6,63.4,43.34,47.23,34.94,45.37,48.49,47.23,49.91,36.36,33.84,33.31,34.16,34.4,42.34,32.54,40.26,43.14,42.91,41.17,34.29,31.63,33.07,31.63,25.26,22.23,20.27,18.31,16.67,23.91,22.89,13.61,18.31,8.4,11.63,10.36,16.54,10.26,8.17,5.77,14.89,15.86,18.29,21.86,21.57,29.17,33.8,38.06,40.97,47.26,56.2,61.49,68.57,69.97,67.57,68.46,66.17,65.4,66.29,67.43,66.23,69.51,71.17,66.89,67.26,68.74,67.29,67.29,66.63,65.69,64.97,65.91,63.23,62.09,59.26,60.51,57.51,58.23,59.83,60.63,60.71,60.46,59.46,56.97,54.63,54.57,41.86,39.37,33.77,27.29,29.69,33.51,40.14,39.51,32.94,37.34,33.94,28.46,26.46,25.43,24.66,26.86,29.97,31.63,32.54,41.66,39.77,38.63,44.71,46.83,40.86,41.06,44.43,41.86,37.0,36.0,42.77,44.43,40.86,40.77,38.23,37.14,25.56,38.11,39.57,46.14,58.97,60.23,59.69,65.14,64.37,60.09,61.69,66.11,64.31,59.14,54.63,56.63,51.37,54.66,54.97,59.6,53.94,57.31,53.74,49.2,44.86,46.06,47.51,45.23,39.14,38.2,31.91,33.11,32.09,29.26,27.03,29.46,28.49,33.94,35.23,33.66,34.51,36.91,32.4,31.06,30.31,29.23,38.2,43.09,47.03,44.71,39.17,43.51,45.23,45.6,28.79,32.0,18.21,19.51,28.74,30.26,19.99,16.69,29.83,32.89,34.4,30.77,26.32,19.39,23.54,34.17,19.99,24.35,31.51,37.37,35.94,40.34,37.37,31.07,25.95,29.89,15.87,9.67],"qqq":[605.16,608.89,614.27,619.25,617.17,622.0,623.52,622.94,625.48,624.28,625.05,627.61,625.58,613.62,610.54,611.75,600.41,609.11,617.05,619.21,622.11,623.93,623.89,620.87,619.43,614.31,613.12,617.99,623.42,624.02,620.47,626.65,627.17,626.24,619.55,621.78,621.26,608.06,616.28,620.76,622.72,625.46,631.13,633.22,629.43,621.87,626.14,616.52,605.75,597.03,609.65,614.32,611.47,613.11,600.64,601.92,601.3,605.79,603.47,608.81,601.41,607.87,616.68,609.24,607.29,608.09,601.58,610.75,608.91,599.75,607.76,607.77,607.69,593.72,600.38,603.31,594.9,593.02,582.06,588.0,583.98,587.82,573.79,562.58,558.28,577.18,584.31,584.98,588.5,588.59,606.09,610.19,611.07,617.39,628.6,637.4,640.47,648.85,646.79,644.33,655.11,651.42,663.88,664.23,657.55,661.57,667.74,674.15,672.88,681.61,695.77,694.94,711.23,713.29,707.24,714.71,719.79,708.93,705.88,701.53,713.15,714.51,717.54,730.28,729.45,735.6,738.31,742.74,746.16,744.21,740.61,705.06,716.07,707.83,693.69,717.12,721.34,744.0,729.86,722.51,740.62,737.95,713.65,710.62,716.38,706.52,724.08,736.4,725.17,712.6,722.82,709.43,711.44,723.28,725.51,711.74,719.69,717.74,705.94,695.33,696.06,708.97,705.35,691.96,684.23,682.12,675.49,661.73,683.55,687.99,700.07,723.85,717.3,714.65,723.03,720.87,718.45,723.7,732.07,731.07,729.87,717.51,716.08,710.93,713.44,706.32,710.72,711.37,721.11,716.43,716.76,707.64,709.24,717.67,718.96,718.36,716.31,708.69,714.88,709.18,704.54,704.72,716.92,721.45,741.47,747.46,741.21,741.1,744.5,736.53,737.93,739.77,742.03,749.58,756.2,759.66,757.73,747.58,751.27,746.04,743.57,728.95,728.0,709.8,718.36,717.63,725.2,704.47,704.4,712.2,721.25,725.61,715.34,690.49,681.09,685.28,691.95,647.05,656.1,679.35,674.76,690.38,688.17,679.89,661.75,656.95,659.51,645.04,608.45]}};</script>
+<!-- DATA_END -->
+  <script src="feargreed-chart.js"></script>
+</body>
+</html>
+
