@@ -68,13 +68,24 @@
         if (line < lo) lo = line;
         if (line > hi) hi = line;
       }
-      var pad = (hi - lo) * 0.06 || 1;
-      lo -= pad;
-      hi += pad;
+      var useLog = lo > 0 && hi / lo > 8;
+      if (useLog) {
+        lo = lo / 1.08;
+        hi = hi * 1.08;
+      } else {
+        var pad = (hi - lo) * 0.06 || 1;
+        lo -= pad;
+        hi += pad;
+      }
       function x(index) {
         return 8 + (index / Math.max(1, points.length - 1)) * (width - 16);
       }
       function y(value) {
+        if (useLog) {
+          var lhi = Math.log(hi);
+          var llo = Math.log(lo);
+          return 16 + (lhi - Math.log(Math.max(value, lo))) / (lhi - llo) * (height - 36);
+        }
         return 16 + (hi - value) / (hi - lo) * (height - 36);
       }
       function stroke(column, color, lineWidth) {
