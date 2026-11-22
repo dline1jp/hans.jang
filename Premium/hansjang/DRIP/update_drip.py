@@ -65,8 +65,11 @@ KR_LEADERS = [
     ("2000-11-21", "005930.KS", "삼성전자"),
     ("2026-06-22", "000660.KS", "SK하이닉스"),
 ]
+# NTT Docomo (9437.T) has no Yahoo history. NTT (9432.T) was the other
+# documented leader in 2000, second on the 2000-06-27 ranking, so 2000-2002
+# uses that price instead of dropping the years.
 JP_LEADERS = [
-    ("2000-01-01", "9437.T", "NTT도코모"),
+    ("2000-01-01", "9432.T", "NTT"),
     ("2003-01-01", "7203.T", "토요타"),
     ("2026-06-02", "9984.T", "소프트뱅크그룹"),
 ]
@@ -143,7 +146,26 @@ def lookup(pairs):
             return None
         return rates[index]
 
-    return on, (dates[0].isoformat() if dates else None), (dates[-1].isoformat() if dates else None)
+    return on, (dates[0].isoformat() if dates else None), (dates[-1].isoformat() if dates else None), set(dates)
+
+
+def hold_flat_before(pairs):
+    """Before the first real print, reuse that first print. Later gaps use the prior print."""
+    real, first, last, have = lookup(pairs)
+    anchor_day = datetime.fromisoformat(first).date()
+    anchor = real(anchor_day)
+    flat_months = set()
+    carried_months = set()
+
+    def on(day):
+        if day < anchor_day:
+            flat_months.add((day.year, day.month))
+            return anchor
+        if day not in have:
+            carried_months.add((day.year, day.month))
+        return real(day)
+
+    return on, anchor, anchor_day, first, last, flat_months, carried_months
 
 
 def leader_on(leaders, day):
@@ -440,15 +462,26 @@ def full_page(rows, failed, stamped, fx_note):
 '''
 
 
+def summary_rows(rows):
+    top = list(rows[:10])
+    extra = [item for item in rows if item.get("ticker") == "ETH-USD" and item not in top]
+    return top + extra
+
+
 def top_block(rows):
     head = "<tr><th>이름</th><th>시작</th><th>납입</th><th>수익</th><th>배당률</th></tr>"
+    shown = summary_rows(rows)
+    note = ""
+    if any(item.get("ticker") == "ETH-USD" and item not in rows[:10] for item in shown):
+        note = '<p class="bond-note">이더리움은 상위 10개 밖에 있어도 아래에 따로 둔다.</p>\n'
     return (
         '<div class="drip-top">\n'
         '      <h2><a href="DRIP/index.html">' + TITLE + '</a></h2>\n'
         '      <p class="bond-note">' + LINE + '</p>\n'
         '      <table class="drip-table"><thead>' + head + '</thead><tbody>\n'
-        '        ' + table_rows(rows[:10], True) + '\n'
+        '        ' + table_rows(shown, True) + '\n'
         '      </tbody></table>\n'
+        + note +
         '      <p class="bond-note"><a href="DRIP/index.html">전체 표 보기</a></p>\n'
         '    </div>'
     )
@@ -499,27 +532,17 @@ def main():
     books, failed = load_all(tickers)
     if "KRW=X" not in books:
         raise SystemExit("KRW=X 환율을 받지 못했습니다.")
-    usdkrw, krw_from, krw_to = lookup(books["KRW=X"]["rows"])
+    usdkrw, krw_anchor, krw_anchor_day, krw_from, krw_to, krw_flat, krw_carried = hold_flat_before(books["KRW=X"]["rows"])
     if "JPY=X" not in books:
         failed.append("JPY=X")
         usdjpy = lambda _day: None
         jpy_from = jpy_to = None
+        jpy_anchor = None
+        jpy_anchor_day = None
     else:
-        usdjpy, jpy_from, jpy_to = lookup(books["JPY=X"]["rows"])
-    print("USDKRW", krw_from, usdkrw(datetime.fromisoformat(krw_from).date()) if krw_from else None, "->", krw_to)
-    print("USDJPY", jpy_from, "->", jpy_to)
-
-    fx_note = (
-        "원/달러(KRW=X) 시세는 2003-12-01부터라, 달러와 엔으로 사는 종목은 그달부터 30만 원을 넣었다. "
-        "2000년 1월부터 2003년 11월은 환율이 없어 넣지 않았다. "
-        "원화 종목인 KODEX 200, TIGER 200, 한국 시총 1위는 상장일 또는 교체일부터 바로 30만 원을 넣는다. "
-        "달러 자산은 넣는 날의 원/달러로 바꾸고, 일본 시총 1위는 원/달러와 달러/엔(JPY=X)으로 엔화로 바꾼다. "
-        "그날 환율이 없으면 그 이전 최근 환율을 쓴다. 평가는 마지막 거래일 환율로 다시 원화로 환산한다. "
-        f"KRW=X {krw_from}~{krw_to}, JPY=X {jpy_from}~{jpy_to}. "
-        "미국 시총 1위는 아메리칸 비즈니스 히스토리 센터의 연도별 1분기 순위를 그해 첫 거래일에 교체한 것이다. 일별 순위가 아니다. "
-        "한국은 2000-11-21부터 삼성전자, 2026-06-22 종가부터는 보통주 기준 SK하이닉스다. "
-        "일본은 NTT도코모 시세를 받지 못했고 환율도 2003-12-01부터라 그날 토요타부터 넣었으며, 2026-06-02 보도부터 소프트뱅크그룹이다."
-    )
+        usdjpy, jpy_anchor, jpy_anchor_day, jpy_from, jpy_to, _jpy_flat, _jpy_carried = hold_flat_before(books["JPY=X"]["rows"])
+    print("USDKRW anchor", krw_anchor_day, krw_anchor, "series", krw_from, "->", krw_to)
+    print("USDJPY", jpy_from, "->", jpy_to, "anchor", jpy_anchor_day, jpy_anchor)
 
     rows = []
     for ticker, code, name, currency in INSTRUMENTS:
@@ -565,6 +588,22 @@ def main():
         print(name, stats["started"], won(stats["contributed"]), f'{stats["gain"]:+.1f}%')
 
     rows.sort(key=lambda item: item["gain"], reverse=True)
+    jpy_clause = ""
+    if jpy_anchor_day and jpy_anchor_day.isoformat() > "2000-01-01":
+        jpy_clause = f" 엔/달러도 {jpy_anchor_day.isoformat()} 이전은 그날 시세({jpy_anchor:.2f})와 같다고 두었다."
+    fx_note = (
+        "2003년 12월보다 이전 달의 원/달러는 2003년 12월 시세와 같다고 두고 계산했다. "
+        f"그 시세는 {krw_anchor_day.isoformat()} 달러당 {krw_anchor:,.2f}원이다. "
+        "2003년 12월부터는 넣는 날의 원/달러(KRW=X)를 쓰고, 그날 시세가 없으면 그 이전 최근 시세를 쓴다. "
+        f"그렇게 이전 시세를 쓴 달은 {len(krw_carried)}개월이다. "
+        "일본 시총 1위는 그 원/달러로 달러를 만든 뒤 그날 엔/달러(JPY=X)로 엔화를 산다."
+        + jpy_clause +
+        " 평가는 마지막 거래일 환율로 다시 원화로 환산한다. "
+        "미국 시총 1위는 아메리칸 비즈니스 히스토리 센터의 연도별 1분기 순위를 그해 첫 거래일에 교체한 것이다. 2000년 1월은 마이크로소프트다. 일별 순위가 아니다. "
+        "한국은 2000-11-21부터 삼성전자, 2026-06-22 종가부터는 보통주 기준 SK하이닉스다. "
+        "일본은 NTT도코모(9437.T) 시세가 없어 2000년부터 2002년까지는 2000년 6월 27일 순위에서 2위였던 NTT(9432.T)를 보유로 계산했다. 2003년부터 토요타, 2026-06-02 보도부터 소프트뱅크그룹이다."
+    )
+    print("flat months", len(krw_flat), "carried", len(krw_carried))
     stamped = datetime.now(KST).strftime("%Y-%m-%d %H:%M KST")
     shown_failed = []
     for item in failed:
