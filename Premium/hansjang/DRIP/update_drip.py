@@ -180,31 +180,68 @@ def won(amount):
     return f"{amount:,.0f}원"
 
 
-CHART_ON_HANJANG = {"QQQ", "SPY", "VOO", "SMH", "SOXX", "SCHD", "BTC-USD", "GLD", "SLV"}
+# Daily chart + 200-day SMA. Do not link drip tickers at the 200-week product.
+CHART_PAGE = "/Premium/hansjang/DRIP/chart.html"
+CHART_DATA = HERE / "chart-data.js"
 TV_EXCHANGE = {
     "AAPL": "NASDAQ",
     "MSFT": "NASDAQ",
+    "QQQ": "NASDAQ",
+    "SMH": "NASDAQ",
+    "SOXX": "NASDAQ",
+    "GE": "NYSE",
+    "XOM": "NYSE",
+    "SPY": "AMEX",
+    "VOO": "AMEX",
+    "GLD": "AMEX",
+    "SLV": "AMEX",
+    "SCHD": "AMEX",
     "TLT": "AMEX",
     "EDV": "AMEX",
     "EWY": "AMEX",
     "FLKR": "AMEX",
-    "GE": "NYSE",
-    "XOM": "NYSE",
 }
+TV_STUDIES = urllib.parse.quote(json.dumps([
+    {
+        "id": "MASimple@tv-basicstudies",
+        "inputs": {"length": 200},
+        "overrides": {"MovAvgSimple.color": "#E53935", "MovAvgSimple.linewidth": 2},
+    },
+], separators=(",", ":")))
+
+
+def local_chart(ticker):
+    # TradingView's embed widget rejects KRX and TSE (it reports an invalid symbol).
+    return ticker.endswith(".KS") or ticker.endswith(".T")
 
 
 def chart_url(ticker):
-    if ticker in CHART_ON_HANJANG:
-        return "/Premium/hansjang/200W/index.html?symbol=" + urllib.parse.quote(ticker)
-    if ticker == "ETH-USD":
-        symbol = "BINANCE:ETHUSDT"
-    elif ticker.endswith(".KS"):
-        symbol = "KRX:" + ticker[:-3]
-    elif ticker.endswith(".T"):
-        symbol = "TSE:" + ticker[:-2]
+    if local_chart(ticker):
+        return CHART_PAGE + "?symbol=" + urllib.parse.quote(ticker, safe=".")
+    if ticker == "BTC-USD":
+        symbol = "BITSTAMP:BTCUSD"
+    elif ticker == "ETH-USD":
+        symbol = "BITSTAMP:ETHUSD"
     else:
         symbol = TV_EXCHANGE.get(ticker, "NASDAQ") + ":" + ticker
-    return "https://www.tradingview.com/chart/?symbol=" + urllib.parse.quote(symbol) + "&interval=D"
+    return (
+        "https://www.tradingview.com/widgetembed/?symbol="
+        + urllib.parse.quote(symbol, safe="")
+        + "&interval=D&style=1&theme=dark&hideideas=1&studies="
+        + TV_STUDIES
+    )
+
+
+def write_chart_data(books):
+    payload = {}
+    for ticker, book in books.items():
+        if not local_chart(ticker):
+            continue
+        payload[ticker] = [round(price, 4) for _day, price in book["rows"]]
+    CHART_DATA.write_text(
+        "window.DRIP_DAILY=" + json.dumps(payload, separators=(",", ":")) + ";\n",
+        encoding="utf-8",
+    )
 
 
 def trailing_yield(book):
@@ -476,6 +513,92 @@ def table_rows(rows, compact):
     return "".join(body)
 
 
+HYBRID_ROWS = [
+    ("비트코인", "BTC-USD", "+4279.5%", "56.3%", "+3918.3%", "55.0%"),
+    ("반도체 VanEck", "SMH", "+2114.3%", "19.1%", "+971.6%", "15.0%"),
+    ("반도체 iShares", "SOXX", "+1800.7%", "19.1%", "+712.9%", "14.0%"),
+    ("미국 시총 1위", "AAPL", "+1539.5%", "17.1%", "+3911.3%", "22.1%"),
+    ("나스닥 100", "QQQ", "+1109.3%", "15.4%", "+568.0%", "12.1%"),
+    ("한국 시총 1위", "000660.KS", "+1042.8%", "15.6%", "+703.9%", "13.6%"),
+    ("S&P 500", "SPY", "+548.5%", "11.9%", "+231.4%", "7.9%"),
+    ("한국 MSCI", "EWY", "+342.3%", "9.8%", "+237.3%", "8.1%"),
+    ("뱅가드 S&P 500", "VOO", "+288.6%", "15.1%", "+166.2%", "11.1%"),
+    ("금", "GLD", "+242.9%", "10.0%", "+168.8%", "8.2%"),
+    ("이더리움", "ETH-USD", "+237.1%", "25.7%", "+717.7%", "44.3%"),
+    ("슈왑 미국배당", "SCHD", "+227.6%", "14.4%", "+85.6%", "7.7%"),
+    ("TIGER 200", "102110.KS", "+216.7%", "11.9%", "+190.4%", "11.0%"),
+    ("KODEX 200", "069500.KS", "+213.7%", "11.6%", "+181.0%", "10.6%"),
+    ("은", "SLV", "+131.2%", "7.5%", "+140.0%", "7.8%"),
+    ("한국 FTSE", "FLKR", "+113.3%", "16.3%", "+128.7%", "17.8%"),
+    ("미국 장기국채", "TLT", "+41.1%", "2.7%", "+26.1%", "1.8%"),
+    ("일본 시총 1위", "9984.T", "+8.1%", "0.6%", "-31.9%", "-3.0%"),
+    ("미국 초장기국채", "EDV", "+1.0%", "0.1%", "+0.2%", "0.0%"),
+]
+
+
+def hybrid_section():
+    """Reference backtest. Only the full DRIP page includes this block."""
+    head = (
+        "<tr><th>이름</th><th>티커</th><th>적립 수익</th><th>적립 연평균</th>"
+        "<th>200일선 수익</th><th>200일선 연평균</th></tr>"
+    )
+    body = []
+    for name, ticker, drip_gain, drip_cagr, ma_gain, ma_cagr in HYBRID_ROWS:
+        href = html.escape(chart_url(ticker), quote=True)
+        extra = ' target="_blank" rel="noopener"' if chart_url(ticker).startswith("http") else ""
+        body.append(
+            "<tr>"
+            f"<td>{html.escape(name)}</td>"
+            f"<td><a href=\"{href}\"{extra}>{html.escape(ticker)}</a></td>"
+            f"<td>{html.escape(drip_gain)}</td>"
+            f"<td>{html.escape(drip_cagr)}</td>"
+            f"<td>{html.escape(ma_gain)}</td>"
+            f"<td>{html.escape(ma_cagr)}</td>"
+            "</tr>"
+        )
+    rules = (
+        "매달 30만 원, 시작일, 환율은 위 표와 같다. 주식을 보유한 동안에만 배당을 재투자하고, "
+        "현금 이자와 수수료는 없다. 일봉 종가가 200일 단순이동평균 위에 있으면 그달 30만 원을 그대로 산다. "
+        "종가가 200일선 아래로 내려온 날 그 종가에 전량을 판다. 아래에 머무는 동안은 사지 않고 매달 30만 원을 현금으로 쌓는다. "
+        "종가가 다시 200일선 위로 올라온 날 모아 둔 현금 전부를 그 종가에 산다. "
+        "종가가 200개 쌓이기 전에는 매달 매수를 이어 간다."
+    )
+    why = (
+        "200일선 규칙은 하락이 이미 시작된 뒤에 팔고, 가격이 늦은 평균 위로 돌아온 뒤에만 다시 산다. "
+        "전량을 팔면 계좌가 전부 현금이 되었다가 더 낮은 가격에 다시 들어간다. "
+        "적립은 새 30만 원만 낮은 가격에 사고, 먼저 산 주식은 그대로 둔다. "
+        "그래서 낙폭이 깊고 회복이 느릴 때 하이브리드가 낫다."
+    )
+    cases = (
+        "미국 시총 1위는 개별 주식이고, 닷컴, 2008년, 2022년처럼 200일선 아래에 깊고 오래 머물렀다. "
+        "연평균은 17.1%에서 22.1%다. "
+        "이더리움은 2018년과 2022년 겨울이 깊고 느렸다. 기간이 짧아 그 두 하락이 결과를 좌우한다. "
+        "연평균은 25.7%와 44.3%다. "
+        "은은 2011년 고점 이후의 긴 하락을 팔고 다음 상승을 샀다. 차이는 작아서 +131.2%와 +140.0%다. "
+        "한국 FTSE는 2017년 말에 상장해서 2018년, 2020년, 2022년이 대부분이다. 차이도 작아서 +113.3%와 +128.7%다."
+    )
+    rest = (
+        "나머지 15개 이름은 200일선을 금방 되찾는 때가 많다. 코로나 급락, 반도체와 나스닥의 짧은 조정, 채권의 등락이 그렇다. "
+        "그 왕복은 더 낮게 팔고 더 비싸게 사며, 현금인 동안 배당을 놓친다. "
+        "19개 가운데 15개는 그냥 적립이 낫다. 일본 시총 1위는 거짓 돌파가 반복되어 -31.9%로 끝났다."
+    )
+    scope = "이 구간은 참고용 백테스트다. 위의 본표는 팔지 않고 매달 넣는 방법이다."
+    return (
+        "<h2>200이평 매도 매수 하이브리드법</h2>\n"
+        f'  <p class="note">{html.escape(rules)}</p>\n'
+        '  <table class="hybrid">\n'
+        f"    <thead>{head}</thead>\n"
+        "    <tbody>\n"
+        "      " + "".join(body) + "\n"
+        "    </tbody>\n"
+        "  </table>\n"
+        f'  <p class="note">{html.escape(why)}</p>\n'
+        f'  <p class="note">{html.escape(cases)}</p>\n'
+        f'  <p class="note">{html.escape(rest)}</p>\n'
+        f'  <p class="note">{html.escape(scope)}</p>'
+    )
+
+
 def full_page(rows, failed, stamped, fx_note):
     head = (
         "<tr><th>이름</th><th>시작</th><th>납입</th><th>평가액</th>"
@@ -496,13 +619,16 @@ def full_page(rows, failed, stamped, fx_note):
     a {{ color: #4da3ff; }}
     .home {{ color: #D8C0FF; font-size: 22px; text-decoration: none; }}
     h1 {{ text-align: center; color: #FFFFE0; font-size: 32px; line-height: 1.35; }}
+    h2 {{ text-align: center; color: #FFFFE0; font-size: 26px; line-height: 1.35; margin: 28px auto 8px; }}
     .note {{ max-width: 980px; margin: 8px auto; color: #ccc; font-size: 18px; line-height: 1.55; }}
     table {{ max-width: 980px; width: 100%; margin: 12px auto; border-collapse: collapse; }}
     th, td {{ border-bottom: 1px solid #333; padding: 10px 8px; text-align: right; font-size: 17px; }}
     th {{ color: #D8C0FF; }}
     td:first-child, th:first-child {{ text-align: left; }}
+    table.hybrid td:nth-child(2), table.hybrid th:nth-child(2) {{ text-align: left; }}
     @media (max-width: 800px) {{
       h1 {{ font-size: 26px; }}
+      h2 {{ font-size: 22px; }}
       th, td {{ font-size: 14px; padding: 8px 4px; }}
     }}
   </style>
@@ -521,6 +647,7 @@ def full_page(rows, failed, stamped, fx_note):
   {missing}
   <p class="note">가격은 액면분할이 반영된 종가다. 배당이 있는 날은 이미 가진 수량에 그 배당금을 더해 같은 날 종가를 샀다. 배당 이벤트가 없으면 배당 없음이다. 수수료는 없다. 상장 전 달은 넣지 않고, 상장한 달의 첫 거래일부터 매달 30만 원을 넣는다. 2026년 11월은 그달 1일 이후 마지막 거래일까지 평가한다.</p>
   <p class="note">장마감 후 자동 업데이트된다.</p>
+  {hybrid_section()}
 </body>
 </html>
 '''
@@ -665,6 +792,7 @@ def main():
             shown_failed.append("NTT도코모(9437.T)")
         elif item not in shown_failed:
             shown_failed.append(item)
+    write_chart_data(books)
     PAGE.write_text(full_page(rows, shown_failed, stamped, fx_note), encoding="utf-8")
     patch_hub(top_block(rows))
     REDIRECT.parent.mkdir(parents=True, exist_ok=True)
