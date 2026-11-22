@@ -58,19 +58,7 @@
       <svg id="clock" viewBox="0 0 520 760" role="img" aria-label="OECD 경기 시계. 가로는 전월비, 세로는 100을 중심으로 한 CLI"></svg> </div>
       <ul class="legend" id="legend"></ul>
     </div>
-        <p id="clock-status"></p>
-  </section>
-  <section class="clock">
-    <div class="clock-top">
-      <h2>1. 경기사이클- 최근 3개월간 움직임 </h2>
-      <span id="clock2-asof">2026.09 기준</span>
-      <button type="button" id="update-btn-2">업데이트</button>
-    </div>
-    <div class="clock-layout">    <div class="chart-scroll">
-      <svg id="clock-2" viewBox="0 0 520 760" role="img" aria-label="OECD 경기 시계. 가로는 전월비, 세로는 100을 중심으로 한 CLI"></svg> </div>
-      <ul class="legend" id="legend-2"></ul>
-    </div>
-    <p id="clock2-status"></p>
+    <p id="clock-status"></p>
   </section>
   <div id="area-charts"></div>
   <script>
@@ -733,14 +721,13 @@ svg.appendChild(plant);
     function show(rows, message) {
       var series = seriesFrom(rows);
       if (!series.length) throw new Error("empty");
-      draw(series, { svgId: "clock", asofId: "clock-asof", legendId: "legend" });
-      draw(series, { svgId: "clock-2", asofId: "clock2-asof", legendId: "legend-2" });
+      draw(series);
       drawAllAreas(rows);
       document.getElementById("clock-status").textContent = message || "";
     }
     function bindUpdate() {
       var status = document.getElementById("clock-status");
-      var buttons = ["update-btn", "update-btn-2"].map(function (id) { return document.getElementById(id); }).filter(Boolean);
+      var buttons = [document.getElementById("update-btn")].filter(Boolean);
       if (!status || !buttons.length || status.dataset.bound === "1") return;
       status.dataset.bound = "1";
       function setDisabled(flag) {
