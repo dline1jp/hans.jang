@@ -158,6 +158,54 @@ def won(amount):
     return f"{amount:,.0f}원"
 
 
+CHART_ON_HANJANG = {"QQQ", "SPY", "VOO", "SMH", "SOXX", "SCHD", "BTC-USD", "GLD", "SLV"}
+TV_EXCHANGE = {
+    "AAPL": "NASDAQ",
+    "MSFT": "NASDAQ",
+    "TLT": "AMEX",
+    "EDV": "AMEX",
+    "EWY": "AMEX",
+    "FLKR": "AMEX",
+    "GE": "NYSE",
+    "XOM": "NYSE",
+}
+
+
+def chart_url(ticker):
+    if ticker in CHART_ON_HANJANG:
+        return "/Premium/hansjang/200W/index.html?symbol=" + urllib.parse.quote(ticker)
+    if ticker == "ETH-USD":
+        symbol = "BINANCE:ETHUSDT"
+    elif ticker.endswith(".KS"):
+        symbol = "KRX:" + ticker[:-3]
+    elif ticker.endswith(".T"):
+        symbol = "TSE:" + ticker[:-2]
+    else:
+        symbol = TV_EXCHANGE.get(ticker, "NASDAQ") + ":" + ticker
+    return "https://www.tradingview.com/chart/?symbol=" + urllib.parse.quote(symbol) + "&interval=D"
+
+
+def trailing_yield(book):
+    rows = book["rows"]
+    if not rows:
+        return None
+    last_day, last_price = rows[-1]
+    window = last_day - timedelta(days=365)
+    total = 0.0
+    for day, amount in book["dividends"].items():
+        if window < day <= last_day:
+            total += amount
+    if total <= 0 or last_price <= 0:
+        return None
+    return total / last_price * 100.0
+
+
+def yield_text(value):
+    if not value:
+        return "배당 없음"
+    return f"{value:.2f}%"
+
+
 def result_row(name, code, started, contributed, ending, dividends, ticker=""):
     gain = (ending / contributed - 1.0) * 100.0
     return {
@@ -313,21 +361,29 @@ def converters(currency, usdkrw, usdjpy):
     return krw_native, krw_back
 
 
+def name_cell(item):
+    ticker = item.get("ticker") or ""
+    name = html.escape(item["name"])
+    if not ticker:
+        return name
+    href = html.escape(chart_url(ticker), quote=True)
+    extra = ' target="_blank" rel="noopener"' if href.startswith("http") else ""
+    return name + f' <a href="{href}"{extra}>{html.escape(ticker)}</a>'
+
+
 def table_rows(rows, compact):
     body = []
     for item in rows:
         div = "" if compact else ("<td>배당 없음</td>" if item["dividends"] == 0 else "<td>배당 재투자</td>")
         end = "" if compact else f"<td>{won(item['ending'])}</td>"
-        label = item["name"]
-        if item.get("ticker"):
-            label = label + " " + item["ticker"]
         body.append(
             "<tr>"
-            f"<td>{html.escape(label)}</td>"
+            f"<td>{name_cell(item)}</td>"
             f"<td>{html.escape(item['started'])}</td>"
             f"<td>{won(item['contributed'])}</td>"
             f"{end}"
             f"<td>{item['gain']:+.1f}%</td>"
+            f"<td>{yield_text(item.get('yield'))}</td>"
             f"{div}"
             "</tr>"
         )
@@ -337,7 +393,7 @@ def table_rows(rows, compact):
 def full_page(rows, failed, stamped, fx_note):
     head = (
         "<tr><th>이름</th><th>시작</th><th>납입</th><th>평가액</th>"
-        "<th>수익</th><th>배당</th></tr>"
+        "<th>수익</th><th>배당률</th><th>배당</th></tr>"
     )
     missing = ""
     if failed:
@@ -385,7 +441,7 @@ def full_page(rows, failed, stamped, fx_note):
 
 
 def top_block(rows):
-    head = "<tr><th>이름</th><th>시작</th><th>납입</th><th>수익</th></tr>"
+    head = "<tr><th>이름</th><th>시작</th><th>납입</th><th>수익</th><th>배당률</th></tr>"
     return (
         '<div class="drip-top">\n'
         '      <h2><a href="DRIP/index.html">' + TITLE + '</a></h2>\n'
@@ -480,6 +536,7 @@ def main():
         stats["name"] = name
         stats["code"] = code
         stats["ticker"] = ticker
+        stats["yield"] = trailing_yield(books[ticker])
         if stats["dividends"] == 0:
             pass
         rows.append(stats)
@@ -502,6 +559,8 @@ def main():
             continue
         stats["name"] = name
         stats["code"] = code
+        if stats.get("ticker") in books:
+            stats["yield"] = trailing_yield(books[stats["ticker"]])
         rows.append(stats)
         print(name, stats["started"], won(stats["contributed"]), f'{stats["gain"]:+.1f}%')
 
