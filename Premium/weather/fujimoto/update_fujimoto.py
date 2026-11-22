@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Fujimoto Shigeru ladder on SPY, QQQ, and KODEX KOSPI, dividends reinvested.
+"""Fujimoto ladder: buys versus the reference price, sells versus average cost.
 
 Weekday update after the US cash close:
 
@@ -16,17 +16,18 @@ CHART = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
 PAGE = Path(__file__).with_name("index.html")
 KST = timezone(timedelta(hours=9))
 START_CASH = 10000.0
-# Initial stake I, then +10% of cost, then +25% of the new cost => 1.375 I.
-RESERVE = 1.375
-INITIAL_INVEST_PCT = 100.0 / RESERVE
-INITIAL_CASH_PCT = 100.0 - INITIAL_INVEST_PCT
 CUTOFF = "2026-11-22"
 SYMBOLS = [
     ("SPY", "SPY", "미국 S&P 500"),
     ("QQQ", "QQQ", "미국 나스닥 100"),
     ("226490.KS", "226490", "KODEX 코스피"),
 ]
-SELLS = ((0.25, 0.10, "10% 매도"), (0.35, 0.20, "20% 매도"), (0.45, 0.30, "30% 매도"), (0.60, 0.40, "40% 매도"))
+SELLS = (
+    (0.25, 0.10, "10% 매도"),
+    (0.35, 0.20, "20% 매도"),
+    (0.45, 0.30, "30% 매도"),
+    (0.60, 0.40, "40% 매도"),
+)
 
 
 def fetch(ticker):
@@ -61,26 +62,40 @@ def fetch(ticker):
     for item in events.values():
         day = datetime.fromtimestamp(item["date"], timezone.utc).date()
         dividends[day] = dividends.get(day, 0.0) + float(item["amount"])
-    name = ((block.get("meta") or {}).get("shortName") or (block.get("meta") or {}).get("longName") or ticker)
     if not rows:
         raise RuntimeError(f"no bars for {ticker}")
-    return rows, dividends, name
+    return rows, dividends
+
+
+def buy_rungs(drop):
+    """15% down buys 10% of the frozen account. From 25% down, buy the same percent."""
+    if drop + 1e-9 < 0.15:
+        return []
+    levels = [(0.15, 0.10)]
+    step = 0.25
+    while step <= drop + 1e-9:
+        levels.append((round(step, 10), round(step, 10)))
+        step += 0.10
+    return levels
 
 
 def run(rows, dividends):
     cash = START_CASH
     shares = 0.0
     cost = 0.0
-    did15 = False
-    did25 = False
-    sold = set()
+    ref_price = rows[0]["close"]
+    ref_kind = "시작"
+    frozen = START_CASH
+    buy_done = set()
+    sell_done = set()
+    skip_next = False
     curve = []
     last = None
 
     def equity(price):
         return cash + shares * price
 
-    def buy(dollars):
+    def buy(price, dollars):
         nonlocal cash, shares, cost
         dollars = min(dollars, cash)
         if dollars <= 1e-8:
@@ -90,7 +105,7 @@ def run(rows, dividends):
         cash -= dollars
         return dollars
 
-    def sell(qty):
+    def sell(price, qty):
         nonlocal cash, shares, cost
         qty = min(max(qty, 0.0), shares)
         if qty <= 1e-10:
@@ -107,46 +122,50 @@ def run(rows, dividends):
         price = row["close"]
         day = row["date"]
         actions = []
+        sold_all_today = False
+        skipped_today = False
         if shares > 0 and day in dividends:
             payout = shares * dividends[day]
-            if payout > 0 and price > 0:
+            if payout > 0:
                 shares += payout / price
                 cost += payout
-        if shares == 0:
-            bought = buy(equity(price) / RESERVE)
-            did15 = did25 = False
-            sold = set()
-            if bought:
-                actions.append("시작 매수")
-        else:
+        if shares > 0 and cost > 0:
             avg = cost / shares
             ret = price / avg - 1.0
             if ret <= 0:
-                sold = set()
-            if ret >= 0:
-                did15 = did25 = False
-            if ret <= -0.15 and not did15:
-                if buy(0.10 * cost):
-                    actions.append("10% 매수")
-                did15 = True
-                avg = cost / shares
-                ret = price / avg - 1.0
-            if ret <= -0.25 and not did25 and shares > 0:
-                if buy(0.25 * cost):
-                    actions.append("25% 매수")
-                did25 = True
-                avg = cost / shares
-                ret = price / avg - 1.0
-            if shares > 0 and ret >= 0.25:
+                sell_done = set()
+            elif ret >= 0.25:
                 for threshold, fraction, label in SELLS:
-                    if ret >= threshold and threshold not in sold and shares > 0:
-                        if sell(shares * fraction):
+                    if ret >= threshold and threshold not in sell_done and shares > 0:
+                        if sell(price, shares * fraction):
                             actions.append(label)
-                        sold.add(threshold)
+                        sell_done.add(threshold)
                 if ret >= 1.0 and shares > 0:
-                    if sell(shares):
+                    if sell(price, shares):
                         actions.append("전량 매도")
-                    sold.add(1.0)
+                    sell_done.add(1.0)
+            if shares == 0:
+                ref_price = price
+                ref_kind = "매도"
+                frozen = cash
+                buy_done = set()
+                sell_done = set()
+                sold_all_today = True
+                skip_next = True
+        if sold_all_today:
+            pass
+        elif skip_next:
+            skip_next = False
+            skipped_today = True
+        else:
+            drop = 1.0 - price / ref_price
+            for rung, portion in buy_rungs(drop):
+                if rung in buy_done:
+                    continue
+                spent = buy(price, frozen * portion)
+                buy_done.add(rung)
+                if spent > 0:
+                    actions.append(f"{portion * 100:.0f}% 매수")
         curve.append(equity(price))
         last = {
             "date": day,
@@ -155,59 +174,57 @@ def run(rows, dividends):
             "cost": cost,
             "cash": cash,
             "actions": actions,
-            "did15": did15,
-            "did25": did25,
-            "sold": set(sold),
+            "ref_price": ref_price,
+            "ref_kind": ref_kind,
+            "sell_done": set(sell_done),
+            "buy_done": set(buy_done),
+            "skipped": skipped_today,
         }
     return curve, last
 
 
 def judgment(state):
     price = state["price"]
-    if state["shares"] <= 0 or state["cost"] <= 0:
-        if "전량 매도" in state["actions"]:
-            text = f"종가 {fmt_price(price)}가 평단의 2배에 닿아 남은 수량을 모두 팔았습니다."
-            return "전량 매도", "sell", text
-        if "시작 매수" in state["actions"]:
-            text = f"보유가 없어 종가 {fmt_price(price)}에 다시 시작 매수했습니다. 추가 매수 현금은 남겨 둡니다."
-            return "시작 매수", "buy", text
-        return "보유", "hold", "보유 수량이 없습니다."
-    avg = state["cost"] / state["shares"]
-    move = price / avg - 1.0
-    pct = f"{move * 100:+.1f}%"
-    base = f"종가 {fmt_price(price)}, 평단 {fmt_price(avg)}, 평단 대비 {pct}."
+    ref = state["ref_price"]
+    ref_name = "시작 종가" if state["ref_kind"] == "시작" else "매도가"
+    gap = price / ref - 1.0
     actions = state["actions"]
-    if "25% 매수" in actions:
-        extra = " 같은 날 15% 하락 구간에서 투자금의 10%도 먼저 샀습니다." if "10% 매수" in actions else ""
-        return "25% 매수", "buy", base + " 25% 이상 하락이라 투자금의 25%를 추가 매수했습니다." + extra
-    if "10% 매수" in actions:
-        return "10% 매수", "buy", base + " 15% 이상 하락이라 투자금의 10%를 추가 매수했습니다."
-    sell_labels = [label for _, _, label in SELLS if label in actions]
-    if "전량 매도" in actions:
-        return "전량 매도", "sell", base + " 100% 이상 상승이라 남은 수량을 모두 팔았습니다."
-    if sell_labels:
-        return sell_labels[-1], "sell", base + f" 해당 상승 구간이라 {sell_labels[-1]}를 실행했습니다."
-    if move <= -0.25 and state["did25"]:
-        return "보유", "hold", base + " 25% 하락 추가매수는 이번 하락에서 이미 했습니다. 평단으로 돌아오기 전에는 다시 사지 않습니다."
-    if move <= -0.15 and state["did15"]:
-        return "보유", "hold", base + " 15% 하락 추가매수는 이미 했고, 25% 하락에는 아직 닿지 않았습니다."
-    if move <= -0.05:
-        return "보유", "hold", base + " 15% 하락 전에는 추가 매수하지 않습니다. 5% 하락은 그대로 둡니다."
-    if move < 0:
-        return "보유", "hold", base + " 하락폭이 5%보다 작아 보유입니다."
-    if 0.05 <= move < 0.25:
-        return "보유", "hold", base + " 25% 상승 전에는 팔지 않아 보유입니다."
-    if move < 0.05:
-        return "보유", "hold", base + " 상승폭이 5%보다 작아 보유입니다."
-    done = []
-    for threshold, _, label in SELLS:
-        if move >= threshold and threshold in state["sold"]:
-            done.append(label)
-    if 1.0 in state["sold"] or state["shares"] == 0:
+    buys = [item for item in actions if item.endswith("매수")]
+    sells = [item for item in actions if "매도" in item]
+    if state["shares"] > 0 and state["cost"] > 0:
+        avg = state["cost"] / state["shares"]
+        versus = price / avg - 1.0
+        base = (
+            f"종가 {fmt_price(price)}, 평단 {fmt_price(avg)}, 평단 대비 {versus * 100:+.1f}%. "
+            f"{ref_name} {fmt_price(ref)}, 기준가 대비 {gap * 100:+.1f}%."
+        )
+    else:
+        base = f"종가 {fmt_price(price)}, {ref_name} {fmt_price(ref)}, 기준가 대비 {gap * 100:+.1f}%."
+        avg = None
+        versus = None
+    if "전량 매도" in sells:
+        return "전량 매도", "sell", base + " 평단 대비 100% 이상이라 남은 수량을 모두 팔았습니다. 다음 거래일에는 사지 않습니다."
+    if sells:
+        return sells[-1], "sell", base + f" 평단 상승 구간이라 {sells[-1]}를 실행했습니다."
+    if buys:
+        extra = ""
+        if len(buys) > 1:
+            extra = " 같은 날 " + ", ".join(buys[:-1]) + "도 먼저 했습니다."
+        return buys[-1], "buy", base + f" 기준가 하락 구간이라 {buys[-1]}를 실행했습니다." + extra
+    if state["shares"] <= 0:
+        if state.get("skipped"):
+            return "매수 대기", "hold", base + " 전량 매도 다음 거래일이라 사지 않습니다."
+        return "매수 대기", "hold", base + " 15% 하락 전에는 사지 않습니다. 현금으로 기다립니다."
+    if versus <= 0:
+        return "보유", "hold", base + " 평단 아래라 매도하지 않습니다. 매수는 기준가 하락 구간에서만 합니다."
+    if versus < 0.25:
+        return "보유", "hold", base + " 평단 대비 25% 상승 전에는 팔지 않아 보유입니다."
+    done = [label for threshold, _, label in SELLS if versus >= threshold and threshold in state["sell_done"]]
+    if 1.0 in state["sell_done"]:
         done.append("전량 매도")
     if done:
-        return "보유", "hold", base + f" {done[-1]}는 이번 상승에서 이미 실행했습니다. 다음 구간 전에는 보유입니다."
-    return "보유", "hold", base + " 매수·매도 구간 밖이라 보유입니다."
+        return "보유", "hold", base + f" {done[-1]}는 이번 상승에서 이미 실행했습니다. 평단으로 돌아오기 전에는 같은 매도를 반복하지 않습니다."
+    return "보유", "hold", base + " 보유입니다."
 
 
 def fmt_price(value):
@@ -242,7 +259,7 @@ def page(results, stamped):
         label, kind, reason = item["signal"]
         late = ""
         if item["started"] != "2000-01-03":
-            late = f" 상장 전이라 {item['started']}부터 계산했습니다."
+            late = f" 상장일이 {item['started']}라 그날 종가를 기준가로 두고 전액 현금에서 시작했습니다."
         cards.append(
             f'<article class="signal {kind}">'
             f'<h2>{html.escape(item["label"])} <span>{html.escape(item["code"])}</span></h2>'
@@ -298,7 +315,7 @@ def page(results, stamped):
     .signal p {{ margin: 0; color: #ddd; font-size: 18px; line-height: 1.5; }}
     .split {{ margin: 0 0 8px; color: #fff; font-size: 20px; font-weight: 700; }}
     table {{ max-width: 980px; width: 100%; margin: 8px auto 16px; border-collapse: collapse; }}
-    table.ladder {{ max-width: 640px; margin: 12px 0; }}
+    table.ladder {{ max-width: 720px; margin: 12px 0 18px; }}
     table.ladder th, table.ladder td {{ text-align: left; }}
     th, td {{ border-bottom: 1px solid #333; padding: 10px 8px; text-align: right; font-size: 18px; }}
     th {{ color: #D8C0FF; }}
@@ -315,21 +332,18 @@ def page(results, stamped):
 <body>
   <p><a class="home" href="/Premium/weather/index.html">← 주가 방향 날씨</a></p>
   <h1>후지모토 시게루 타점</h1>
-  <p class="note">투자 권유가 아닙니다. 기준 시각 {html.escape(stamped)}. 퍼센트는 평단 대비이고, 배당은 종가로 재투자했습니다. 2026-11-22는 일요일이라 그 이전 마지막 거래일 종가까지입니다.</p>
-  <p class="note">첫 매수는 계좌의 100%가 아닙니다. 처음에는 평가액의 {INITIAL_INVEST_PCT:.1f}%만 사고, {INITIAL_CASH_PCT:.1f}%는 15% 추가매수와 그 뒤 25% 추가매수를 위해 현금으로 남겨 둡니다. 아래 현금·투자 비중은 {html.escape(results[0]["ended"])} 종가 기준 각 계좌입니다.</p>
+  <p class="note">투자 권유가 아닙니다. 기준 시각 {html.escape(stamped)}. 2026-11-22는 일요일이라 그 이전 마지막 거래일 종가까지입니다.</p>
+  <p class="note">처음에는 전액 현금입니다. 시작 종가나 전량 매도가보다 15% 내릴 때 그 기준 계좌의 10%를 사고, 더 내리면 같은 기준 금액으로 25%, 35%, 45%를 삽니다. 전량 매도 다음 거래일에는 사지 않습니다. 현금이 남으면 그대로 둡니다.</p>
   <h2 class="sec">지금 판단</h2>
   <div class="signals">
     {''.join(cards)}
   </div>
   <h2 class="sec">매매법 개요</h2>
   <div class="rules">
-    <p>후지모토 시게루의 가격 규칙은 평단을 기준으로 내리면 나눠 사고, 오르면 나눠 파는 것입니다. 5% 하락은 그대로 둡니다. 15% 하락이면 그때 투자금의 10%를 더 사고, 25% 하락이면 투자금의 25%를 더 삽니다. 5%에서 15% 사이 상승은 보유입니다. 25% 상승에 보유 수량의 10%, 35%에 20%, 45%에 30%, 60%에 40%를 팔고, 100% 상승이면 남은 수량을 모두 팝니다.</p>
+    <p>보유 중 매도와 보유는 평단 기준입니다. 배당은 그날 종가로 다시 사서 평단에 넣습니다. 같은 매도 구간은 평단으로 돌아오기 전에 한 번만 실행합니다.</p>
     <table class="ladder">
       <thead><tr><th>평단 대비</th><th>행동</th></tr></thead>
       <tbody>
-        <tr><td>5% 하락</td><td>그대로 둠</td></tr>
-        <tr><td>15% 하락</td><td>투자금의 10% 추가 매수</td></tr>
-        <tr><td>25% 하락</td><td>투자금의 25% 추가 매수</td></tr>
         <tr><td>5~15% 상승</td><td>보유</td></tr>
         <tr><td>25% 상승</td><td>보유 수량의 10% 매도</td></tr>
         <tr><td>35% 상승</td><td>20% 매도</td></tr>
@@ -338,7 +352,19 @@ def page(results, stamped):
         <tr><td>100% 상승</td><td>전량 매도</td></tr>
       </tbody>
     </table>
-    <p>같은 구간은 한 번만 실행합니다. 가격이 평단으로 돌아오면 그 구간을 다시 켭니다. 보유가 없으면 다음 거래일에 전체 자금의 약 72.7%로 다시 시작합니다. 나머지는 15%와 25% 추가 매수 현금입니다. 현금이 모자라면 있는 만큼만 삽니다. 배당금은 그 날 종가로 같은 종목을 더 사서 평단에 반영합니다. 수수료는 없습니다.</p>
+    <p>매수는 평단이 아니라 기준가 대비입니다. 첫 기준가는 시작 종가이고, 전량 매도 뒤에는 그 매도가입니다. 전량 매도 다음 날에는 사지 않습니다. 현금이 남으면 그대로 둡니다. 각 구간은 그 기준가마다 한 번입니다.</p>
+    <table class="ladder">
+      <thead><tr><th>매도점(기준가) 대비</th><th>행동</th></tr></thead>
+      <tbody>
+        <tr><td>15% 하락</td><td>계좌의 10% 매수</td></tr>
+        <tr><td>25% 하락</td><td>25% 매수</td></tr>
+        <tr><td>35% 하락</td><td>35% 매수</td></tr>
+        <tr><td>45% 하락</td><td>45% 매수</td></tr>
+        <tr><td>이후 10%포인트마다</td><td>하락폭과 같은 비율 매수</td></tr>
+        <tr><td>전량 매도 다음 날</td><td>사지 않음</td></tr>
+        <tr><td>현금이 남으면</td><td>그대로 둠</td></tr>
+      </tbody>
+    </table>
   </div>
   <h2 class="sec">배당 재투자 누적 수익률</h2>
   <table>
@@ -361,7 +387,7 @@ def page(results, stamped):
 def main():
     results = []
     for ticker, code, label in SYMBOLS:
-        rows, dividends, _market_name = fetch(ticker)
+        rows, dividends = fetch(ticker)
         curve, state = run(rows, dividends)
         label_text, kind, reason = judgment(state)
         end = curve[-1]
