@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
-"""Fujimoto ladder: buys versus the reference price, sells versus average cost.
-
-Weekday update after the US cash close:
+"""Buy-and-hold total return with dividends reinvested.
 
     python Premium/weather/fujimoto/update_fujimoto.py
+
+Prices are Yahoo split-adjusted closes. Dividends are Yahoo cash dividends,
+reinvested at that session's close. There is no commission.
 """
 import html
 import json
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -17,17 +19,53 @@ PAGE = Path(__file__).with_name("index.html")
 KST = timezone(timedelta(hours=9))
 START_CASH = 10000.0
 CUTOFF = "2026-11-22"
-SYMBOLS = [
-    ("SPY", "SPY", "미국 S&P 500"),
-    ("QQQ", "QQQ", "미국 나스닥 100"),
-    ("226490.KS", "226490", "KODEX 코스피"),
+
+# Single-name holdings. Dividends, when Yahoo lists them, are reinvested.
+INSTRUMENTS = [
+    ("QQQ", "QQQ", "나스닥 100"),
+    ("SPY", "SPY", "S&P 500"),
+    ("VOO", "VOO", "뱅가드 S&P 500"),
+    ("SMH", "SMH", "반도체 VanEck"),
+    ("SOXX", "SOXX", "반도체 iShares"),
+    ("SCHD", "SCHD", "슈왑 미국배당"),
+    ("BTC-USD", "BTC", "비트코인"),
+    ("ETH-USD", "ETH", "이더리움"),
+    ("GLD", "GLD", "금"),
+    ("SLV", "SLV", "은"),
+    ("TLT", "TLT", "미국 장기국채"),
+    ("EDV", "EDV", "미국 초장기국채"),
+    ("069500.KS", "069500", "KODEX 200"),
+    ("102110.KS", "102110", "TIGER 200"),
+    ("EWY", "EWY", "한국 MSCI"),
+    ("FLKR", "FLKR", "한국 FTSE"),
 ]
-SELLS = (
-    (0.25, 0.10, "10% 매도"),
-    (0.35, 0.20, "20% 매도"),
-    (0.45, 0.30, "30% 매도"),
-    (0.60, 0.40, "40% 매도"),
-)
+
+# Annual Q1 market-cap leader, American Business History Center via Visual Capitalist.
+# Switched on the first session on or after January 1 of that year, not a daily tape.
+US_LEADERS = [
+    ("2000-01-01", "MSFT", "마이크로소프트"),
+    ("2001-01-01", "GE", "제너럴일렉트릭"),
+    ("2003-01-01", "MSFT", "마이크로소프트"),
+    ("2004-01-01", "GE", "제너럴일렉트릭"),
+    ("2005-01-01", "XOM", "엑슨모빌"),
+    ("2012-01-01", "AAPL", "애플"),
+    ("2019-01-01", "MSFT", "마이크로소프트"),
+    ("2021-01-01", "AAPL", "애플"),
+    ("2024-01-01", "MSFT", "마이크로소프트"),
+    ("2025-01-01", "AAPL", "애플"),
+]
+# Korea common-stock leader: Samsung from 2000-11-21, SK hynix from the 2026-06-22 close.
+KR_LEADERS = [
+    ("2000-11-21", "005930.KS", "삼성전자"),
+    ("2026-06-22", "000660.KS", "SK하이닉스"),
+]
+# Japan: NTT Docomo led a June 2000 ranking; Toyota was reported as #1 from 2003;
+# SoftBank Group was reported ahead of Toyota on 2026-06-02.
+JP_LEADERS = [
+    ("2000-01-01", "9437.T", "NTT도코모"),
+    ("2003-01-01", "7203.T", "토요타"),
+    ("2026-06-02", "9984.T", "소프트뱅크그룹"),
+]
 
 
 def fetch(ticker):
@@ -47,376 +85,246 @@ def fetch(ticker):
     if not result:
         raise RuntimeError(f"no prices for {ticker}")
     block = result[0]
-    stamps = block.get("timestamp") or []
-    closes = ((block.get("indicators") or {}).get("quote") or [{}])[0].get("close") or []
     rows = []
-    for stamp, close in zip(stamps, closes):
+    closes = ((block.get("indicators") or {}).get("quote") or [{}])[0].get("close") or []
+    for stamp, close in zip(block.get("timestamp") or [], closes):
         if not isinstance(close, (int, float)) or close <= 0:
             continue
         day = datetime.fromtimestamp(stamp, timezone.utc).date()
-        if day.isoformat() < "2000-01-01" or day.isoformat() > CUTOFF:
+        if day.isoformat() > CUTOFF:
             continue
-        rows.append({"date": day, "close": float(close)})
+        rows.append((day, float(close)))
     dividends = {}
-    events = (block.get("events") or {}).get("dividends") or {}
-    for item in events.values():
+    for item in ((block.get("events") or {}).get("dividends") or {}).values():
         day = datetime.fromtimestamp(item["date"], timezone.utc).date()
-        dividends[day] = dividends.get(day, 0.0) + float(item["amount"])
+        amount = float(item.get("amount") or 0)
+        if amount > 0:
+            dividends[day] = dividends.get(day, 0.0) + amount
     if not rows:
         raise RuntimeError(f"no bars for {ticker}")
-    return rows, dividends
+    return {"rows": rows, "dividends": dividends}
 
 
-def buy_rungs(drop):
-    """15% down buys 10% of the frozen account. From 25% down, buy the same percent."""
-    if drop + 1e-9 < 0.15:
-        return []
-    levels = [(0.15, 0.10)]
-    step = 0.25
-    while step <= drop + 1e-9:
-        levels.append((round(step, 10), round(step, 10)))
-        step += 0.10
-    return levels
+def load_all(tickers):
+    found = {}
+    failed = []
+
+    def one(ticker):
+        try:
+            return ticker, fetch(ticker), None
+        except Exception as exc:
+            return ticker, None, exc
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        futures = [pool.submit(one, ticker) for ticker in tickers]
+        for future in as_completed(futures):
+            ticker, payload, exc = future.result()
+            if exc is not None:
+                failed.append(ticker)
+                print("fail", ticker, exc)
+                continue
+            found[ticker] = payload
+            print("ok", ticker, payload["rows"][0][0], payload["rows"][-1][0], "div", len(payload["dividends"]))
+    return found, failed
 
 
-def run(rows, dividends):
-    cash = START_CASH
+def hold_return(rows, dividends):
+    usable = [(day, price) for day, price in rows if day.isoformat() >= "2000-01-01"]
+    if not usable:
+        usable = rows
+    shares = START_CASH / usable[0][1]
+    paid = 0
+    for index, (day, price) in enumerate(usable):
+        if index == 0 or day not in dividends:
+            continue
+        shares += shares * dividends[day] / price
+        paid += 1
+    end = shares * usable[-1][1]
+    years = max((usable[-1][0] - usable[0][0]).days, 1) / 365.25
+    return {
+        "started": usable[0][0].isoformat(),
+        "ended": usable[-1][0].isoformat(),
+        "return_pct": (end / START_CASH - 1.0) * 100.0,
+        "cagr": ((end / START_CASH) ** (1.0 / years) - 1.0) * 100.0,
+        "dividends": paid,
+    }
+
+
+def leader_on(leaders, day):
+    chosen = leaders[0]
+    for item in leaders:
+        if day.isoformat() >= item[0]:
+            chosen = item
+    return chosen
+
+
+def sleeve_return(leaders, books):
+    needed = []
+    for _start, ticker, _name in leaders:
+        if ticker not in books:
+            return None, ticker
+        needed.append(ticker)
+    calendar = sorted({day for ticker in needed for day, _price in books[ticker]["rows"]})
+    calendar = [day for day in calendar if day.isoformat() >= leaders[0][0] and day.isoformat() <= CUTOFF]
+    price = {
+        ticker: {day: close for day, close in books[ticker]["rows"]}
+        for ticker in needed
+    }
     shares = 0.0
-    cost = 0.0
-    ref_price = rows[0]["close"]
-    ref_kind = "시작"
-    frozen = START_CASH
-    buy_done = set()
-    sell_done = set()
-    skip_next = False
-    curve = []
-    last = None
-
-    def equity(price):
-        return cash + shares * price
-
-    def buy(price, dollars):
-        nonlocal cash, shares, cost
-        dollars = min(dollars, cash)
-        if dollars <= 1e-8:
-            return 0.0
-        shares += dollars / price
-        cost += dollars
-        cash -= dollars
-        return dollars
-
-    def sell(price, qty):
-        nonlocal cash, shares, cost
-        qty = min(max(qty, 0.0), shares)
-        if qty <= 1e-10:
-            return 0.0
-        cash += qty * price
-        cost = 0.0 if qty >= shares - 1e-10 else cost * (shares - qty) / shares
-        shares -= qty
-        if shares <= 1e-8:
-            shares = 0.0
-            cost = 0.0
-        return qty
-
-    for row in rows:
-        price = row["close"]
-        day = row["date"]
-        actions = []
-        sold_all_today = False
-        skipped_today = False
-        if shares > 0 and day in dividends:
-            payout = shares * dividends[day]
-            if payout > 0:
-                shares += payout / price
-                cost += payout
-        if shares > 0 and cost > 0:
-            avg = cost / shares
-            ret = price / avg - 1.0
-            if ret <= 0:
-                sell_done = set()
-            elif ret >= 0.25:
-                for threshold, fraction, label in SELLS:
-                    if ret >= threshold and threshold not in sell_done and shares > 0:
-                        if sell(price, shares * fraction):
-                            actions.append(label)
-                        sell_done.add(threshold)
-                if ret >= 1.0 and shares > 0:
-                    if sell(price, shares):
-                        actions.append("전량 매도")
-                    sell_done.add(1.0)
-            if shares == 0:
-                ref_price = price
-                ref_kind = "매도"
-                frozen = cash
-                buy_done = set()
-                sell_done = set()
-                sold_all_today = True
-                skip_next = True
-        if sold_all_today:
-            pass
-        elif skip_next:
-            skip_next = False
-            skipped_today = True
-        else:
-            drop = 1.0 - price / ref_price
-            for rung, portion in buy_rungs(drop):
-                if rung in buy_done:
+    cash = START_CASH
+    held = None
+    started = None
+    ended = calendar[0]
+    for day in calendar:
+        _rule, want, _label = leader_on(leaders, day)
+        if held and day in books[held]["dividends"] and held in price and day in price[held] and shares > 0:
+            shares += shares * books[held]["dividends"][day] / price[held][day]
+        if held != want:
+            if held is not None:
+                if held not in price or day not in price[held] or want not in price or day not in price[want]:
+                    if held in price and day in price[held]:
+                        ended = day
                     continue
-                spent = buy(price, frozen * portion)
-                buy_done.add(rung)
-                if spent > 0:
-                    actions.append(f"{portion * 100:.0f}% 매수")
-        curve.append(equity(price))
-        last = {
-            "date": day,
-            "price": price,
-            "shares": shares,
-            "cost": cost,
-            "cash": cash,
-            "actions": actions,
-            "ref_price": ref_price,
-            "ref_kind": ref_kind,
-            "sell_done": set(sell_done),
-            "buy_done": set(buy_done),
-            "skipped": skipped_today,
-        }
-    return curve, last
+                cash += shares * price[held][day]
+                shares = 0.0
+                held = None
+            if want in price and day in price[want] and cash > 0:
+                shares = cash / price[want][day]
+                cash = 0.0
+                held = want
+                if started is None:
+                    started = day
+        if held in price and day in price[held]:
+            ended = day
+    if started is None or held not in price or ended not in price[held]:
+        return None, held or needed[0]
+    end_value = cash + shares * price[held][ended]
+    years = max((ended - started).days, 1) / 365.25
+    current_name = leader_on(leaders, ended)[2]
+    return {
+        "started": started.isoformat(),
+        "ended": ended.isoformat(),
+        "return_pct": (end_value / START_CASH - 1.0) * 100.0,
+        "cagr": ((end_value / START_CASH) ** (1.0 / years) - 1.0) * 100.0,
+        "current": current_name,
+        "dividends": 1,
+    }, None
 
 
-def judgment(state):
-    price = state["price"]
-    ref = state["ref_price"]
-    ref_name = "시작 종가" if state["ref_kind"] == "시작" else "매도가"
-    gap = price / ref - 1.0
-    actions = state["actions"]
-    buys = [item for item in actions if item.endswith("매수")]
-    sells = [item for item in actions if "매도" in item]
-    if state["shares"] > 0 and state["cost"] > 0:
-        avg = state["cost"] / state["shares"]
-        versus = price / avg - 1.0
-        base = (
-            f"종가 {fmt_price(price)}, 평단 {fmt_price(avg)}, 평단 대비 {versus * 100:+.1f}%. "
-            f"{ref_name} {fmt_price(ref)}, 기준가 대비 {gap * 100:+.1f}%."
-        )
-    else:
-        base = f"종가 {fmt_price(price)}, {ref_name} {fmt_price(ref)}, 기준가 대비 {gap * 100:+.1f}%."
-        avg = None
-        versus = None
-    if "전량 매도" in sells:
-        return "전량 매도", "sell", base + " 평단 대비 100% 이상이라 남은 수량을 모두 팔았습니다. 다음 거래일에는 사지 않습니다."
-    if sells:
-        return sells[-1], "sell", base + f" 평단 상승 구간이라 {sells[-1]}를 실행했습니다."
-    if buys:
-        extra = ""
-        if len(buys) > 1:
-            extra = " 같은 날 " + ", ".join(buys[:-1]) + "도 먼저 했습니다."
-        return buys[-1], "buy", base + f" 기준가 하락 구간이라 {buys[-1]}를 실행했습니다." + extra
-    if state["shares"] <= 0:
-        if state.get("skipped"):
-            return "매수 대기", "hold", base + " 전량 매도 다음 거래일이라 사지 않습니다."
-        return "매수 대기", "hold", base + " 15% 하락 전에는 사지 않습니다. 현금으로 기다립니다."
-    if versus <= 0:
-        return "보유", "hold", base + " 평단 아래라 매도하지 않습니다. 매수는 기준가 하락 구간에서만 합니다."
-    if versus < 0.25:
-        return "보유", "hold", base + " 평단 대비 25% 상승 전에는 팔지 않아 보유입니다."
-    done = [label for threshold, _, label in SELLS if versus >= threshold and threshold in state["sell_done"]]
-    if 1.0 in state["sell_done"]:
-        done.append("전량 매도")
-    if done:
-        return "보유", "hold", base + f" {done[-1]}는 이번 상승에서 이미 실행했습니다. 평단으로 돌아오기 전에는 같은 매도를 반복하지 않습니다."
-    return "보유", "hold", base + " 보유입니다."
-
-
-def fmt_price(value):
-    if value >= 1000:
-        return f"{value:,.0f}"
-    return f"{value:,.2f}"
-
-
-def polyline(values, width, height, pad):
-    if not values:
-        return ""
-    low = min(values)
-    high = max(values)
-    if high == low:
-        high += 1.0
-    step = max(1, len(values) // 420)
-    picked = list(range(0, len(values), step))
-    if picked[-1] != len(values) - 1:
-        picked.append(len(values) - 1)
-    points = []
-    span = max(1, len(values) - 1)
-    for index in picked:
-        x = pad + (width - 2 * pad) * index / span
-        y = pad + (height - 2 * pad) * (high - values[index]) / (high - low)
-        points.append(f"{x:.1f},{y:.1f}")
-    return " ".join(points)
-
-
-def page(results, stamped):
-    cards = []
-    for item in results:
-        label, kind, reason = item["signal"]
-        late = ""
-        if item["started"] != "2000-01-03":
-            late = f" 상장일이 {item['started']}라 그날 종가를 기준가로 두고 전액 현금에서 시작했습니다."
-        cards.append(
-            f'<article class="signal {kind}">'
-            f'<h2>{html.escape(item["label"])} <span>{html.escape(item["code"])}</span></h2>'
-            f'<p class="badge">{html.escape(label)}</p>'
-            f'<p class="split">현금 보유 {item["cash_pct"]:.1f}% · 투자(주식) {item["invest_pct"]:.1f}%</p>'
-            f'<p>{html.escape(reason)}{html.escape(late)}</p>'
-            f'</article>'
-        )
-    rows = []
-    for item in results:
-        rows.append(
+def page(rows, failed, stamped):
+    body = []
+    for item in rows:
+        div = "배당 없음" if item["dividends"] == 0 else "배당 재투자"
+        body.append(
             "<tr>"
-            f'<td>{html.escape(item["label"])}</td>'
-            f'<td>{html.escape(item["code"])}</td>'
-            f'<td>{html.escape(item["started"])}</td>'
-            f'<td>{html.escape(item["ended"])}</td>'
-            f'<td>{item["return_pct"]:+.1f}%</td>'
-            f'<td>{item["multiple"]:.2f}배</td>'
+            f"<td>{html.escape(item['name'])}</td>"
+            f"<td>{html.escape(item['code'])}</td>"
+            f"<td>{html.escape(item['started'])}</td>"
+            f"<td>{item['return_pct']:+.1f}%</td>"
+            f"<td>{item['cagr']:.2f}%</td>"
+            f"<td>{div}</td>"
             "</tr>"
         )
-    width, height, pad = 760, 280, 28
-    colors = {"SPY": "#7dcea0", "QQQ": "#4da3ff", "226490": "#f7dc6f"}
-    lines = []
-    for item in results:
-        points = polyline(item["curve"], width, height, pad)
-        lines.append(
-            f'<polyline fill="none" stroke="{colors[item["code"]]}" stroke-width="2" points="{points}"/>'
-        )
-    legend = " · ".join(
-        f'<span style="color:{colors[item["code"]]}">{html.escape(item["code"])}</span>' for item in results
-    )
+    missing = ""
+    if failed:
+        missing = "<p class=\"note\">가격을 받지 못한 종목: " + html.escape(", ".join(failed)) + ".</p>"
     return f'''<!DOCTYPE html>
 <html lang="ko">
 <head>
   <script src="/Premium/gate.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>후지모토 시게루 타점</title>
+  <title>인덱스 배당 재투자법</title>
   <style>
     body {{ background: #111; color: #fff; font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; margin: 0; padding: 16px; }}
     a {{ color: #4da3ff; }}
     .home {{ color: #D8C0FF; font-size: 28px; text-decoration: none; }}
     h1 {{ text-align: center; color: #FFFFE0; font-size: 32px; line-height: 1.35; }}
-    .note, .rules {{ max-width: 980px; margin: 8px auto; color: #ccc; font-size: 18px; line-height: 1.55; }}
-    .signals {{ max-width: 980px; margin: 12px auto; display: grid; grid-template-columns: 1fr; gap: 12px; }}
-    .signal {{ border: 1px solid #444; border-radius: 12px; padding: 14px 16px; background: #181818; }}
-    .signal h2 {{ margin: 0 0 6px; font-size: 22px; }}
-    .signal h2 span {{ color: #D8C0FF; font-size: 16px; margin-left: 6px; }}
-    .badge {{ margin: 0 0 8px; font-size: 28px; font-weight: 800; }}
-    .signal.buy .badge {{ color: #7dcea0; }}
-    .signal.sell .badge {{ color: #f1948a; }}
-    .signal.hold .badge {{ color: #f7dc6f; }}
-    .signal p {{ margin: 0; color: #ddd; font-size: 18px; line-height: 1.5; }}
-    .split {{ margin: 0 0 8px; color: #fff; font-size: 20px; font-weight: 700; }}
-    table {{ max-width: 980px; width: 100%; margin: 8px auto 16px; border-collapse: collapse; }}
-    table.ladder {{ max-width: 720px; margin: 12px 0 18px; }}
-    table.ladder th, table.ladder td {{ text-align: left; }}
+    .note {{ max-width: 980px; margin: 8px auto; color: #ccc; font-size: 18px; line-height: 1.55; }}
+    table {{ max-width: 980px; width: 100%; margin: 12px auto; border-collapse: collapse; }}
     th, td {{ border-bottom: 1px solid #333; padding: 10px 8px; text-align: right; font-size: 18px; }}
     th {{ color: #D8C0FF; }}
-    td:first-child, th:first-child, td:nth-child(2), th:nth-child(2) {{ text-align: left; }}
-    svg {{ width: min(980px, 100%); height: auto; display: block; margin: 0 auto; background: #0c0c0c; border: 1px solid #333; border-radius: 8px; }}
-    .legend {{ max-width: 980px; margin: 8px auto; color: #ccc; }}
-    h2.sec {{ max-width: 980px; margin: 22px auto 8px; color: #FFFFE0; font-size: 24px; }}
+    td:first-child, th:first-child, td:nth-child(2), th:nth-child(2), td:last-child, th:last-child {{ text-align: left; }}
     @media (max-width: 800px) {{
       h1 {{ font-size: 26px; }}
-      .badge {{ font-size: 24px; }}
+      th, td {{ font-size: 15px; padding: 8px 4px; }}
     }}
   </style>
 </head>
 <body>
   <p><a class="home" href="/Premium/weather/index.html">← 주가 방향 날씨</a></p>
-  <h1>후지모토 시게루 타점</h1>
-  <p class="note">투자 권유가 아닙니다. 기준 시각 {html.escape(stamped)}. 2026-11-22는 일요일이라 그 이전 마지막 거래일 종가까지입니다.</p>
-  <p class="note">처음에는 전액 현금입니다. 시작 종가나 전량 매도가보다 15% 내릴 때 그 기준 계좌의 10%를 사고, 더 내리면 같은 기준 금액으로 25%, 35%, 45%를 삽니다. 전량 매도 다음 거래일에는 사지 않습니다. 현금이 남으면 그대로 둡니다.</p>
-  <h2 class="sec">지금 판단</h2>
-  <div class="signals">
-    {''.join(cards)}
-  </div>
-  <h2 class="sec">매매법 개요</h2>
-  <div class="rules">
-    <p>보유 중 매도와 보유는 평단 기준입니다. 배당은 그날 종가로 다시 사서 평단에 넣습니다. 같은 매도 구간은 평단으로 돌아오기 전에 한 번만 실행합니다.</p>
-    <table class="ladder">
-      <thead><tr><th>평단 대비</th><th>행동</th></tr></thead>
-      <tbody>
-        <tr><td>5~15% 상승</td><td>보유</td></tr>
-        <tr><td>25% 상승</td><td>보유 수량의 10% 매도</td></tr>
-        <tr><td>35% 상승</td><td>20% 매도</td></tr>
-        <tr><td>45% 상승</td><td>30% 매도</td></tr>
-        <tr><td>60% 상승</td><td>40% 매도</td></tr>
-        <tr><td>100% 상승</td><td>전량 매도</td></tr>
-      </tbody>
-    </table>
-    <p>매수는 평단이 아니라 기준가 대비입니다. 첫 기준가는 시작 종가이고, 전량 매도 뒤에는 그 매도가입니다. 전량 매도 다음 날에는 사지 않습니다. 현금이 남으면 그대로 둡니다. 각 구간은 그 기준가마다 한 번입니다.</p>
-    <table class="ladder">
-      <thead><tr><th>매도점(기준가) 대비</th><th>행동</th></tr></thead>
-      <tbody>
-        <tr><td>15% 하락</td><td>계좌의 10% 매수</td></tr>
-        <tr><td>25% 하락</td><td>25% 매수</td></tr>
-        <tr><td>35% 하락</td><td>35% 매수</td></tr>
-        <tr><td>45% 하락</td><td>45% 매수</td></tr>
-        <tr><td>이후 10%포인트마다</td><td>하락폭과 같은 비율 매수</td></tr>
-        <tr><td>전량 매도 다음 날</td><td>사지 않음</td></tr>
-        <tr><td>현금이 남으면</td><td>그대로 둠</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <h2 class="sec">배당 재투자 누적 수익률</h2>
+  <h1>인덱스 배당 재투자법</h1>
+  <p class="note">계속 보유하고 배당은 다시 그 종목에 재투자한다. 과거 가격으로 계산한 결과이며, 앞날의 수익을 뜻하지 않고 매수를 권하지 않는다. 기준 시각 {html.escape(stamped)}. 주식과 상장지수펀드는 2026-11-20 종가까지이고, 비트코인과 이더리움은 2026-11-22 종가까지다.</p>
+  <p class="note">미국 시총 1위는 아메리칸 비즈니스 히스토리 센터의 연도별 1분기 순위를 그해 첫 거래일에 교체한 것이다. 일별 순위가 아니다. 한국은 2000-11-21부터 삼성전자, 2026-06-22 종가부터는 보통주 기준 SK하이닉스다. 그 앞의 짧은 교체는 날짜가 확정되지 않아 빼었다. 일본은 NTT도코모 과거 시세를 받지 못해 2003-01-01 토요타부터이고, 2026-06-02 보도부터 소프트뱅크그룹이다. 2000년부터 2002년까지는 이 줄에 없다. 2025년 이후 미국의 일별 역전과, 2026년 6월 이후 한일 재역전은 이 표에 없다.</p>
   <table>
-    <thead><tr><th>종목</th><th>코드</th><th>시작</th><th>끝</th><th>누적 수익률</th><th>배수</th></tr></thead>
+    <thead><tr><th>이름</th><th>코드</th><th>시작</th><th>누적 수익률</th><th>연복리</th><th>배당</th></tr></thead>
     <tbody>
-      {''.join(rows)}
+      {''.join(body)}
     </tbody>
   </table>
-  <p class="legend">평가액 추이. 시작을 100으로 두었습니다. {legend}</p>
-  <svg viewBox="0 0 {width} {height}" role="img" aria-label="평가액 추이">
-    <line x1="{pad}" y1="{height - pad}" x2="{width - pad}" y2="{height - pad}" stroke="#555"/>
-    {''.join(lines)}
-  </svg>
-  <p class="note">평일 미국장 마감 후 <code>python Premium/weather/fujimoto/update_fujimoto.py</code>로 갱신합니다.</p>
+  {missing}
+  <p class="note">가격은 액면분할이 반영된 종가다. 배당이 있는 날은 그 배당금으로 같은 날 종가를 더 샀다. 배당 이벤트가 없으면 배당 없음이고, 가격 수익률만 보인다. 수수료는 없다. 상장이 2000년 이후인 종목은 첫 거래일부터다.</p>
+  <p class="note">평일 마감 후 <code>python Premium/weather/fujimoto/update_fujimoto.py</code>로 다시 계산한다.</p>
 </body>
 </html>
 '''
 
 
 def main():
-    results = []
-    for ticker, code, label in SYMBOLS:
-        rows, dividends = fetch(ticker)
-        curve, state = run(rows, dividends)
-        label_text, kind, reason = judgment(state)
-        end = curve[-1]
-        stock_value = state["shares"] * state["price"]
-        account = stock_value + state["cash"]
-        results.append({
+    tickers = [item[0] for item in INSTRUMENTS]
+    for _start, ticker, _name in US_LEADERS + KR_LEADERS + JP_LEADERS:
+        if ticker not in tickers:
+            tickers.append(ticker)
+    books, failed = load_all(tickers)
+    rows = []
+    for ticker, code, name in INSTRUMENTS:
+        if ticker not in books:
+            if ticker not in failed:
+                failed.append(ticker)
+            continue
+        stats = hold_return(books[ticker]["rows"], books[ticker]["dividends"])
+        rows.append({
+            "name": name,
             "code": code,
-            "label": label,
-            "started": rows[0]["date"].isoformat(),
-            "ended": rows[-1]["date"].isoformat(),
-            "return_pct": (end / START_CASH - 1.0) * 100.0,
-            "multiple": end / START_CASH,
-            "cash_pct": 100.0 * state["cash"] / account,
-            "invest_pct": 100.0 * stock_value / account,
-            "signal": (label_text, kind, reason),
-            "curve": [value / START_CASH * 100.0 for value in curve],
+            "started": stats["started"],
+            "ended": stats["ended"],
+            "return_pct": stats["return_pct"],
+            "cagr": stats["cagr"],
+            "dividends": stats["dividends"],
         })
-        print(
-            code,
-            results[-1]["started"],
-            results[-1]["ended"],
-            f'{results[-1]["return_pct"]:.1f}%',
-            label_text,
-            f'cash {results[-1]["cash_pct"]:.1f}%',
-            f'invest {results[-1]["invest_pct"]:.1f}%',
-        )
-        print(reason)
+        print(code, stats["started"], f'{stats["return_pct"]:+.1f}%', "div" if stats["dividends"] else "nodiv")
+
+    sleeves = [
+        ("미국 시총 1위", "US#1", US_LEADERS),
+        ("한국 시총 1위", "KR#1", KR_LEADERS),
+        ("일본 시총 1위", "JP#1", JP_LEADERS),
+    ]
+    for name, code, leaders in sleeves:
+        if leaders[0][1] not in books and name.startswith("일본"):
+            leaders = [item for item in leaders if item[1] in books]
+            if not leaders:
+                failed.append("일본 시총 1위")
+                continue
+        stats, missing = sleeve_return(leaders, books)
+        if stats is None:
+            failed.append(missing or code)
+            print("sleeve fail", name, missing)
+            continue
+        rows.append({
+            "name": f"{name} (지금 {stats['current']})",
+            "code": code,
+            "started": stats["started"],
+            "ended": stats["ended"],
+            "return_pct": stats["return_pct"],
+            "cagr": stats["cagr"],
+            "dividends": stats["dividends"],
+        })
+        print(name, stats["current"], stats["started"], f'{stats["return_pct"]:+.1f}%')
+
+    rows.sort(key=lambda item: item["return_pct"], reverse=True)
     stamped = datetime.now(KST).strftime("%Y-%m-%d %H:%M KST")
-    PAGE.write_text(page(results, stamped), encoding="utf-8")
+    PAGE.write_text(page(rows, failed, stamped), encoding="utf-8")
+    print("failed", failed)
     print(f"wrote {PAGE}")
 
 
