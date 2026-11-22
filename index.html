@@ -271,10 +271,14 @@ body.menu-open { overflow: hidden; }
     <a class="sub" href="Premium/weather/chart/index.html">차트보는법</a>
   </nav>
   <nav class="menu-group">
-    <h3>그 외</h3>
+    <h3>AI 혁신주 타점</h3>
     <a href="Premium/ai-trend/index.html">AI 혁신주 타점</a>
+  </nav>
+  <nav class="menu-group">
+    <h3>경기사이클 타점</h3>
     <a href="Premium/cycle/index.html">경기사이클 타점</a>
-    <a href="Premium/index.html">프리미엄 홈</a>
+  </nav>
+  <nav class="menu-group">
     <a href="index.html">한스장랩 홈</a>
   </nav>
   </div>
@@ -908,7 +912,6 @@ style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 
   /* 전체 메뉴를 상단 메뉴(.top-menu)와 각 허브 페이지의 하위 메뉴(.topbar a)에서
      자동으로 읽어 구성한다. 메뉴를 추가하면 별도 수정 없이 그대로 반영된다. */
   var EXTRA = [
-    { title: "프리미엄 홈", path: "/Premium/index.html" },
     { title: "한스장랩 홈", path: "/index.html" }
   ];
   var menuState = "idle";
@@ -977,9 +980,6 @@ style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 
     });
     var extra = document.createElement("nav");
     extra.className = "menu-group";
-    var eh = document.createElement("h3");
-    eh.textContent = "그 외";
-    extra.appendChild(eh);
     EXTRA.forEach(function (e) {
       var a = document.createElement("a");
       a.href = e.path;
