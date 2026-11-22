@@ -120,6 +120,35 @@ h1 img { width: calc(100% + 60px); max-width: none; height: auto; display: block
   .cycle-now .state { font-size: 15px; }
 }
 .site-foot { text-align: center; color: #8a8178; font-size: 16px; margin: 28px 0 4px; }
+.menu-bar { max-width: 1140px; margin: 0 auto 10px; display: flex; align-items: center; }
+.hamburger {
+  display: inline-flex; flex-direction: column; justify-content: center; gap: 5px;
+  width: 48px; height: 48px; padding: 0 11px; box-sizing: border-box;
+  background: #fffdf8; border: 2px solid #c9c1b4; border-radius: 10px;
+  cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.14);
+}
+.hamburger span { display: block; height: 3px; background: #2c2824; border-radius: 2px; }
+.hamburger:hover { background: #f4efe6; }
+.hamburger:active { transform: translateY(1px); }
+.menu-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 9998; }
+.menu-overlay.open { opacity: 1; pointer-events: auto; }
+.menu-panel {
+  position: fixed; top: 0; left: 0; bottom: 0; width: 340px; max-width: 88vw;
+  background: #fffdf8; z-index: 9999; overflow-y: auto;
+  transform: translateX(-100%); transition: transform 0.22s ease;
+  box-shadow: 4px 0 18px rgba(0,0,0,0.25);
+}
+.menu-panel.open { transform: translateX(0); }
+.menu-panel-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid #e6ddcd; position: sticky; top: 0; background: #fffdf8; }
+.menu-panel-head strong { font-size: 20px; color: #008C95; }
+.menu-close { background: none; border: 0; font-size: 28px; line-height: 1; cursor: pointer; color: #6d6357; padding: 0 6px; }
+.menu-group { padding: 4px 0 8px; }
+.menu-group > h3 { margin: 12px 16px 4px; font-size: 15px; color: #8a8178; font-weight: 700; }
+.menu-group a { display: block; padding: 11px 16px; color: #2c2824; text-decoration: none; font-size: 17px; border-bottom: 1px solid #f0e9dd; }
+.menu-group a:hover { background: #f4efe6; color: #008C95; }
+.menu-group a.sub { padding-left: 30px; font-size: 16px; color: #4a443c; }
+body.menu-open { overflow: hidden; }
+@media (max-width: 700px) { .menu-bar { margin-bottom: 8px; } .menu-group a { font-size: 16px; } }
 </style>
 <style id="hotissue-css">
 #hotissue { background: #111; color: #fff; border-radius: 12px; padding: 8px 12px 16px; margin: 12px auto 8px; max-width: 1100px; }
@@ -206,7 +235,49 @@ h1 img { width: calc(100% + 60px); max-width: none; height: auto; display: block
   #hotissue .heads li { font-size: 20px; }
 }
 </style>
-</head> <body>  <nav class="top-menu">
+</head> <body>
+<div class="menu-bar">
+  <button type="button" class="hamburger" id="hamburger" aria-label="전체 메뉴 열기" aria-expanded="false" aria-controls="menu-panel">
+    <span></span><span></span><span></span>
+  </button>
+</div>
+<div class="menu-overlay" id="menu-overlay"></div>
+<aside class="menu-panel" id="menu-panel" aria-hidden="true">
+  <div class="menu-panel-head">
+    <strong>전체 메뉴</strong>
+    <button type="button" class="menu-close" id="menu-close" aria-label="메뉴 닫기">×</button>
+  </div>
+  <nav class="menu-group">
+    <h3>한스장 타점</h3>
+    <a href="Premium/hansjang/index.html">한스장 타점</a>
+    <a class="sub" href="Premium/hansjang/200W/index.html">한스장 시크리컬 200주 매수타점</a>
+    <a class="sub" href="Premium/hansjang/BOND/index.html">채권 타점</a>
+    <a class="sub" href="Premium/hansjang/DRIP/index.html">버핏 적립보유법</a>
+  </nav>
+  <nav class="menu-group">
+    <h3>차트 매매 타점</h3>
+    <a href="Premium/weather/index.html">차트 매매 타점</a>
+    <a class="sub" href="Premium/weather/핫이슈/index.html">핫이슈</a>
+    <a class="sub" href="Premium/weather/downup/index.html">급등주 급락주</a>
+    <a class="sub" href="Premium/weather/BNF/index.html">BNF 매수점</a>
+    <a class="sub" href="Premium/weather/donchian/index.html">돈치안 돌파</a>
+    <a class="sub" href="Premium/weather/rsi/index.html">RSI 반전</a>
+    <a class="sub" href="Premium/weather/200/index.html">200이평 매매법</a>
+    <a class="sub" href="Premium/weather/cross/index.html">골든 데드크로스</a>
+    <a class="sub" href="Premium/weather/week200/index.html">200주이평 매매법</a>
+    <a class="sub" href="Premium/weather/muhan/index.html">TQQQ 무한매수</a>
+    <a class="sub" href="Premium/weather/feargreed/index.html">CNN 공포지수 매수</a>
+    <a class="sub" href="Premium/weather/chart/index.html">차트보는법</a>
+  </nav>
+  <nav class="menu-group">
+    <h3>그 외</h3>
+    <a href="Premium/ai-trend/index.html">AI 혁신주 타점</a>
+    <a href="Premium/cycle/index.html">경기사이클 타점</a>
+    <a href="Premium/index.html">프리미엄 홈</a>
+    <a href="index.html">한스장랩 홈</a>
+  </nav>
+</aside>
+  <nav class="top-menu">
 <a class="menu-btn" href="Premium/hansjang/index.html" target="_blank">한스장 타점</a>
 <a class="menu-btn" href="Premium/weather/index.html" target="_blank">차트 매매 타점</a>
 <a class="menu-btn" href="Premium/ai-trend/index.html" target="_blank">AI 혁신주 타점</a>
@@ -799,4 +870,29 @@ style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 
 })();
 </script>
 <p class="site-foot">© 2026 한스장랩 All rights reserved.</p>
-</body> </html>
+<script>
+(function () {
+  var btn = document.getElementById("hamburger");
+  var panel = document.getElementById("menu-panel");
+  var overlay = document.getElementById("menu-overlay");
+  var closeBtn = document.getElementById("menu-close");
+  if (!btn || !panel || !overlay) return;
+  function setOpen(open) {
+    panel.classList.toggle("open", open);
+    overlay.classList.toggle("open", open);
+    document.body.classList.toggle("menu-open", open);
+    panel.setAttribute("aria-hidden", open ? "false" : "true");
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  btn.addEventListener("click", function () {
+    setOpen(!panel.classList.contains("open"));
+  });
+  overlay.addEventListener("click", function () { setOpen(false); });
+  if (closeBtn) closeBtn.addEventListener("click", function () { setOpen(false); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") setOpen(false);
+  });
+})();
+</script>
+</body>
+</html>
