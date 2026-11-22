@@ -18,7 +18,7 @@
       padding: 22px 22px 14px;
     }
     .clock-top { display: flex; align-items: center; gap: 10px; margin: 0 4px 8px; }
-    .clock-top h2 { margin: 0; font-size: 22px; font-weight: 700; }
+    .clock-top h2 { margin: 0; font-size: 44px; font-weight: 700; }
     .clock-top span { color: #6d7682; font-size: 14px; }
     #update-btn { margin-left: auto; background: #243041; color: #fff; border: 0; border-radius: 8px; font-size: 15px; padding: 8px 14px; cursor: pointer; }
     #update-btn:disabled { opacity: 0.6; cursor: default; }
@@ -522,6 +522,50 @@ svg.appendChild(plant);
         group.appendChild(dot);
       });
       svg.appendChild(group);
+      var janMarks = [];
+      points.forEach(function (point) {
+        if (point.month !== 1) return;
+        janMarks.push({ year: point.year, month: point.month, x: xOf(point.obs), y: yOf(point.mom) });
+      });
+      janMarks.sort(function (a, b) { return a.x - b.x; });
+      var placedYears = [];
+      var yearHalf = 26;
+      janMarks.forEach(function (item) {
+        var labelX = item.x;
+        if (labelX < plot.left + yearHalf) labelX = plot.left + yearHalf;
+        if (labelX > plot.right - yearHalf) labelX = plot.right - yearHalf;
+        function yearClash(px, py) {
+          return placedYears.some(function (box) {
+            return Math.abs(box.x - px) < yearHalf * 2 && Math.abs(box.y - py) < 16;
+          });
+        }
+        var labelY = item.y - 12;
+        if (labelY < plot.top + 16 || yearClash(labelX, labelY)) labelY = item.y + 20;
+        if (yearClash(labelX, labelY)) labelY = item.y + 38;
+        placedYears.push({ x: labelX, y: labelY });
+        svg.appendChild(svgEl("circle", {
+          cx: item.x.toFixed(1),
+          cy: item.y.toFixed(1),
+          r: "5",
+          fill: "none",
+          stroke: "#243041",
+          "stroke-width": "2"
+        }));
+        var yearText = svgEl("text", {
+          x: labelX.toFixed(1),
+          y: labelY.toFixed(1),
+          fill: "#243041",
+          "font-size": "13",
+          "font-weight": "700",
+          "text-anchor": "middle",
+          "paint-order": "stroke",
+          stroke: "#f6f5f1",
+          "stroke-width": "4",
+          "stroke-linejoin": "round"
+        });
+        yearText.textContent = item.year + "." + String(item.month).padStart(2, "0");
+        svg.appendChild(yearText);
+      });
       var first = points[0];
       var latest = points[points.length - 1];
       var labelX = xOf(latest.obs) + 12;
