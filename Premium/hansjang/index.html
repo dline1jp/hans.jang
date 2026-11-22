@@ -56,6 +56,14 @@
     .bond-card.wait .badge { background: #f7dc6f; color: #3a3000; }
     .bond-card .bond-meta { margin: 0 0 6px; font-size: 14px; font-weight: 700; color: #D8C0FF; }
     .bond-card .bond-desc { margin: 0; font-size: 14px; line-height: 1.5; color: #ddd; }
+    .drip-top { margin-top: 18px; }
+    .drip-top h2 { margin: 0 0 6px; font-size: 28px; color: #FFFFE0; text-align: center; }
+    .drip-top h2 a { color: inherit; text-decoration: none; }
+    .drip-top h2 a:hover { color: #ffd76a; }
+    .drip-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    .drip-table th, .drip-table td { border-bottom: 1px solid #333; padding: 8px 6px; text-align: right; font-size: 16px; }
+    .drip-table th { color: #D8C0FF; }
+    .drip-table td:first-child, .drip-table th:first-child { text-align: left; }
     @media (max-width: 800px) {
       html, body { overflow-x: hidden; max-width: 100%; }
       .topbar { max-width: 100%; }
@@ -69,6 +77,8 @@
       .bond-now h2 { font-size: 22px; }
       .bond-grid { grid-template-columns: 1fr; }
       .bond-rule, .bond-card .bond-desc { font-size: 14px; }
+      .drip-top h2 { font-size: 22px; }
+      .drip-table th, .drip-table td { font-size: 14px; padding: 7px 4px; }
     }
   </style>
 </head>
@@ -76,6 +86,7 @@
   <div class="topbar">
     <span class="menu-slot"><span class="menu-horizon">시크리컬 장기(주봉 200주 이평 접근 시, 단 버블기는 예외)</span><a class="topbar-link" href="200W/index.html">한스장 시크리컬 200주 매수타점</a></span>
     <span class="menu-slot"><span class="menu-horizon">장기(주봉 20년, TNX 방향 확인 후 판단)</span><a class="topbar-link" href="BOND/index.html">채권 타점</a></span>
+    <span class="menu-slot"><span class="menu-horizon">장기(매달 1일경 30만 원, 배당 재투자)</span><a class="topbar-link" href="DRIP/index.html">버핏옹 그냥 보유법</a></span>
   </div>
   <h1>한스장 시크리컬 200주 매수타점(단 버블기는 예외)</h1>
   <!-- NOTE_START -->
@@ -103,6 +114,16 @@
         <p class="bond-desc">요약을 불러오는 중입니다.</p>
       </article>
     </div>
+    <!-- DRIP_TOP_START -->
+    <div class="drip-top">
+      <h2><a href="DRIP/index.html">버핏옹 그냥 보유법</a></h2>
+      <p class="bond-note">매달 1일경 30만 원씩 넣고, 배당은 전액 다시 사며, 팔지 않는다.</p>
+      <table class="drip-table"><thead><tr><th>이름</th><th>시작</th><th>납입</th><th>수익</th></tr></thead><tbody>
+        <tr><td>비트코인</td><td>2014-09-17</td><td>44,100,000원</td><td>+4285.6%</td></tr><tr><td>반도체 VanEck</td><td>2003-12-01</td><td>82,800,000원</td><td>+2017.4%</td></tr><tr><td>반도체 iShares</td><td>2003-12-01</td><td>82,800,000원</td><td>+1673.8%</td></tr><tr><td>미국 시총 1위 (지금 애플)</td><td>2003-12-01</td><td>82,800,000원</td><td>+1299.5%</td></tr><tr><td>한국 시총 1위 (지금 SK하이닉스)</td><td>2000-11-21</td><td>93,900,000원</td><td>+1042.8%</td></tr><tr><td>나스닥 100</td><td>2003-12-01</td><td>82,800,000원</td><td>+958.3%</td></tr><tr><td>S&amp;P 500</td><td>2003-12-01</td><td>82,800,000원</td><td>+476.2%</td></tr><tr><td>뱅가드 S&amp;P 500</td><td>2010-09-09</td><td>58,500,000원</td><td>+288.6%</td></tr><tr><td>금</td><td>2004-11-18</td><td>79,500,000원</td><td>+242.9%</td></tr><tr><td>한국 MSCI</td><td>2003-12-01</td><td>82,800,000원</td><td>+238.5%</td></tr>
+      </tbody></table>
+      <p class="bond-note"><a href="DRIP/index.html">전체 표 보기</a></p>
+    </div>
+    <!-- DRIP_TOP_END -->
   </section>
   <script src="summary-data.js"></script>
   <script src="mini-chart.js"></script>
