@@ -60,6 +60,18 @@
     </div>
         <p id="clock-status"></p>
   </section>
+  <section class="clock">
+    <div class="clock-top">
+      <h2>1. 경기사이클- 최근 3개월간 움직임 </h2>
+      <span id="clock2-asof">2026.09 기준</span>
+      <button type="button" id="update-btn-2">업데이트</button>
+    </div>
+    <div class="clock-layout">    <div class="chart-scroll">
+      <svg id="clock-2" viewBox="0 0 520 760" role="img" aria-label="OECD 경기 시계. 가로는 전월비, 세로는 100을 중심으로 한 CLI"></svg> </div>
+      <ul class="legend" id="legend-2"></ul>
+    </div>
+    <p id="clock2-status"></p>
+  </section>
   <div id="area-charts"></div>
   <script>
     var SUPABASE_URL = "https://vlvblacfffkalojefjwp.supabase.co";
@@ -192,8 +204,9 @@ function parsePeriod(raw) {
         return { area: area, name: LABEL[area] || area, color: COLOR[area] || "#445566", points: points };
       });
     }
-    function draw(series) {
-      var svg = document.getElementById("clock");
+    function draw(series, cfg) {
+      cfg = cfg || { svgId: "clock", asofId: "clock-asof", legendId: "legend" };
+      var svg = document.getElementById(cfg.svgId);
       while (svg.firstChild) svg.removeChild(svg.firstChild);
       var plot = { left: 46, top: 36, right: 500, bottom: 710 };
       plot.w = plot.right - plot.left;
@@ -342,8 +355,8 @@ svg.appendChild(plant);
       series.forEach(function (item) {
         item.points.forEach(function (point) { if (point.key > latestKey) latestKey = point.key; });
       });
-      document.getElementById("clock-asof").textContent = String(Math.floor(latestKey / 100)) + "." + String(latestKey % 100).padStart(2, "0") + " 기준";
-      var legend = document.getElementById("legend");
+      document.getElementById(cfg.asofId).textContent = String(Math.floor(latestKey / 100)) + "." + String(latestKey % 100).padStart(2, "0") + " 기준";
+      var legend = document.getElementById(cfg.legendId);
       legend.innerHTML = "";
       series.slice().sort(function (a, b) { return a.name.localeCompare(b.name, "ko"); }).forEach(function (item) {
         var latest = item.points[item.points.length - 1];
@@ -720,17 +733,21 @@ svg.appendChild(plant);
     function show(rows, message) {
       var series = seriesFrom(rows);
       if (!series.length) throw new Error("empty");
-      draw(series);
+      draw(series, { svgId: "clock", asofId: "clock-asof", legendId: "legend" });
+      draw(series, { svgId: "clock-2", asofId: "clock2-asof", legendId: "legend-2" });
       drawAllAreas(rows);
       document.getElementById("clock-status").textContent = message || "";
     }
     function bindUpdate() {
       var status = document.getElementById("clock-status");
-      var updateBtn = document.getElementById("update-btn");
-      if (!status || !updateBtn || updateBtn.dataset.bound === "1") return;
-      updateBtn.dataset.bound = "1";
+      var buttons = ["update-btn", "update-btn-2"].map(function (id) { return document.getElementById(id); }).filter(Boolean);
+      if (!status || !buttons.length || status.dataset.bound === "1") return;
+      status.dataset.bound = "1";
+      function setDisabled(flag) {
+        buttons.forEach(function (btn) { btn.disabled = flag; });
+      }
       function refresh(note) {
-        updateBtn.disabled = true;
+        setDisabled(true);
         note.textContent = "Supabase에서 불러오는 중…";
         return loadSupabase().then(function (rows) {
           if (!rows || !rows.length) throw new Error("empty");
@@ -741,12 +758,14 @@ svg.appendChild(plant);
             ? "Supabase 표에 읽을 수 있는 행이 없습니다. 표 권한(RLS)에서 anon 읽기를 허용해 주세요."
             : "Supabase에서 읽지 못했습니다 (" + reason + ").";
         }).then(function () {
-          updateBtn.disabled = false;
+          setDisabled(false);
         });
       }
       refresh(status);
-      updateBtn.addEventListener("click", function () {
-        refresh(document.getElementById("clock-status"));
+      buttons.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          refresh(document.getElementById("clock-status"));
+        });
       });
     }
     if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindUpdate);
