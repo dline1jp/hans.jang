@@ -228,6 +228,60 @@ def yield_text(value):
     return f"{value:.2f}%"
 
 
+def xirr(flows):
+    """Money-weighted annual return. Contributions are negative, the final value is positive."""
+    grouped = {}
+    for day, amount in flows:
+        grouped[day] = grouped.get(day, 0.0) + amount
+    flows = sorted(grouped.items())
+    if len(flows) < 2:
+        return None
+    start = flows[0][0]
+
+    def npv(rate):
+        base = 1.0 + rate
+        if base <= 0:
+            return None
+        total = 0.0
+        for day, amount in flows:
+            years = (day - start).days / 365.0
+            total += amount / (base ** years)
+        return total
+
+    zero = npv(0.0)
+    if zero is None:
+        return None
+    if abs(zero) < 1:
+        return 0.0
+    if zero > 0:
+        lo = 0.0
+        hi = 0.1
+        while True:
+            high = npv(hi)
+            if high is None:
+                return None
+            if high <= 0 or hi >= 100:
+                break
+            hi *= 2
+        if npv(hi) > 0:
+            return None
+    else:
+        hi = 0.0
+        lo = -0.9
+        if npv(lo) is None or npv(lo) < 0:
+            return None
+    for _ in range(80):
+        mid = (lo + hi) / 2
+        val = npv(mid)
+        if val is None:
+            return None
+        if val > 0:
+            lo = mid
+        else:
+            hi = mid
+    return ((lo + hi) / 2) * 100.0
+
+
 def result_row(name, code, started, contributed, ending, dividends, ticker=""):
     gain = (ending / contributed - 1.0) * 100.0
     return {
@@ -253,6 +307,7 @@ def simulate_one(rows, dividends, to_native, to_krw, floor):
     seen = set()
     started = None
     last_day = None
+    flows = []
     for day in days:
         close = price[day]
         last_day = day
@@ -267,6 +322,7 @@ def simulate_one(rows, dividends, to_native, to_krw, floor):
             continue
         shares += native / close
         contributed += MONTHLY_KRW
+        flows.append((day, -MONTHLY_KRW))
         seen.add(key)
         if started is None:
             started = day
@@ -275,7 +331,10 @@ def simulate_one(rows, dividends, to_native, to_krw, floor):
     ending = to_krw(shares * price[last_day], last_day)
     if ending is None:
         return None
-    return result_row("", "", started.isoformat(), contributed, ending, paid)
+    flows.append((last_day, ending))
+    stats = result_row("", "", started.isoformat(), contributed, ending, paid)
+    stats["xirr"] = xirr(flows)
+    return stats
 
 
 def simulate_sleeve(leaders, books, to_native, to_krw):
@@ -300,6 +359,7 @@ def simulate_sleeve(leaders, books, to_native, to_krw):
     started = None
     last_day = None
     last_price = None
+    flows = []
     for day in calendar:
         rule = leader_on(leaders, day)
         if rule is None:
@@ -329,6 +389,7 @@ def simulate_sleeve(leaders, books, to_native, to_krw):
                 if native is not None and native > 0:
                     shares += native / price[want][day]
                     contributed += MONTHLY_KRW
+                    flows.append((day, -MONTHLY_KRW))
                     seen.add(key)
                     if started is None:
                         started = day
@@ -338,8 +399,10 @@ def simulate_sleeve(leaders, books, to_native, to_krw):
     if ending is None:
         return None
     current = leader_on(leaders, last_day)
+    flows.append((last_day, ending))
     stats = result_row("", "", started.isoformat(), contributed, ending, paid, current[1])
     stats["holding"] = current[2]
+    stats["xirr"] = xirr(flows)
     return stats
 
 
@@ -405,6 +468,7 @@ def table_rows(rows, compact):
             f"<td>{won(item['contributed'])}</td>"
             f"{end}"
             f"<td>{item['gain']:+.1f}%</td>"
+            f"<td>{'' if item.get('xirr') is None else format(item['xirr'], '.1f') + '%'}</td>"
             f"<td>{yield_text(item.get('yield'))}</td>"
             f"{div}"
             "</tr>"
@@ -415,7 +479,7 @@ def table_rows(rows, compact):
 def full_page(rows, failed, stamped, fx_note):
     head = (
         "<tr><th>이름</th><th>시작</th><th>납입</th><th>평가액</th>"
-        "<th>수익</th><th>배당률</th><th>배당</th></tr>"
+        "<th>수익</th><th>연평균</th><th>배당률</th><th>배당</th></tr>"
     )
     missing = ""
     if failed:
@@ -456,7 +520,7 @@ def full_page(rows, failed, stamped, fx_note):
   </table>
   {missing}
   <p class="note">가격은 액면분할이 반영된 종가다. 배당이 있는 날은 이미 가진 수량에 그 배당금을 더해 같은 날 종가를 샀다. 배당 이벤트가 없으면 배당 없음이다. 수수료는 없다. 상장 전 달은 넣지 않고, 상장한 달의 첫 거래일부터 매달 30만 원을 넣는다. 2026년 11월은 그달 1일 이후 마지막 거래일까지 평가한다.</p>
-  <p class="note">평일 마감 후 <code>python Premium/hansjang/DRIP/update_drip.py</code>로 다시 계산한다.</p>
+  <p class="note">장마감 후 자동 업데이트된다.</p>
 </body>
 </html>
 '''
@@ -469,7 +533,7 @@ def summary_rows(rows):
 
 
 def top_block(rows):
-    head = "<tr><th>이름</th><th>시작</th><th>납입</th><th>수익</th><th>배당률</th></tr>"
+    head = "<tr><th>이름</th><th>시작</th><th>납입</th><th>수익</th><th>연평균</th><th>배당률</th></tr>"
     shown = summary_rows(rows)
     note = ""
     if any(item.get("ticker") == "ETH-USD" and item not in rows[:10] for item in shown):
@@ -588,17 +652,7 @@ def main():
         print(name, stats["started"], won(stats["contributed"]), f'{stats["gain"]:+.1f}%')
 
     rows.sort(key=lambda item: item["gain"], reverse=True)
-    jpy_clause = ""
-    if jpy_anchor_day and jpy_anchor_day.isoformat() > "2000-01-01":
-        jpy_clause = f" 엔/달러도 {jpy_anchor_day.isoformat()} 이전은 그날 시세({jpy_anchor:.2f})와 같다고 두었다."
     fx_note = (
-        "2003년 12월보다 이전 달의 원/달러는 2003년 12월 시세와 같다고 두고 계산했다. "
-        f"그 시세는 {krw_anchor_day.isoformat()} 달러당 {krw_anchor:,.2f}원이다. "
-        "2003년 12월부터는 넣는 날의 원/달러(KRW=X)를 쓰고, 그날 시세가 없으면 그 이전 최근 시세를 쓴다. "
-        f"그렇게 이전 시세를 쓴 달은 {len(krw_carried)}개월이다. "
-        "일본 시총 1위는 그 원/달러로 달러를 만든 뒤 그날 엔/달러(JPY=X)로 엔화를 산다."
-        + jpy_clause +
-        " 평가는 마지막 거래일 환율로 다시 원화로 환산한다. "
         "미국 시총 1위는 아메리칸 비즈니스 히스토리 센터의 연도별 1분기 순위를 그해 첫 거래일에 교체한 것이다. 2000년 1월은 마이크로소프트다. 일별 순위가 아니다. "
         "한국은 2000-11-21부터 삼성전자, 2026-06-22 종가부터는 보통주 기준 SK하이닉스다. "
         "일본은 NTT도코모(9437.T) 시세가 없어 2000년부터 2002년까지는 2000년 6월 27일 순위에서 2위였던 NTT(9432.T)를 보유로 계산했다. 2003년부터 토요타, 2026-06-02 보도부터 소프트뱅크그룹이다."
