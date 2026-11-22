@@ -27,7 +27,8 @@ PAGE = Path(__file__).with_name("index.html")
 KST = timezone(timedelta(hours=9))
 
 DAILY = {"wing": 5, "min_sep": 8, "max_sep": 80, "lookback": 140}
-WEEKLY = {"wing": 3, "min_sep": 3, "max_sep": 26, "lookback": 80, "months": 6}
+# months is the judgment window: today back half a year. lookback applies only when months is absent.
+WEEKLY = {"wing": 3, "min_sep": 3, "max_sep": 26, "lookback": 28, "months": 6}
 
 US_GROUPS = [
     ("전력·그리드", [
@@ -326,11 +327,12 @@ def clamp_score(value):
 
 
 def indicator_score(newer, older, span):
+    """Bullish divergence needs the later low (position 2) above the earlier one (position 1)."""
     if newer is None or older is None or span <= 0:
         return 0.0
     if newer > older:
         return 100.0
-    return min(99.0, clamp_score(100.0 * (1 - (older - newer) / span)))
+    return 0.0
 
 
 def months_before(day, months):
@@ -361,8 +363,37 @@ def price_score(low1, low2):
     return clamp_score(100.0 * (1 - (distance - 0.03) / 0.07))
 
 
+def judgment_start(bars, spec):
+    """First bar that may count in the proximity score.
+
+    MACD and RSI are still built from older bars so the averages are warmed up.
+    Those older bars are not lows and are not part of the MACD span.
+    """
+    months = spec.get("months")
+    if months:
+        cutoff = months_before(datetime.now(KST).date(), months)
+        for index, bar in enumerate(bars):
+            day = bar_day(bar)
+            if day is not None and day >= cutoff:
+                return index
+        return len(bars)
+    return max(0, len(bars) - spec["lookback"])
+
+
+def position_two(lows, swings):
+    """Later price low. A new low after the last confirmed swing is position 2."""
+    later = swings[-1]
+    after = lows[later + 1:]
+    if after and min(after) <= lows[later]:
+        return later + 1 + after.index(min(after))
+    return later
+
+
 def score_bars(bars, spec):
-    empty = {"percent": 0, "price": 0, "macd": 0, "rsi": 0, "low1": "", "low2": "", "formed": False, "macd_above": False}
+    empty = {
+        "percent": 0, "price": 0, "macd": 0, "rsi": 0, "low1": "", "low2": "",
+        "formed": False, "macd_above": False, "indicators_up": False,
+    }
     if not bars:
         return empty
     closes = [bar["close"] for bar in bars]
@@ -370,7 +401,7 @@ def score_bars(bars, spec):
     highs = [bar["high"] for bar in bars]
     macd = macd_line(closes)
     rsi = rsi_series(closes)
-    start = max(0, len(bars) - spec["lookback"])
+    start = judgment_start(bars, spec)
     swings = [index for index in swing_lows(lows, spec["wing"]) if index >= start]
     months = spec.get("months")
     if months:
@@ -378,13 +409,15 @@ def score_bars(bars, spec):
         swings = [index for index in swings if (bar_day(bars[index]) or cutoff) >= cutoff]
     if not swings:
         return empty
-    later = swings[-1]
+    later = position_two(lows, swings)
     earlier = None
-    for index in reversed(swings[:-1]):
+    for index in reversed(swings):
+        if index >= later:
+            continue
         gap = later - index
         if gap < spec["min_sep"] or gap > spec["max_sep"]:
             continue
-        peak = max(highs[index + 1:later])
+        peak = max(highs[index + 1:later]) if later > index + 1 else lows[index]
         base = max(lows[index], lows[later])
         if base <= 0 or peak < base * 1.03:
             continue
@@ -400,18 +433,11 @@ def score_bars(bars, spec):
     p_score = price_score(low1, low2)
     m_score = indicator_score(macd[later], macd[earlier], macd_span)
     r_score = indicator_score(rsi[later], rsi[earlier], 15.0)
-    formed = (
-        0.95 <= ratio <= 1.03
-        and macd[later] is not None
-        and macd[earlier] is not None
-        and macd[later] > macd[earlier]
-        and rsi[later] is not None
-        and rsi[earlier] is not None
-        and rsi[later] > rsi[earlier]
-    )
+    indicators_up = m_score == 100.0 and r_score == 100.0
+    formed = indicators_up and 0.95 <= ratio <= 1.03
     latest_macd = next((value for value in reversed(macd) if value is not None), None)
     macd_above = latest_macd is not None and latest_macd > 0
-    if macd_above:
+    if macd_above or not indicators_up:
         percent = 0
         formed = False
     elif formed:
@@ -427,6 +453,7 @@ def score_bars(bars, spec):
         "low2": bars[later]["date"],
         "formed": formed,
         "macd_above": macd_above,
+        "indicators_up": indicators_up,
     }
 
 
@@ -608,8 +635,18 @@ def pct_html(score):
         detail = "MACD선이 0 위로 올라가서 상승다이버전스가 이미 지난 구간입니다."
     elif not score or (not score["low1"] and score["percent"] == 0 and score["price"] == 0):
         detail = "확정된 스윙 저점 쌍이 없습니다."
+    elif not score.get("indicators_up"):
+        detail = (
+            f'{html.escape(score["low1"])} / {html.escape(score["low2"])} · '
+            f'가격 {score["price"]}% · MACD {score["macd"]}% · RSI {score["rsi"]}% · '
+            "2위치가 1위치보다 높지 않아 상승다이버전스가 아닙니다"
+        )
+        return (
+            f'<p class="pct"><b>{score["percent"]}%</b></p>'
+            f'<p class="sub">{detail}</p>'
+        )
     else:
-        state = "쌍바닥 상승다이버전스" if score["formed"] else "아직 쌍바닥 상승다이버전스가 아닙니다"
+        state = "쌍바닥 상승다이버전스" if score["formed"] else "지표는 높지만 아직 쌍바닥이 아닙니다"
         detail = (
             f'{html.escape(score["low1"])} / {html.escape(score["low2"])} · '
             f'가격 {score["price"]}% · MACD {score["macd"]}% · RSI {score["rsi"]}% · {state}'
@@ -683,7 +720,7 @@ def rank_html(us_rows, kr_rows):
     return (
         '<section class="rank-top">'
         "<h2>상위 5</h2>"
-        '<p class="sub">장타용입니다. 최근 6개월 주봉의 쌍바닥 상승다이버전스 접근도만 봅니다. 6개월보다 이전 저점과, MACD선이 0보다 위인 주봉은 0%라서 뺍니다.</p>'
+        '<p class="sub">장타용입니다. 최근 6개월 주봉만 봅니다. 2위치 MACD·RSI가 1위치보다 높지 않거나, MACD선이 0보다 위면 0%라서 뺍니다.</p>'
         f"<ol>{body}</ol>"
         "</section>"
     )
@@ -767,9 +804,9 @@ def page_html(us_rows, kr_rows, stamped):
   <section class="rules note">
     <h2>쌍바닥 상승다이버전스 퍼센트</h2>
     <p>장타용이라 주봉만 계산합니다. MACD선은 12기간 지수이동평균에서 26기간 지수이동평균을 뺀 값이고, RSI는 14기간 Wilder입니다. 가격은 수정주가의 고가·저가·종가입니다.</p>
-    <p>스윙 저점은 좌우 3봉보다 저가가 낮은 주봉입니다. 오른쪽이 아직 안 찬 최근 봉은 빼서 확정된 저점만 씁니다. 가장 최근 스윙 저점과, 그보다 3~26봉 앞의 스윙 저점을 비교합니다. 두 저점 모두 오늘부터 6개월 안이어야 합니다. 그보다 이전 차트는 비교하지 않습니다. 두 저점 사이에 고가가 두 저점보다 3% 이상 높아야 합니다. 이런 쌍이 없으면 0%입니다.</p>
-    <p>마지막 주봉의 MACD선이 0보다 위에 있으면 0%입니다. 상승다이버전스가 이미 지난 구간이라 매수 자리가 아닙니다. 상위 5에도 넣지 않습니다.</p>
-    <p>100%는 둘째 저가가 첫째 저가의 95% 이상 103% 이하이고, 둘째 저점의 MACD선과 RSI가 둘 다 첫째 저점보다 높을 때만입니다. 하나라도 아니면 가격 비슷함 34%, MACD 33%, RSI 33%를 더해 99를 넘기지 않습니다. 가격 점수는 저가 차이가 3% 이내면 100, 10% 이상이면 0입니다. RSI는 둘째가 더 높으면 100, 15포인트 이상 낮으면 0입니다. MACD는 둘째가 더 높으면 100, 아니면 그 차이를 최근 구간의 MACD 폭으로 나눕니다. 지표가 같거나 낮으면 그 지표 점수는 99를 넘지 않습니다.</p>
+    <p>1위치는 앞선 스윙 저점이고, 2위치는 더 최근 저점입니다. 스윙 저점은 좌우 3봉보다 저가가 낮은 주봉입니다. 그 뒤에 더 낮은 저가가 나오면, 오른쪽이 아직 안 찬 봉이어도 그 봉을 2위치로 봅니다. 1위치는 2위치보다 3~26봉 앞입니다. 두 저점 모두 오늘부터 6개월 안이어야 합니다. 두 저점 사이에 고가가 두 저점보다 3% 이상 높아야 합니다. 이런 쌍이 없으면 0%입니다.</p>
+    <p>상승다이버전스는 2위치의 MACD선과 RSI가 둘 다 1위치보다 높을 때만 가능합니다. 하나라도 같거나 낮으면 0%입니다. 상승다이버전스가 아닙니다. 마지막 주봉의 MACD선이 0보다 위에 있어도 0%입니다. 이미 지난 구간이라 매수 자리가 아닙니다. 둘 다 상위 5에서 뺍니다.</p>
+    <p>100%는 쌍바닥이면서 그 지표 조건을 채울 때입니다. 둘째 저가가 첫째 저가의 95% 이상 103% 이하이고, 2위치 MACD선과 RSI가 둘 다 1위치보다 높아야 합니다. 지표는 더 높은데 쌍바닥이 아니면 가격 비슷함 34%, MACD 33%, RSI 33%를 더해 99를 넘기지 않습니다. 가격 점수는 저가 차이가 3% 이내면 100, 10% 이상이면 0입니다. MACD와 RSI는 2위치가 더 높으면 100, 아니면 0입니다.</p>
     <p>분기 주당순이익은 발표된 실제치만 씁니다. 추정치는 쓰지 않습니다. 미국 종목은 Yahoo Finance, 한국 종목은 Yahoo Finance와 네이버금융 중 실제치 최근 분기가 더 새로운 쪽입니다. 네이버 컨센서스 열은 뺍니다. 숫자가 없으면 실적 없음입니다. 바로 앞 분기와 비교할 수 없으면 비교 불가입니다.</p>
   </section>
   <h2 class="market">1. 미국주</h2>
@@ -893,6 +930,26 @@ def self_test():
     dropped = score_bars(old, window)
     if dropped["percent"] != 0 or dropped["formed"]:
         raise RuntimeError(f"a pair older than 6 months must be 0, got {dropped}")
+    mixed = old + recent
+    wide = dict(spec, months=6, lookback=200)
+    if judgment_start(mixed, wide) != len(old):
+        raise RuntimeError("half-year window must start at the first bar inside 6 months")
+    mixed_score = score_bars(mixed, wide)
+    cutoff = months_before(today, 6)
+    for key in ("low1", "low2"):
+        if not mixed_score[key]:
+            continue
+        if datetime.fromisoformat(mixed_score[key]).date() < cutoff:
+            raise RuntimeError(f"low outside half a year was counted: {mixed_score}")
+    if indicator_score(1.0, 2.0, 5.0) != 0.0 or indicator_score(2.0, 1.0, 5.0) != 100.0:
+        raise RuntimeError("position 2 must be higher than position 1")
+    failed = [dict(bar) for bar in formed_bars]
+    failed[-1]["low"] = 10.0
+    failed[-1]["close"] = 10.0
+    failed[-1]["high"] = 12.0
+    not_div = score_bars(failed, spec)
+    if not_div["percent"] != 0 or not_div["formed"] or not_div["indicators_up"]:
+        raise RuntimeError(f"a lower indicator at position 2 must be 0, got {not_div}")
 
 
 def main():
@@ -917,4 +974,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
