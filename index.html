@@ -249,14 +249,12 @@ body.menu-open { overflow: hidden; }
   </div>
   <div id="menu-body">
   <nav class="menu-group">
-    <h3>한스장 타점</h3>
     <a href="Premium/hansjang/index.html">한스장 타점</a>
     <a class="sub" href="Premium/hansjang/200W/index.html">한스장 시크리컬 200주 매수타점</a>
     <a class="sub" href="Premium/hansjang/BOND/index.html">채권 타점</a>
     <a class="sub" href="Premium/hansjang/DRIP/index.html">버핏 적립보유법</a>
   </nav>
   <nav class="menu-group">
-    <h3>차트 매매 타점</h3>
     <a href="Premium/weather/index.html">차트 매매 타점</a>
     <a class="sub" href="Premium/weather/핫이슈/index.html">핫이슈</a>
     <a class="sub" href="Premium/weather/downup/index.html">급등주 급락주</a>
@@ -271,11 +269,9 @@ body.menu-open { overflow: hidden; }
     <a class="sub" href="Premium/weather/chart/index.html">차트보는법</a>
   </nav>
   <nav class="menu-group">
-    <h3>AI 혁신주 타점</h3>
     <a href="Premium/ai-trend/index.html">AI 혁신주 타점</a>
   </nav>
   <nav class="menu-group">
-    <h3>경기사이클 타점</h3>
     <a href="Premium/cycle/index.html">경기사이클 타점</a>
   </nav>
   <nav class="menu-group">
@@ -955,9 +951,6 @@ style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 
   function makeGroup(title, mainPath, subs) {
     var nav = document.createElement("nav");
     nav.className = "menu-group";
-    var h3 = document.createElement("h3");
-    h3.textContent = title;
-    nav.appendChild(h3);
     if (mainPath) {
       var main = document.createElement("a");
       main.href = mainPath;
