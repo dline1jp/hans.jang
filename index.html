@@ -240,6 +240,7 @@ body.menu-open { overflow: hidden; }
   <button type="button" class="hamburger" id="hamburger" aria-label="전체 메뉴 열기" aria-expanded="false" aria-controls="menu-panel">
     <span></span><span></span><span></span>
   </button>
+  <span class="visit-counter visit-counter--inline" data-visit-counter aria-label="오늘 방문자 수"></span>
 </div>
 <div class="menu-overlay" id="menu-overlay"></div>
 <aside class="menu-panel" id="menu-panel" aria-hidden="true">
@@ -1012,5 +1013,6 @@ style="width:100%; height:200px; object-fit:contain;"> <div class="card-title"> 
   }
 })();
 </script>
+<script src="/visit-counter.js"></script>
 </body>
 </html>
