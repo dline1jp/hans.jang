@@ -19,6 +19,9 @@
     .stock-search button { background: #1a4fbf; color: #fff; border: 0; border-radius: 8px; padding: 12px 22px; font-size: 18px; font-weight: 700; cursor: pointer; }
     h1 { text-align: center; color: #FFFFE0; font-size: 32px; line-height: 1.35; margin: 4px 0 12px; }
     .note { color: #ccc; font-size: 18px; line-height: 1.5; max-width: 1100px; margin: 0 auto 16px; }
+    .stock-guide { max-width: 1100px; margin: 8px auto 0; color: #bbb; font-size: 15px; line-height: 1.7; text-align: left; }
+    .stock-guide strong { color: #FFFFE0; }
+    .stock-guide .guide-title { display: block; margin-bottom: 4px; color: #D8C0FF; font-weight: 700; }
     .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; max-width: 1100px; margin: 0 auto; }
     .stock-card { border: 1px solid #444; border-radius: 12px; padding: 14px 16px; }
     .stock-card.miss { background: #1c1c1c; }
@@ -77,6 +80,7 @@
       .topbar-link { font-size: 15px; min-width: 0; max-width: 100%; width: auto; height: auto; min-height: 40px; padding: 8px 10px; margin: 0; box-sizing: border-box; white-space: normal; text-align: center; }
       h1 { font-size: 22px; }
       .note { font-size: 15px; }
+      .stock-guide { font-size: 14px; }
       .summary { grid-template-columns: 1fr; }
       .bond-now h2 { font-size: 22px; }
       .bond-grid { grid-template-columns: 1fr; }
@@ -97,6 +101,18 @@
     <datalist id="stockList"></datalist>
     <button type="submit">검색</button>
   </form>
+  <!-- STOCK_GUIDE_START -->
+  <p class="stock-guide">
+    <span class="guide-title">종목명·티커로 검색하면 종목 정보 페이지에서 아래 내용을 볼 수 있습니다.</span>
+    · <strong>주가·차트</strong> — 현재가·등락률, 장중·전일·52주 범위, 일봉/주봉 주가·거래량·RSI·MACD (1개월·3개월·6개월·1년·5년·전체)<br>
+    · <strong>주요 지표</strong> — 시가총액, PER(TTM·FWD), EPS(TTM·FWD), PBR, 배당·배당수익률, 공매도 잔량·비율, 베타<br>
+    · <strong>실적</strong> — 연간 매출과 분기 주당순이익(EPS) 실적치·추정치<br>
+    · <strong>밸류에이션</strong> — 밸류에이션·성장성·수익성·모멘텀·배당·재무건전성 팩터 등급<br>
+    · <strong>애널 평가</strong> — 증권가 의견, 평균 평점, 참여 애널리스트 수, 목표주가(평균·최고·최저), 의견 분포<br>
+    · <strong>회사 정보</strong> — 국가·섹터·산업·본사·직원 수, 회사 소개<br>
+    미국은 S&amp;P 500 종목, 한국은 주요 종목, ETF는 QQQ·SPY·SOXX·SOXL·TQQQ 등을 지원합니다.
+  </p>
+  <!-- STOCK_GUIDE_END -->
   <script>
     fetch("stock/index.json").then(function (r) { return r.json(); }).then(function (rows) {
       var dl = document.getElementById("stockList"), frag = document.createDocumentFragment();
