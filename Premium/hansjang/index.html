@@ -100,7 +100,18 @@
   <script>
     fetch("stock/index.json").then(function (r) { return r.json(); }).then(function (rows) {
       var dl = document.getElementById("stockList"), frag = document.createDocumentFragment();
-      rows.forEach(function (r) { var o = document.createElement("option"); o.value = r.t; o.label = r.n; frag.appendChild(o); });
+      rows.forEach(function (r) {
+        var o = document.createElement("option");
+        o.value = r.t;
+        o.label = (r.k ? r.k + " · " : "") + r.n;
+        frag.appendChild(o);
+        if (r.k) {
+          var o2 = document.createElement("option");
+          o2.value = r.k;
+          o2.label = r.t + " · " + r.n;
+          frag.appendChild(o2);
+        }
+      });
       dl.appendChild(frag);
     }).catch(function () {});
   </script>

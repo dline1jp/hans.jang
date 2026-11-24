@@ -136,6 +136,34 @@ def chart(session, ticker):
     return {"d0": days[0], "dd": offsets, "c": values, "v": vols, "m": meta}
 
 
+NAME_SUFFIX = [
+    ", Inc.", " Inc.", " Inc", ", Ltd.", " Ltd.", " Ltd", " Co., Ltd.", " Co.,Ltd.", " Co.,Ltd",
+    " Corporation", " Corp.", " Company", " Limited", " PLC", " plc", " S.A.", " N.V.",
+    " 주식회사", "주식회사", "(주)", "㈜", " 코퍼레이션", " 코포레이션",
+]
+
+
+# 번역이 실패할 때를 대비한 잘 알려진 이름
+NAME_FALLBACK = {
+    "Doosan Enerbility Co., Ltd.": "두산에너빌리티",
+    "NC Corporation": "엔씨소프트",
+    "Global Standard Technology, Limited": "지에스티",
+}
+
+
+def clean_name(text):
+    """번역된 회사명에서 법인격 접미사를 떼어 검색하기 좋게 만든다."""
+    text = (text or "").strip()
+    changed = True
+    while changed and text:
+        changed = False
+        for suffix in NAME_SUFFIX:
+            if text.endswith(suffix) and len(text) > len(suffix):
+                text = text[:-len(suffix)].strip()
+                changed = True
+    return text or None
+
+
 def tr(text):
     """영문 회사 정보를 한국어로 옮긴다. 실패하면 None 을 돌려주고 영문을 그대로 쓴다."""
     text = (text or "").strip()
@@ -144,14 +172,18 @@ def tr(text):
     if text in TRANS_CACHE:
         return TRANS_CACHE[text]
     out = None
-    try:
-        url = TRANS_URL.format(text=urllib.parse.quote(text[:1600]))
-        response = requests.get(url, headers=UA, timeout=25)
-        if response.status_code == 200:
-            data = response.json()
-            out = "".join(part[0] for part in data[0] if part and part[0]).strip() or None
-    except Exception:  # noqa: BLE001
-        out = None
+    for attempt in range(3):
+        try:
+            url = TRANS_URL.format(text=urllib.parse.quote(text[:1600]))
+            response = requests.get(url, headers=UA, timeout=25)
+            if response.status_code == 200:
+                data = response.json()
+                out = "".join(part[0] for part in data[0] if part and part[0]).strip() or None
+                if out:
+                    break
+        except Exception:  # noqa: BLE001
+            out = None
+        time.sleep(0.6 * (attempt + 1))
     TRANS_CACHE[text] = out
     return out
 
@@ -227,9 +259,11 @@ def build_entry(ticker, summary):
     detail = summary.get("summaryDetail") or {}
     stats = summary.get("defaultKeyStatistics") or {}
     financial = summary.get("financialData") or {}
+    name = price.get("longName") or price.get("shortName") or ticker
     return {
         "t": ticker,
-        "n": price.get("longName") or price.get("shortName") or ticker,
+        "n": name,
+        "nKo": clean_name(tr(name)) or NAME_FALLBACK.get(name),
         "ex": price.get("exchangeName"),
         "cur": price.get("currency") or detail.get("currency"),
         "px": num(price.get("regularMarketPrice")),
@@ -321,7 +355,8 @@ def main():
             return
         (DATA_DIR / safe_name(entry["t"])).write_text(
             json.dumps(entry, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-        index[entry["t"]] = {"t": entry["t"], "n": entry["n"], "m": entry.get("cur"), "e": entry.get("ex")}
+        index[entry["t"]] = {"t": entry["t"], "n": entry["n"], "k": entry.get("nKo"),
+                             "m": entry.get("cur"), "e": entry.get("ex")}
 
     with ThreadPoolExecutor(max_workers=10) as pool:
         for entry in pool.map(lambda item: job(item, session, crumb), tickers):

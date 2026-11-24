@@ -534,11 +534,13 @@
   var range = 252;
 
   function render(d) {
-    document.title = d.t + " · " + d.n;
+    var ko = d.nKo || d.n;
+    document.title = d.t + " · " + ko;
     var up = (d.chg || 0) >= 0;
     var cls = up ? "up" : "down";
     var h = "<div class=\"card\"><div class=\"sym\">" + esc(d.ex || "") + " · " + esc(d.cur || "") + " · " + esc(d.t) + "</div>";
-    h += "<div class=\"nm\">" + esc(d.n) + "</div>";
+    h += "<div class=\"nm\">" + esc(ko) + "</div>";
+    if (d.nKo && d.nKo !== d.n) { h += "<div class=\"sub\" style=\"margin:0 0 6px\">" + esc(d.n) + "</div>"; }
     h += "<div><span class=\"px\">" + num(d.px) + "</span><span class=\"chg " + cls + "\">" + (up ? "+" : "") + num(d.chg) + " (" + (up ? "+" : "") + pct(d.chgPct) + ")</span></div>";
     h += "<div class=\"sub\">" + (d.dayL && d.dayH ? "장중 " + num(d.dayL) + " ~ " + num(d.dayH) + " · " : "") + "전일 " + num(d.prev) + " · 52주 " + num(d.w52L) + " ~ " + num(d.w52H) + "</div></div>";
     h += "<nav class=\"tabs\"><a href=\"#s1\">요약</a><a href=\"#s2\">실적</a><a href=\"#s3\">애널 평가</a><a href=\"#s4\">회사 정보</a></nav>";
@@ -585,8 +587,9 @@
   }
 
   function load(sym) {
+    var ticker = resolve(sym);
     app.innerHTML = "<p class=\"msg\">불러오는 중…</p>";
-    fetch("data/" + fileName(sym) + ".json").then(function (r) {
+    fetch("data/" + fileName(ticker) + ".json").then(function (r) {
       if (!r.ok) { throw new Error("notfound"); }
       return r.json();
     }).then(function (d) {
@@ -594,31 +597,62 @@
       if (q) { q.value = d.t; }
     }).catch(function () {
       app.innerHTML = "<p class=\"msg\">'" + esc(sym) + "' 는 저장된 데이터가 없습니다.<br>" +
-        "미국은 S&P 500 종목, 한국은 주요 종목(6자리 코드 예: 005930), ETF는 QQQ · SPY · SOXX · SOXL · TQQQ 등을 볼 수 있습니다.<br>" +
+        "티커(예: NVDA, 005930)나 회사명(예: 삼성전자, 엔비디아)으로 검색할 수 있습니다.<br>" +
+        "미국은 S&P 500 종목, 한국은 주요 종목, ETF는 QQQ · SPY · SOXX · SOXL · TQQQ 등을 제공합니다.<br>" +
         "데이터를 늘리려면 <code>python Premium/hansjang/stock/update_stock.py</code> 를 실행합니다.</p>";
     });
+  }
+
+  var INDEX = [];
+  var INDEX_READY = false;
+
+  function resolve(input) {
+    var raw = String(input || "").trim();
+    if (!raw) { return raw; }
+    var m = /\(([^)]+)\)\s*$/.exec(raw);
+    if (m) { raw = m[1].trim(); }
+    var upper = raw.toUpperCase();
+    var flat = upper.replace(/\s+/g, "");
+    var i;
+    for (i = 0; i < INDEX.length; i++) { if (INDEX[i].t.toUpperCase() === upper) { return INDEX[i].t; } }
+    if (INDEX_READY) {
+      for (i = 0; i < INDEX.length; i++) { if (INDEX[i].k && INDEX[i].k === raw) { return INDEX[i].t; } }
+      for (i = 0; i < INDEX.length; i++) { if (INDEX[i].k && INDEX[i].k.replace(/\s+/g, "").toUpperCase().indexOf(flat) >= 0) { return INDEX[i].t; } }
+      for (i = 0; i < INDEX.length; i++) { if ((INDEX[i].n || "").replace(/\s+/g, "").toUpperCase().indexOf(flat) >= 0) { return INDEX[i].t; } }
+    }
+    return raw;
+  }
+
+  function loadIndex() {
+    return fetch("index.json").then(function (r) { return r.json(); }).then(function (rows) {
+      INDEX = rows || [];
+      INDEX_READY = true;
+      var frag = document.createDocumentFragment();
+      INDEX.forEach(function (r) {
+        var o = document.createElement("option");
+        o.value = r.t;
+        o.label = (r.k ? r.k + " · " : "") + r.n + (r.m ? " · " + r.m : "");
+        frag.appendChild(o);
+        if (r.k) {
+          var o2 = document.createElement("option");
+          o2.value = r.k;
+          o2.label = r.t + " · " + r.n;
+          frag.appendChild(o2);
+        }
+      });
+      dl.appendChild(frag);
+    }).catch(function () {});
   }
 
   document.getElementById("sform").addEventListener("submit", function (e) {
     e.preventDefault();
     var v = (q.value || "").trim();
     if (!v) { return; }
-    location.href = "?symbol=" + encodeURIComponent(v.split(/\s+/)[0]);
+    location.href = "?symbol=" + encodeURIComponent(resolve(v));
   });
 
-  fetch("index.json").then(function (r) { return r.json(); }).then(function (rows) {
-    var frag = document.createDocumentFragment();
-    rows.forEach(function (r) {
-      var o = document.createElement("option");
-      o.value = r.t;
-      o.label = r.n + (r.m ? " · " + r.m : "");
-      frag.appendChild(o);
-    });
-    dl.appendChild(frag);
-  }).catch(function () {});
-
   var sym = new URLSearchParams(location.search).get("symbol") || "NVDA";
-  load(sym);
+  loadIndex().then(function () { load(sym); });
 })();
 </script>
 </body>
