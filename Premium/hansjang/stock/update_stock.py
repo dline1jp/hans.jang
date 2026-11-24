@@ -25,6 +25,8 @@ INDEX_FILE = ROOT / "index.json"
 SP500_URL = "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv"
 QUOTE_URL = "https://query1.finance.yahoo.com/v10/finance/quoteSummary/{ticker}?modules={modules}&crumb={crumb}"
 CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range=2y"
+WEEKLY_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1wk&range=10y"
+EXISTING = {}
 TRANS_URL = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q={text}"
 TRANS_CACHE = {}
 MODULES = ("price,summaryDetail,defaultKeyStatistics,financialData,assetProfile,"
@@ -100,8 +102,8 @@ def quote(session, crumb, ticker):
     return result[0] if result else None
 
 
-def chart(session, ticker):
-    url = CHART_URL.format(ticker=urllib.parse.quote(ticker, safe=""))
+def chart(session, ticker, url_template=CHART_URL):
+    url = url_template.format(ticker=urllib.parse.quote(ticker, safe=""))
     response = session.get(url, timeout=30)
     if response.status_code != 200:
         return None
@@ -183,26 +185,35 @@ def tr(text):
                     break
         except Exception:  # noqa: BLE001
             out = None
-        time.sleep(0.6 * (attempt + 1))
+        time.sleep(1.5 * (attempt + 1))
     TRANS_CACHE[text] = out
+    time.sleep(0.1)
     return out
 
 
-def build_profile(profile):
+def build_profile(profile, old):
     profile = profile or {}
+    old = old or {}
     summary = (profile.get("longBusinessSummary") or "").strip()[:800]
+
+    def keep(key, source, original):
+        """이미 번역해 둔 값이 있고 원문이 같으면 그대로 쓴다 (번역 API 호출 절약)."""
+        if source and old.get(original) == source and old.get(key):
+            return old.get(key)
+        return None
+
     return {
         "c": profile.get("country"),
-        "cKo": tr(profile.get("country")),
+        "cKo": keep("cKo", profile.get("country"), "c") or tr(profile.get("country")),
         "s": profile.get("sector"),
-        "sKo": tr(profile.get("sector")),
+        "sKo": keep("sKo", profile.get("sector"), "s") or tr(profile.get("sector")),
         "i": profile.get("industry"),
-        "iKo": tr(profile.get("industry")),
+        "iKo": keep("iKo", profile.get("industry"), "i") or tr(profile.get("industry")),
         "city": profile.get("city"),
         "emp": profile.get("fullTimeEmployees"),
         "web": profile.get("website"),
         "sum": summary,
-        "sumKo": tr(summary) if summary else None,
+        "sumKo": keep("sumKo", summary, "sum") or (tr(summary) if summary else None),
     }
 
 
@@ -254,16 +265,18 @@ def build_rec(rec, financial):
     }
 
 
-def build_entry(ticker, summary):
+def build_entry(ticker, summary, old):
     price = summary.get("price") or {}
     detail = summary.get("summaryDetail") or {}
     stats = summary.get("defaultKeyStatistics") or {}
     financial = summary.get("financialData") or {}
+    old = old or {}
     name = price.get("longName") or price.get("shortName") or ticker
+    nko = old.get("nKo") if old.get("n") == name else None
     return {
         "t": ticker,
         "n": name,
-        "nKo": clean_name(tr(name)) or NAME_FALLBACK.get(name),
+        "nKo": nko or clean_name(tr(name)) or NAME_FALLBACK.get(name),
         "ex": price.get("exchangeName"),
         "cur": price.get("currency") or detail.get("currency"),
         "px": num(price.get("regularMarketPrice")),
@@ -288,7 +301,7 @@ def build_entry(ticker, summary):
         "short": num(stats.get("sharesShort"), 0),
         "shortPct": num(stats.get("shortPercentOfFloat"), 5),
         "shortRatio": num(stats.get("shortRatio")),
-        "prof": build_profile(summary.get("assetProfile")),
+        "prof": build_profile(summary.get("assetProfile"), old.get("prof")),
         "fin": build_financials(summary.get("earnings")),
         "trend": build_trend(summary.get("earningsTrend")),
         "rec": build_rec(summary.get("recommendationTrend"), financial),
@@ -313,12 +326,15 @@ def job(ticker, session, crumb):
         summary = quote(session, crumb, ticker)
         if not summary:
             return None
-        entry = build_entry(ticker, summary)
-        series = chart(session, ticker)
-        if series:
-            entry["ch"] = {"d0": series["d0"], "dd": series["dd"], "c": series["c"], "v": series["v"]}
-            if series["m"].get("longName") and entry["n"] == ticker:
-                entry["n"] = series["m"]["longName"]
+        entry = build_entry(ticker, summary, EXISTING.get(ticker))
+        daily = chart(session, ticker, CHART_URL)
+        if daily:
+            entry["ch"] = {"d0": daily["d0"], "dd": daily["dd"], "c": daily["c"], "v": daily["v"]}
+            if daily["m"].get("longName") and entry["n"] == ticker:
+                entry["n"] = daily["m"]["longName"]
+        weekly = chart(session, ticker, WEEKLY_URL)
+        if weekly:
+            entry["cw"] = {"d0": weekly["d0"], "dd": weekly["dd"], "c": weekly["c"], "v": weekly["v"]}
         return entry
     except Exception as error:  # noqa: BLE001
         print("  fail", ticker, error)
@@ -347,6 +363,14 @@ def main():
     print("US %d, KR %d" % (len(tickers), len(kr)))
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    for path in DATA_DIR.glob("*.json"):
+        try:
+            previous = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            continue
+        if previous.get("t"):
+            EXISTING[previous["t"]] = previous
+    print("existing", len(EXISTING))
     session, crumb = make_session()
     index = {}
 
@@ -370,7 +394,15 @@ def main():
         for entry in pool.map(lambda item: job(item, session, crumb), kr_tickers):
             record(entry)
 
-    rows = [index[key] for key in sorted(index)]
+    rows = []
+    for path in DATA_DIR.glob("*.json"):
+        try:
+            record = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            continue
+        rows.append({"t": record["t"], "n": record.get("n"), "k": record.get("nKo"),
+                     "m": record.get("cur"), "e": record.get("ex")})
+    rows.sort(key=lambda item: item["t"])
     INDEX_FILE.write_text(json.dumps(rows, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print("total", len(rows))
 

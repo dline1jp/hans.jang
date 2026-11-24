@@ -78,6 +78,48 @@
   var dl = document.getElementById("tickers");
 
   function esc(s) { return String(s === null || s === undefined ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function escAttr(s) { return esc(s).replace(/"/g, "&quot;"); }
+
+  var KO_CACHE = {};
+  try {
+    var storedKo = localStorage.getItem("hans-ko");
+    if (storedKo) { KO_CACHE = JSON.parse(storedKo); }
+  } catch (e) { KO_CACHE = {}; }
+
+  function translateText(text) {
+    var key = String(text || "").slice(0, 250);
+    if (!key) { return Promise.resolve(""); }
+    if (KO_CACHE[key]) { return Promise.resolve(KO_CACHE[key]); }
+    var url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q=" + encodeURIComponent(text.slice(0, 1200));
+    return fetch(url).then(function (r) {
+      if (!r.ok) { throw new Error("tr"); }
+      return r.json();
+    }).then(function (payload) {
+      var out = "";
+      (payload[0] || []).forEach(function (part) { if (part && part[0]) { out += part[0]; } });
+      out = out.trim();
+      if (!out) { throw new Error("tr"); }
+      KO_CACHE[key] = out;
+      try { localStorage.setItem("hans-ko", JSON.stringify(KO_CACHE)); } catch (e) { /* ignore */ }
+      return out;
+    }).catch(function () { return ""; });
+  }
+
+  function fillKo(root) {
+    var nodes = root.querySelectorAll("[data-en]");
+    Array.prototype.forEach.call(nodes, function (node) {
+      translateText(node.getAttribute("data-en")).then(function (korean) {
+        if (korean) { node.textContent = korean; node.removeAttribute("data-en"); }
+      });
+    });
+  }
+
+  function knownName(ticker) {
+    for (var i = 0; i < INDEX.length; i++) {
+      if (INDEX[i].t === ticker && INDEX[i].k) { return INDEX[i].k; }
+    }
+    return null;
+  }
   function isNum(v) { return v !== null && v !== undefined && v !== "" && !isNaN(v); }
   function num(v, d) { if (!isNum(v)) { return "-"; } var n = (d === undefined ? 2 : d); return Number(v).toLocaleString("en-US", { minimumFractionDigits: n, maximumFractionDigits: n }); }
   function pct(v) { return isNum(v) ? (Number(v) * 100).toFixed(2) + "%" : "-"; }
@@ -171,7 +213,7 @@
     };
   }
 
-  var CH = { series: null, host: null, i0: 0, i1: 0, drag: null };
+  var CH = { daily: null, weekly: null, series: null, host: null, i0: 0, i1: 0, drag: null, mode: "d" };
   function drawChart() {
     var s = CH.series, host = CH.host;
     if (!s || !s.close.length) { return; }
@@ -254,7 +296,7 @@
       }
       if (dd) { svg.appendChild(ns("path", { d: dd, fill: "none", stroke: m[1], "stroke-width": 1.4 })); }
     });
-    [["주가", P.t], ["거래량", V.t], ["RSI(14)", RI.t], ["MACD(12,26,9)", MG.t]].forEach(function (lab) {
+    [["주가 " + (CH.mode === "w" ? "주봉" : "일봉"), P.t], ["거래량", V.t], ["RSI(14)", RI.t], ["MACD(12,26,9)", MG.t]].forEach(function (lab) {
       svg.appendChild(ns("text", { x: x0 + 5, y: lab[1] + 15, fill: "#777", "font-size": 12 }, lab[0]));
     });
     var lx = x0 + 60;
@@ -328,9 +370,12 @@
     });
   }
 
-  function setRange(n) {
-    var total = CH.series ? CH.series.close.length : 0;
-    if (!total) { return; }
+  function setRange(n, mode) {
+    var s = (mode === "w" && CH.weekly) ? CH.weekly : (CH.daily || CH.weekly);
+    if (!s) { return; }
+    CH.series = s;
+    CH.mode = (s === CH.weekly) ? "w" : "d";
+    var total = s.close.length;
     var len = n > 0 ? Math.min(total, n) : total;
     CH.i0 = Math.max(0, total - len);
     CH.i1 = total - 1;
@@ -513,11 +558,16 @@
     if (d.ch && d.ch.d0 && d.ch.dd && d.ch.dd.length) {
       asof = new Date(new Date(d.ch.d0 + "T00:00:00Z").getTime() + d.ch.dd[d.ch.dd.length - 1] * 86400000).toISOString().slice(0, 10);
     }
+    function tv(korean, english) {
+      if (korean) { return esc(korean); }
+      if (!english) { return "-"; }
+      return "<span data-en=\"" + escAttr(english) + "\">" + esc(english) + "</span>";
+    }
     var h = "<h2>회사 정보</h2><table class=\"kv\">" +
-      row("국가", esc(p.cKo || p.c || "-")) +
-      row("섹터", esc(p.sKo || p.s || "-")) +
-      row("산업", esc(p.iKo || p.i || "-")) +
-      row("본사", esc(p.city || "-") + (p.c && p.city ? " · " + esc(p.c) : "")) +
+      row("국가", tv(p.cKo, p.c)) +
+      row("섹터", tv(p.sKo, p.s)) +
+      row("산업", tv(p.iKo, p.i)) +
+      row("본사", esc(p.city || "-")) +
       row("직원 수", isNum(p.emp) ? Number(p.emp).toLocaleString("en-US") + "명" : "-") +
       row("홈페이지", p.web ? "<a href=\"" + esc(p.web) + "\" target=\"_blank\" rel=\"noopener\">" + esc(String(p.web).replace(/^https?:\/\//, "")) + "</a>" : "-") +
       "</table>";
@@ -525,16 +575,16 @@
       h += "<p class=\"sub\" style=\"margin-top:14px;font-size:15px;line-height:1.75;color:#ddd\">" + esc(p.sumKo) + "</p>";
       if (p.sum) { h += "<details style=\"margin-top:10px\"><summary class=\"sub\" style=\"cursor:pointer\">영문 원문 보기</summary><p class=\"sub\" style=\"margin-top:6px\">" + esc(p.sum) + "</p></details>"; }
     } else if (p.sum) {
-      h += "<p class=\"sub\" style=\"margin-top:14px;font-size:15px;line-height:1.75;color:#ddd\">" + esc(p.sum) + "</p>";
+      h += "<p class=\"sub\" data-en=\"" + escAttr(p.sum) + "\" style=\"margin-top:14px;font-size:15px;line-height:1.75;color:#ddd\">" + esc(p.sum) + "</p>";
     }
     h += "<p class=\"sub\">출처 Yahoo Finance · 시세 기준 " + esc(asof) + "</p>";
     return h;
   }
-  var RANGES = [["1개월", 22], ["3개월", 63], ["6개월", 126], ["1년", 252], ["전체", 0]];
+  var RANGES = [["1개월", 22, "d"], ["3개월", 63, "d"], ["6개월", 126, "d"], ["1년", 252, "d"], ["5년 (주봉)", 260, "w"], ["전체", 0, "w"]];
   var range = 252;
 
   function render(d) {
-    var ko = d.nKo || d.n;
+    var ko = d.nKo || knownName(d.t) || d.n;
     document.title = d.t + " · " + ko;
     var up = (d.chg || 0) >= 0;
     var cls = up ? "up" : "down";
@@ -545,7 +595,7 @@
     h += "<div class=\"sub\">" + (d.dayL && d.dayH ? "장중 " + num(d.dayL) + " ~ " + num(d.dayH) + " · " : "") + "전일 " + num(d.prev) + " · 52주 " + num(d.w52L) + " ~ " + num(d.w52H) + "</div></div>";
     h += "<nav class=\"tabs\"><a href=\"#s1\">요약</a><a href=\"#s2\">실적</a><a href=\"#s3\">애널 평가</a><a href=\"#s4\">회사 정보</a></nav>";
     h += "<div class=\"card\" id=\"s1\"><h2>주가 · 거래량 · RSI · MACD</h2><div class=\"ctrls\">";
-    h += RANGES.map(function (r, i) { return "<button type=\"button\" data-n=\"" + r[1] + "\"" + (i === 3 ? " class=\"on\"" : "") + ">" + r[0] + "</button>"; }).join("");
+    h += RANGES.map(function (r, i) { return "<button type=\"button\" data-n=\"" + r[1] + "\" data-m=\"" + r[2] + "\"" + (i === 3 ? " class=\"on\"" : "") + ">" + r[0] + "</button>"; }).join("");
     h += "<button type=\"button\" data-reset=\"1\">초기화</button>";
     h += "<span class=\"hint\">확대/축소: 마우스 휠 · 이동: 드래그</span></div>";
     h += "<div id=\"chart\"></div></div>";
@@ -555,13 +605,15 @@
     h += "<div class=\"card\" id=\"s3\">" + analystHtml(d) + "</div>";
     h += "<div class=\"card\" id=\"s4\">" + profileHtml(d) + "</div>";
     app.innerHTML = h;
+    fillKo(app);
 
     var chartHost = document.getElementById("chart");
-    if (d.ch && d.ch.c && d.ch.c.length) {
+    CH.daily = (d.ch && d.ch.c && d.ch.c.length) ? seriesFrom(d.ch) : null;
+    CH.weekly = (d.cw && d.cw.c && d.cw.c.length) ? seriesFrom(d.cw) : null;
+    if (CH.daily || CH.weekly) {
       CH.host = chartHost;
-      CH.series = seriesFrom(d.ch);
       CH.drag = null;
-      setRange(range);
+      setRange(range, "d");
     } else {
       chartHost.innerHTML = "<p class=\"sub\">차트 데이터가 없습니다.</p>";
     }
@@ -572,12 +624,12 @@
     Array.prototype.forEach.call(document.querySelectorAll(".ctrls button"), function (btn) {
       btn.addEventListener("click", function () {
         if (btn.getAttribute("data-reset")) {
-          setRange(252);
+          setRange(252, "d");
           return;
         }
         Array.prototype.forEach.call(document.querySelectorAll(".ctrls button"), function (x) { x.classList.remove("on"); });
         btn.classList.add("on");
-        setRange(Number(btn.getAttribute("data-n")));
+        setRange(Number(btn.getAttribute("data-n")), btn.getAttribute("data-m"));
       });
     });
   }
