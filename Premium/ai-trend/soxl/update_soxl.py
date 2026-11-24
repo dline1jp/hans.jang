@@ -19,7 +19,8 @@ DATA = Path(__file__).with_name("soxl-data.js")
 CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range=10y"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 RSI_PERIOD = 14
-RSI_LEVEL = 30.0
+RSI_LEVEL = 30.0    # 1~3번째 이탈 기준
+RSI_LEVEL4 = 35.0   # 4번째 이탈 기준 (30 이탈 뒤 더 높은 저점 = 상승 다이버전스)
 
 # kind: past = 과거 복기, cycle = 경기순환사이클 하락 추정 시기
 WINDOWS = [
@@ -105,8 +106,8 @@ def rsi_series(closes, period=RSI_PERIOD):
     return values
 
 
-def find_dips(series, level=RSI_LEVEL):
-    """RSI 가 level 아래로 내려간 구간을 순서대로 모은다. 구간 사이는 30 위로 올라와야 나뉜다."""
+def find_dips(series, level):
+    """RSI 가 level 아래로 내려간 구간을 순서대로 모은다. level 위로 올라와야 구간이 나뉜다."""
     dips = []
     current = None
     for index, value in enumerate(series):
@@ -128,42 +129,82 @@ def find_dips(series, level=RSI_LEVEL):
     return dips
 
 
+def annotate(dip, bars):
+    dip["lowValue"] = round(dip["lowValue"], 1)
+    dip["startDate"] = bars[dip["start"]][0]
+    dip["endDate"] = bars[dip["end"]][0]
+    dip["lowDate"] = bars[dip["low"]][0]
+    dip["lowPrice"] = bars[dip["low"]][4]
+    return dip
+
+
 def main():
     bars, meta = fetch_bars()
     closes = [bar[4] for bar in bars]
     series = rsi_series(closes)
-    dips = find_dips(series)
-    for dip in dips:
-        dip["lowValue"] = round(dip["lowValue"], 1)
-        dip["startDate"] = bars[dip["start"]][0]
-        dip["lowDate"] = bars[dip["low"]][0]
-        dip["lowPrice"] = bars[dip["low"]][4]
+    strict = [annotate(dip, bars) for dip in find_dips(series, RSI_LEVEL)]
+    loose = [annotate(dip, bars) for dip in find_dips(series, RSI_LEVEL4)]
 
     asof = bars[-1][0]
-    windows = []
+    plans = []
     for window in WINDOWS:
-        picked = [i for i, dip in enumerate(dips) if window["from"] <= dip["startDate"] <= window["to"]]
-        buy = picked[2] if len(picked) >= 3 else None
+        picked = [dip for dip in strict if window["from"] <= dip["startDate"] <= window["to"]]
+        fourth = None
+        if len(picked) >= 3:
+            third = picked[2]
+            for dip in loose:
+                if dip["start"] > third["end"] and window["from"] <= dip["startDate"] <= window["to"]:
+                    fourth = dip
+                    break
         if window["from"] > asof:
             state = "future"
         elif window["to"] < asof:
             state = "past"
         else:
             state = "active"
-        entry = {
-            "key": window["key"],
-            "from": window["from"],
-            "to": window["to"],
-            "kind": window["kind"],
-            "state": state,
-            "dips": picked,
-            "buy": buy,
+        plans.append({
+            "key": window["key"], "from": window["from"], "to": window["to"],
+            "kind": window["kind"], "state": state, "dips": picked, "fourth": fourth,
+        })
+
+    pool = {}
+
+    def add(dip, strict_flag):
+        key = (dip["start"], dip["end"])
+        if key in pool:
+            return
+        pool[key] = {
+            "start": dip["start"], "end": dip["end"], "startDate": dip["startDate"],
+            "endDate": dip["endDate"], "low": dip["low"], "lowDate": dip["lowDate"],
+            "lowValue": dip["lowValue"], "lowPrice": dip["lowPrice"], "strict": strict_flag,
         }
-        if buy is not None:
-            entry["buyDate"] = dips[buy]["startDate"]
-            entry["buyPrice"] = bars[dips[buy]["start"]][4]
-            entry["lowDate"] = dips[buy]["lowDate"]
-            entry["lowPrice"] = dips[buy]["lowPrice"]
+
+    for dip in strict:
+        add(dip, True)
+    for plan in plans:
+        if plan["fourth"] is not None:
+            add(plan["fourth"], False)
+
+    dips = sorted(pool.values(), key=lambda item: item["start"])
+    position = {}
+    for index, dip in enumerate(dips):
+        position[(dip["start"], dip["end"])] = index
+
+    windows = []
+    for plan in plans:
+        entry = {
+            "key": plan["key"], "from": plan["from"], "to": plan["to"], "kind": plan["kind"],
+            "state": plan["state"],
+            "dips": [position[(dip["start"], dip["end"])] for dip in plan["dips"]],
+            "buy": None,
+        }
+        if plan["fourth"] is not None:
+            dip = plan["fourth"]
+            entry["buy"] = position[(dip["start"], dip["end"])]
+            entry["buyDate"] = dip["startDate"]
+            entry["buyPrice"] = bars[dip["start"]][4]
+            entry["lowDate"] = dip["lowDate"]
+            entry["lowPrice"] = dip["lowPrice"]
         windows.append(entry)
 
     payload = {
@@ -173,6 +214,7 @@ def main():
         "currency": meta.get("currency") or "USD",
         "rsiPeriod": RSI_PERIOD,
         "rsiLevel": RSI_LEVEL,
+        "rsiLevel4": RSI_LEVEL4,
         "bars": bars,
         "rsi": series,
         "dips": dips,
@@ -186,9 +228,9 @@ def main():
     print("bars=%d %s..%s dips=%d" % (len(bars), bars[0][0], asof, len(dips)))
     for window in windows:
         if window.get("buy") is not None:
-            print("  %-9s %-7s dips=%d  BUY %s @ %s" % (window["key"], window["state"], len(window["dips"]), window["buyDate"], window["buyPrice"]))
+            print("  %-9s %-7s dips30=%d  BUY %s @ %s" % (window["key"], window["state"], len(window["dips"]), window["buyDate"], window["buyPrice"]))
         else:
-            print("  %-9s %-7s dips=%d" % (window["key"], window["state"], len(window["dips"])))
+            print("  %-9s %-7s dips30=%d" % (window["key"], window["state"], len(window["dips"])))
 
 
 if __name__ == "__main__":
