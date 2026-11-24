@@ -24,7 +24,9 @@ DATA_DIR = ROOT / "data"
 INDEX_FILE = ROOT / "index.json"
 SP500_URL = "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/main/data/constituents.csv"
 QUOTE_URL = "https://query1.finance.yahoo.com/v10/finance/quoteSummary/{ticker}?modules={modules}&crumb={crumb}"
-CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range=1y"
+CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range=2y"
+TRANS_URL = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ko&dt=t&q={text}"
+TRANS_CACHE = {}
 MODULES = ("price,summaryDetail,defaultKeyStatistics,financialData,assetProfile,"
            "earnings,earningsTrend,recommendationTrend")
 UA = {"User-Agent": "Mozilla/5.0"}
@@ -112,8 +114,10 @@ def chart(session, ticker):
     quotes = ((block.get("indicators") or {}).get("quote") or [{}])[0]
     adjusted = ((block.get("indicators") or {}).get("adjclose") or [{}])[0].get("adjclose")
     closes = quotes.get("close") or []
+    volumes = quotes.get("volume") or []
     days = []
     values = []
+    vols = []
     for index, stamp in enumerate(stamps):
         close = closes[index] if index < len(closes) else None
         if not isinstance(close, (int, float)) or close <= 0:
@@ -121,22 +125,52 @@ def chart(session, ticker):
         factor = 1.0
         if adjusted and index < len(adjusted) and isinstance(adjusted[index], (int, float)):
             factor = adjusted[index] / close
+        volume = volumes[index] if index < len(volumes) else 0
         days.append(datetime.datetime.utcfromtimestamp(stamp).strftime("%Y-%m-%d"))
         values.append(round(close * factor, 2))
-    return {"d": days, "c": values, "m": meta}
+        vols.append(int(volume) if isinstance(volume, (int, float)) else 0)
+    if not days:
+        return None
+    base = datetime.datetime.strptime(days[0], "%Y-%m-%d")
+    offsets = [int((datetime.datetime.strptime(day, "%Y-%m-%d") - base).days) for day in days]
+    return {"d0": days[0], "dd": offsets, "c": values, "v": vols, "m": meta}
+
+
+def tr(text):
+    """영문 회사 정보를 한국어로 옮긴다. 실패하면 None 을 돌려주고 영문을 그대로 쓴다."""
+    text = (text or "").strip()
+    if not text:
+        return None
+    if text in TRANS_CACHE:
+        return TRANS_CACHE[text]
+    out = None
+    try:
+        url = TRANS_URL.format(text=urllib.parse.quote(text[:1600]))
+        response = requests.get(url, headers=UA, timeout=25)
+        if response.status_code == 200:
+            data = response.json()
+            out = "".join(part[0] for part in data[0] if part and part[0]).strip() or None
+    except Exception:  # noqa: BLE001
+        out = None
+    TRANS_CACHE[text] = out
+    return out
 
 
 def build_profile(profile):
     profile = profile or {}
-    summary = (profile.get("longBusinessSummary") or "").strip()
+    summary = (profile.get("longBusinessSummary") or "").strip()[:800]
     return {
         "c": profile.get("country"),
+        "cKo": tr(profile.get("country")),
         "s": profile.get("sector"),
+        "sKo": tr(profile.get("sector")),
         "i": profile.get("industry"),
+        "iKo": tr(profile.get("industry")),
         "city": profile.get("city"),
         "emp": profile.get("fullTimeEmployees"),
         "web": profile.get("website"),
-        "sum": summary[:800],
+        "sum": summary,
+        "sumKo": tr(summary) if summary else None,
     }
 
 
@@ -248,8 +282,7 @@ def job(ticker, session, crumb):
         entry = build_entry(ticker, summary)
         series = chart(session, ticker)
         if series:
-            entry["hist"] = series["d"]
-            entry["close"] = series["c"]
+            entry["ch"] = {"d0": series["d0"], "dd": series["dd"], "c": series["c"], "v": series["v"]}
             if series["m"].get("longName") and entry["n"] == ticker:
                 entry["n"] = series["m"]["longName"]
         return entry

@@ -29,6 +29,13 @@
     .ranges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
     .ranges button { background: #1a1a1a; color: #ddd; border: 1px solid #555; border-radius: 6px; padding: 4px 10px; font-size: 13px; cursor: pointer; }
     .ranges button.on { background: #24406e; border-color: #4da3ff; color: #fff; }
+    .ctrls { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+    .ctrls button { background: #1a1a1a; color: #ddd; border: 1px solid #555; border-radius: 6px; padding: 5px 12px; font-size: 13px; cursor: pointer; }
+    .ctrls button:hover { border-color: #4da3ff; color: #fff; }
+    .ctrls button.on { background: #24406e; border-color: #4da3ff; color: #fff; }
+    .ctrls .hint { color: #777; font-size: 12px; margin-left: 6px; }
+    #chart { touch-action: none; }
+    details summary { list-style: revert; }
     svg.chart { width: 100%; height: auto; display: block; background: #0c0c0c; border-radius: 8px; }
     table.kv { width: 100%; border-collapse: collapse; font-size: 14px; }
     table.kv td { padding: 7px 2px; border-bottom: 1px solid #2a2a2a; }
@@ -90,9 +97,13 @@
     return n;
   }
   function svgBox(host, w, h) {
-    host.innerHTML = "";
-    var s = ns("svg", { class: "chart", viewBox: "0 0 " + w + " " + h });
-    host.appendChild(s);
+    var s = host.querySelector("svg.chart");
+    if (!s) {
+      s = ns("svg", { class: "chart" });
+      host.appendChild(s);
+    }
+    while (s.firstChild) { s.removeChild(s.firstChild); }
+    s.setAttribute("viewBox", "0 0 " + w + " " + h);
     return s;
   }
   function tipOn(ev, html) {
@@ -101,41 +112,229 @@
     tip.style.top = (ev.clientY + 14) + "px";
     tip.innerHTML = html;
   }
-  function drawPrice(host, dates, closes, count) {
-    var n = dates.length;
-    var start = Math.max(0, n - (count || n));
-    var xs = dates.slice(start), ys = closes.slice(start);
-    var W = 1000, H = 300, PL = 8, PR = 8, PT = 12, PB = 26;
-    var x0 = PL, x1 = W - PR, y0 = PT, y1 = H - PB;
-    var lo = Math.min.apply(null, ys), hi = Math.max.apply(null, ys);
-    var pad = (hi - lo) * 0.08 || 1; lo -= pad; hi += pad;
-    function X(i) { return x0 + (x1 - x0) * (ys.length < 2 ? 0.5 : i / (ys.length - 1)); }
-    function Y(v) { return y1 - (v - lo) / (hi - lo) * (y1 - y0); }
-    var up = ys[ys.length - 1] >= ys[0];
-    var col = up ? "#7dcea0" : "#f1948a";
-    var d = "";
-    for (var i = 0; i < ys.length; i++) { d += (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(ys[i]).toFixed(1) + " "; }
-    var svg = svgBox(host, W, H);
-    svg.appendChild(ns("path", { d: d + "L" + X(ys.length - 1).toFixed(1) + " " + y1 + " L" + X(0).toFixed(1) + " " + y1 + " Z", fill: up ? "rgba(125,206,160,0.12)" : "rgba(241,148,138,0.12)" }));
-    svg.appendChild(ns("path", { d: d, fill: "none", stroke: col, "stroke-width": 2 }));
-    for (var t = 0; t <= 4; t++) {
-      var idx = Math.round((ys.length - 1) * t / 4);
-      svg.appendChild(ns("text", { x: X(idx), y: H - 6, fill: "#999", "font-size": 13, "text-anchor": t === 0 ? "start" : (t === 4 ? "end" : "middle") }, xs[idx].slice(0, 7)));
+  function sma(vals, n) {
+    var out = new Array(vals.length), sum = 0, i;
+    for (i = 0; i < vals.length; i++) { sum += vals[i]; if (i >= n) { sum -= vals[i - n]; } out[i] = i >= n - 1 ? sum / n : null; }
+    return out;
+  }
+
+  function ema(vals, n) {
+    var out = new Array(vals.length), k = 2 / (n + 1), sum = 0, i;
+    for (i = 0; i < vals.length; i++) { out[i] = null; }
+    if (vals.length < n) { return out; }
+    for (i = 0; i < n; i++) { sum += vals[i]; }
+    out[n - 1] = sum / n;
+    for (i = n; i < vals.length; i++) { out[i] = vals[i] * k + out[i - 1] * (1 - k); }
+    return out;
+  }
+
+  function rsiOf(vals, n) {
+    var out = new Array(vals.length), ag = 0, al = 0, i, d;
+    for (i = 0; i < vals.length; i++) { out[i] = null; }
+    if (vals.length <= n) { return out; }
+    for (i = 1; i <= n; i++) { d = vals[i] - vals[i - 1]; if (d >= 0) { ag += d; } else { al -= d; } }
+    ag /= n; al /= n;
+    out[n] = al === 0 ? 100 : 100 - 100 / (1 + ag / al);
+    for (i = n + 1; i < vals.length; i++) {
+      d = vals[i] - vals[i - 1];
+      ag = (ag * (n - 1) + Math.max(d, 0)) / n;
+      al = (al * (n - 1) + Math.max(-d, 0)) / n;
+      out[i] = al === 0 ? 100 : 100 - 100 / (1 + ag / al);
     }
-    svg.appendChild(ns("text", { x: x0 + 2, y: y0 + 12, fill: "#888", "font-size": 13 }, "고 " + num(hi - pad)));
-    svg.appendChild(ns("text", { x: x0 + 2, y: y1 - 4, fill: "#888", "font-size": 13 }, "저 " + num(lo + pad)));
-    var line = ns("line", { x1: 0, y1: y0, x2: 0, y2: y1, stroke: "#888", "stroke-dasharray": "3 3", opacity: 0 });
-    svg.appendChild(line);
-    svg.addEventListener("mousemove", function (ev) {
+    return out;
+  }
+
+  function macdOf(vals, f, s, sig) {
+    var ef = ema(vals, f), es = ema(vals, s), i;
+    var line = new Array(vals.length), idx = [], sub = [];
+    for (i = 0; i < vals.length; i++) {
+      line[i] = (ef[i] === null || es[i] === null) ? null : ef[i] - es[i];
+      if (line[i] !== null) { idx.push(i); sub.push(line[i]); }
+    }
+    var sigSub = ema(sub, sig);
+    var signal = new Array(vals.length), hist = new Array(vals.length);
+    for (i = 0; i < vals.length; i++) { signal[i] = null; hist[i] = null; }
+    for (i = 0; i < sub.length; i++) { signal[idx[i]] = sigSub[i]; }
+    for (i = 0; i < vals.length; i++) { if (line[i] !== null && signal[i] !== null) { hist[i] = line[i] - signal[i]; } }
+    return { line: line, signal: signal, hist: hist };
+  }
+
+  function seriesFrom(ch) {
+    ch = ch || {};
+    var base = ch.d0 ? new Date(ch.d0 + "T00:00:00Z") : new Date();
+    var dates = (ch.dd || []).map(function (off) { return new Date(base.getTime() + off * 86400000).toISOString().slice(0, 10); });
+    var close = ch.c || [];
+    return {
+      dates: dates, close: close, vol: ch.v || [],
+      ma20: sma(close, 20), ma50: sma(close, 50), ma200: sma(close, 200),
+      rsi: rsiOf(close, 14), macd: macdOf(close, 12, 26, 9)
+    };
+  }
+
+  var CH = { series: null, host: null, i0: 0, i1: 0, drag: null };
+  function drawChart() {
+    var s = CH.series, host = CH.host;
+    if (!s || !s.close.length) { return; }
+    var total = s.close.length;
+    var W = 1000, L = 8, R = 58, H = 730;
+    var x0 = L, x1 = W - R;
+    var P = { t: 24, b: 400 }, V = { t: 418, b: 486 }, RI = { t: 506, b: 604 }, MG = { t: 624, b: 700 };
+    var i0 = Math.max(0, Math.floor(CH.i0));
+    var i1 = Math.min(total - 1, Math.ceil(CH.i1));
+    if (i1 - i0 < 8) { i1 = Math.min(total - 1, i0 + 8); }
+    var n = i1 - i0 + 1;
+    var lo = Infinity, hi = -Infinity, k, q;
+    function take(x) { if (x !== null && x !== undefined && isFinite(x)) { if (x < lo) { lo = x; } if (x > hi) { hi = x; } } }
+    var mas = [s.ma20, s.ma50, s.ma200];
+    for (k = i0; k <= i1; k++) {
+      take(s.close[k]);
+      for (q = 0; q < 3; q++) { take(mas[q][k]); }
+    }
+    if (!isFinite(lo)) { lo = 0; hi = 1; }
+    var padv = (hi - lo) * 0.06 || 1; lo -= padv; hi += padv;
+    function X(i) { return x0 + (x1 - x0) * (n < 2 ? 0.5 : (i - i0) / (n - 1)); }
+    function Y(v) { return P.b - (v - lo) / (hi - lo) * (P.b - P.t); }
+    var vmax = 0;
+    for (k = i0; k <= i1; k++) { if (s.vol[k] > vmax) { vmax = s.vol[k]; } }
+    function YV(v) { return V.b - (vmax ? (v / vmax) * (V.b - V.t) : 0); }
+    var mlo = 0, mhi = 0;
+    for (k = i0; k <= i1; k++) {
+      var mv = [s.macd.line[k], s.macd.signal[k], s.macd.hist[k]];
+      for (q = 0; q < 3; q++) { if (mv[q] !== null && mv[q] !== undefined && isFinite(mv[q])) { if (mv[q] < mlo) { mlo = mv[q]; } if (mv[q] > mhi) { mhi = mv[q]; } } }
+    }
+    var mpad = (mhi - mlo) * 0.12 || 1; mlo -= mpad; mhi += mpad;
+    function YM(v) { return MG.b - (v - mlo) / (mhi - mlo) * (MG.b - MG.t); }
+    function YI(v) { return RI.b - (v / 100) * (RI.b - RI.t); }
+
+    var svg = svgBox(host, W, H);
+    [P, V, RI, MG].forEach(function (p) { svg.appendChild(ns("rect", { x: x0, y: p.t, width: x1 - x0, height: p.b - p.t, fill: "#0a0a0a", stroke: "#242424" })); });
+    for (k = 0; k <= 4; k++) {
+      var yy = P.t + (P.b - P.t) * k / 4;
+      svg.appendChild(ns("line", { x1: x0, y1: yy, x2: x1, y2: yy, stroke: "#1c1c1c" }));
+      svg.appendChild(ns("text", { x: x1 + 5, y: yy + 4, fill: "#999", "font-size": 12 }, num(hi - (hi - lo) * k / 4)));
+    }
+    [30, 70].forEach(function (lv) {
+      svg.appendChild(ns("line", { x1: x0, y1: YI(lv), x2: x1, y2: YI(lv), stroke: lv === 30 ? "#6e3434" : "#34603a", "stroke-dasharray": "4 3" }));
+      svg.appendChild(ns("text", { x: x1 + 5, y: YI(lv) + 4, fill: "#999", "font-size": 12 }, lv));
+    });
+    svg.appendChild(ns("line", { x1: x0, y1: YM(0), x2: x1, y2: YM(0), stroke: "#333" }));
+    var bw = Math.max(1, (x1 - x0) / n - 0.6);
+    for (k = i0; k <= i1; k++) {
+      var upV = s.close[k] >= (k > 0 ? s.close[k - 1] : s.close[k]);
+      svg.appendChild(ns("rect", { x: X(k) - bw / 2, y: YV(s.vol[k]), width: bw, height: Math.max(1, V.b - YV(s.vol[k])), fill: upV ? "#2c5a44" : "#5a2c2c" }));
+    }
+    var dp = "";
+    for (k = i0; k <= i1; k++) { dp += (k === i0 ? "M" : "L") + X(k).toFixed(1) + " " + Y(s.close[k]).toFixed(1) + " "; }
+    svg.appendChild(ns("path", { d: dp, fill: "none", stroke: "#5aa9e6", "stroke-width": 1.8 }));
+    [["ma20", "#f7dc6f", 1.4], ["ma50", "#7dcea0", 1.4], ["ma200", "#f1948a", 1.7]].forEach(function (m) {
+      var arr = s[m[0]], dd = "";
+      for (k = i0; k <= i1; k++) {
+        if (arr[k] === null || arr[k] === undefined) { continue; }
+        dd += ((dd === "" || arr[k - 1] === null || arr[k - 1] === undefined) ? "M" : "L") + X(k).toFixed(1) + " " + Y(arr[k]).toFixed(1) + " ";
+      }
+      if (dd) { svg.appendChild(ns("path", { d: dd, fill: "none", stroke: m[1], "stroke-width": m[2] })); }
+    });
+    var dr = "";
+    for (k = i0; k <= i1; k++) {
+      if (s.rsi[k] === null || s.rsi[k] === undefined) { continue; }
+      dr += (dr === "" ? "M" : "L") + X(k).toFixed(1) + " " + YI(s.rsi[k]).toFixed(1) + " ";
+    }
+    if (dr) { svg.appendChild(ns("path", { d: dr, fill: "none", stroke: "#f7dc6f", "stroke-width": 1.5 })); }
+    for (k = i0; k <= i1; k++) {
+      var hh = s.macd.hist[k];
+      if (hh === null || hh === undefined) { continue; }
+      var my0 = YM(0), my1 = YM(hh);
+      svg.appendChild(ns("rect", { x: X(k) - bw / 2, y: Math.min(my0, my1), width: bw, height: Math.max(1, Math.abs(my1 - my0)), fill: hh >= 0 ? "#2c5a44" : "#5a2c2c" }));
+    }
+    [["line", "#5aa9e6"], ["signal", "#f7a35c"]].forEach(function (m) {
+      var arr = s.macd[m[0]], dd = "";
+      for (k = i0; k <= i1; k++) {
+        if (arr[k] === null || arr[k] === undefined) { continue; }
+        dd += ((dd === "" || arr[k - 1] === null) ? "M" : "L") + X(k).toFixed(1) + " " + YM(arr[k]).toFixed(1) + " ";
+      }
+      if (dd) { svg.appendChild(ns("path", { d: dd, fill: "none", stroke: m[1], "stroke-width": 1.4 })); }
+    });
+    [["주가", P.t], ["거래량", V.t], ["RSI(14)", RI.t], ["MACD(12,26,9)", MG.t]].forEach(function (lab) {
+      svg.appendChild(ns("text", { x: x0 + 5, y: lab[1] + 15, fill: "#777", "font-size": 12 }, lab[0]));
+    });
+    var lx = x0 + 60;
+    [["MA20", "#f7dc6f"], ["MA50", "#7dcea0"], ["MA200", "#f1948a"]].forEach(function (m) {
+      svg.appendChild(ns("line", { x1: lx, y1: P.t + 12, x2: lx + 16, y2: P.t + 12, stroke: m[1], "stroke-width": 2 }));
+      svg.appendChild(ns("text", { x: lx + 20, y: P.t + 16, fill: m[1], "font-size": 12 }, m[0]));
+      lx += 66;
+    });
+    for (k = 0; k <= 5; k++) {
+      var idx = Math.round(i0 + (i1 - i0) * k / 5);
+      svg.appendChild(ns("text", { x: X(idx), y: H - 6, fill: "#999", "font-size": 12, "text-anchor": k === 0 ? "start" : (k === 5 ? "end" : "middle") }, (s.dates[idx] || "").slice(2, 7)));
+    }
+    var vline = ns("line", { x1: 0, y1: P.t, x2: 0, y2: MG.b, stroke: "#888", "stroke-dasharray": "3 3", opacity: 0 });
+    svg.appendChild(vline);
+    CH.vline = vline;
+    CH.view = { i0: i0, i1: i1, x0: x0, x1: x1, total: total, X: X };
+    wireChart(svg);
+  }
+  function wireChart(svg) {
+    if (svg.__wired) { return; }
+    svg.__wired = true;
+    svg.style.cursor = "crosshair";
+    svg.addEventListener("pointerdown", function (ev) {
+      CH.drag = { x: ev.clientX, i0: CH.i0, i1: CH.i1 };
+      try { svg.setPointerCapture(ev.pointerId); } catch (e) { /* ignore */ }
+      ev.preventDefault();
+    });
+    svg.addEventListener("pointerup", function () { CH.drag = null; });
+    svg.addEventListener("pointercancel", function () { CH.drag = null; });
+    svg.addEventListener("wheel", function (ev) {
+      ev.preventDefault();
+      var vw = CH.view;
+      if (!vw) { return; }
+      var rect = svg.getBoundingClientRect();
+      var ratio = Math.min(1, Math.max(0, (ev.clientX - rect.left) / rect.width));
+      var span = CH.i1 - CH.i0;
+      var focus = CH.i0 + span * ratio;
+      var next = Math.max(10, Math.min(vw.total, span * (ev.deltaY > 0 ? 1.15 : 0.87)));
+      CH.i0 = Math.max(0, focus - next * ratio);
+      CH.i1 = Math.min(vw.total - 1, CH.i0 + next);
+      drawChart();
+    }, { passive: false });
+    svg.addEventListener("pointermove", function (ev) {
+      var vw = CH.view, s2 = CH.series;
+      if (!vw || !s2) { return; }
+      var rect = svg.getBoundingClientRect();
+      if (CH.drag) {
+        var span = CH.drag.i1 - CH.drag.i0;
+        var per = span / rect.width;
+        CH.i0 = Math.max(0, Math.min(vw.total - 1 - span, CH.drag.i0 - (ev.clientX - CH.drag.x) * per));
+        CH.i1 = CH.i0 + span;
+        drawChart();
+        return;
+      }
       var p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
       var pt = p.matrixTransform(svg.getScreenCTM().inverse());
-      var k = Math.round((pt.x - x0) / (x1 - x0) * (ys.length - 1));
-      if (k < 0) { k = 0; }
-      if (k >= ys.length) { k = ys.length - 1; }
-      line.setAttribute("x1", X(k)); line.setAttribute("x2", X(k)); line.setAttribute("opacity", 1);
-      tipOn(ev, xs[k] + "<br>종가 " + num(ys[k]));
+      if (pt.x < vw.x0 || pt.x > vw.x1) { tip.style.display = "none"; if (CH.vline) { CH.vline.setAttribute("opacity", 0); } return; }
+      var kk = Math.round(vw.i0 + (pt.x - vw.x0) / (vw.x1 - vw.x0) * (vw.i1 - vw.i0));
+      if (kk < 0) { kk = 0; }
+      if (kk >= vw.total) { kk = vw.total - 1; }
+      if (CH.vline) { CH.vline.setAttribute("x1", vw.X(kk)); CH.vline.setAttribute("x2", vw.X(kk)); CH.vline.setAttribute("opacity", 1); }
+      tipOn(ev, s2.dates[kk] + "<br>종가 " + num(s2.close[kk]) +
+        "<br>MA20 " + num(s2.ma20[kk]) + " · MA50 " + num(s2.ma50[kk]) + " · MA200 " + num(s2.ma200[kk]) +
+        "<br>RSI " + num(s2.rsi[kk], 1) + " · MACD " + num(s2.macd.line[kk], 2) +
+        "<br>거래량 " + big(s2.vol[kk]));
     });
-    svg.addEventListener("mouseleave", function () { tip.style.display = "none"; line.setAttribute("opacity", 0); });
+    svg.addEventListener("pointerleave", function () {
+      tip.style.display = "none";
+      if (CH.vline) { CH.vline.setAttribute("opacity", 0); }
+      CH.drag = null;
+    });
+  }
+
+  function setRange(n) {
+    var total = CH.series ? CH.series.close.length : 0;
+    if (!total) { return; }
+    var len = n > 0 ? Math.min(total, n) : total;
+    CH.i0 = Math.max(0, total - len);
+    CH.i1 = total - 1;
+    drawChart();
   }
 
   function drawBars(host, rows, opt) {
@@ -190,8 +389,9 @@
   function factors(d) {
     var g = d.growth || {};
     var mom = null;
-    if (d.close && d.close.length > 130) {
-      var a = d.close[d.close.length - 126], b = d.close[d.close.length - 1];
+    var cl = (d.ch && d.ch.c) ? d.ch.c : null;
+    if (cl && cl.length > 130) {
+      var a = cl[cl.length - 126], b = cl[cl.length - 1];
       mom = clamp(50 + (b / a - 1) * 120, 0, 100);
     }
     return [
@@ -205,21 +405,33 @@
   }
 
   function metricRows(d) {
-    return row("시가총액", big(d.mcap)) +
-      row("거래량", isNum(d.vol) ? Number(d.vol).toLocaleString("en-US") : "-") +
-      row("평균 거래량", big(d.avgVol)) +
-      row("전일 종가", num(d.prev)) +
-      row("52주 범위", num(d.w52L) + " ~ " + num(d.w52H)) +
-      row("PER (TTM)", num(d.pe)) +
-      row("PER (FWD)", num(d.fpe)) +
-      row("EPS (TTM)", num(d.eps)) +
-      row("EPS (FWD)", num(d.feps)) +
-      row("PBR", num(d.pb)) +
-      row("배당", num(d.div)) +
-      row("배당수익률", pct(d.divY)) +
-      row("공매도 잔량", isNum(d.short) ? big(d.short) + " (" + pct(d.shortPct) + ")" : "-") +
-      row("공매도 비율", num(d.shortRatio)) +
-      row("베타", num(d.beta));
+    return [
+      ["시가총액", big(d.mcap)],
+      ["거래량", isNum(d.vol) ? Number(d.vol).toLocaleString("en-US") : "-"],
+      ["평균 거래량", big(d.avgVol)],
+      ["전일 종가", num(d.prev)],
+      ["52주 범위", num(d.w52L) + " ~ " + num(d.w52H)],
+      ["PER (TTM)", num(d.pe)],
+      ["PER (FWD)", num(d.fpe)],
+      ["EPS (TTM)", num(d.eps)],
+      ["EPS (FWD)", num(d.feps)],
+      ["PBR", num(d.pb)],
+      ["배당", num(d.div)],
+      ["배당수익률", pct(d.divY)],
+      ["공매도 잔량", isNum(d.short) ? big(d.short) + " (" + pct(d.shortPct) + ")" : "-"],
+      ["공매도 비율", num(d.shortRatio)],
+      ["베타", num(d.beta)]
+    ];
+  }
+
+  function metricHtml(d) {
+    var list = metricRows(d), half = Math.ceil(list.length / 2);
+    function tbl(rows) {
+      var out = "<table class=\"kv\">";
+      rows.forEach(function (r) { out += "<tr><td>" + r[0] + "</td><td>" + r[1] + "</td></tr>"; });
+      return out + "</table>";
+    }
+    return "<div class=\"two\"><div>" + tbl(list.slice(0, half)) + "</div><div>" + tbl(list.slice(half)) + "</div></div>";
   }
 
   function nextQuarter(label, step) {
@@ -297,21 +509,29 @@
 
   function profileHtml(d) {
     var p = d.prof || {};
-    var asof = (d.hist && d.hist.length) ? d.hist[d.hist.length - 1] : "";
+    var asof = "";
+    if (d.ch && d.ch.d0 && d.ch.dd && d.ch.dd.length) {
+      asof = new Date(new Date(d.ch.d0 + "T00:00:00Z").getTime() + d.ch.dd[d.ch.dd.length - 1] * 86400000).toISOString().slice(0, 10);
+    }
     var h = "<h2>회사 정보</h2><table class=\"kv\">" +
-      row("국가", esc(p.c || "-")) +
-      row("섹터", esc(p.s || "-")) +
-      row("산업", esc(p.i || "-")) +
-      row("본사", esc(p.city || "-")) +
+      row("국가", esc(p.cKo || p.c || "-")) +
+      row("섹터", esc(p.sKo || p.s || "-")) +
+      row("산업", esc(p.iKo || p.i || "-")) +
+      row("본사", esc(p.city || "-") + (p.c && p.city ? " · " + esc(p.c) : "")) +
       row("직원 수", isNum(p.emp) ? Number(p.emp).toLocaleString("en-US") + "명" : "-") +
       row("홈페이지", p.web ? "<a href=\"" + esc(p.web) + "\" target=\"_blank\" rel=\"noopener\">" + esc(String(p.web).replace(/^https?:\/\//, "")) + "</a>" : "-") +
       "</table>";
-    if (p.sum) { h += "<p class=\"sub\" style=\"margin-top:12px\">" + esc(p.sum) + "</p>"; }
-    h += "<p class=\"sub\">출처 Yahoo Finance · 기준 " + esc(asof) + "</p>";
+    if (p.sumKo) {
+      h += "<p class=\"sub\" style=\"margin-top:14px;font-size:15px;line-height:1.75;color:#ddd\">" + esc(p.sumKo) + "</p>";
+      if (p.sum) { h += "<details style=\"margin-top:10px\"><summary class=\"sub\" style=\"cursor:pointer\">영문 원문 보기</summary><p class=\"sub\" style=\"margin-top:6px\">" + esc(p.sum) + "</p></details>"; }
+    } else if (p.sum) {
+      h += "<p class=\"sub\" style=\"margin-top:14px;font-size:15px;line-height:1.75;color:#ddd\">" + esc(p.sum) + "</p>";
+    }
+    h += "<p class=\"sub\">출처 Yahoo Finance · 시세 기준 " + esc(asof) + "</p>";
     return h;
   }
-  var RANGES = [["1개월", 22], ["3개월", 63], ["6개월", 126], ["1년", 0], ["전체", 251]];
-  var range = 0;
+  var RANGES = [["1개월", 22], ["3개월", 63], ["6개월", 126], ["1년", 252], ["전체", 0]];
+  var range = 252;
 
   function render(d) {
     document.title = d.t + " · " + d.n;
@@ -322,31 +542,40 @@
     h += "<div><span class=\"px\">" + num(d.px) + "</span><span class=\"chg " + cls + "\">" + (up ? "+" : "") + num(d.chg) + " (" + (up ? "+" : "") + pct(d.chgPct) + ")</span></div>";
     h += "<div class=\"sub\">" + (d.dayL && d.dayH ? "장중 " + num(d.dayL) + " ~ " + num(d.dayH) + " · " : "") + "전일 " + num(d.prev) + " · 52주 " + num(d.w52L) + " ~ " + num(d.w52H) + "</div></div>";
     h += "<nav class=\"tabs\"><a href=\"#s1\">요약</a><a href=\"#s2\">실적</a><a href=\"#s3\">애널 평가</a><a href=\"#s4\">회사 정보</a></nav>";
-    h += "<div class=\"grid2\" id=\"s1\"><div class=\"card\"><h2>주가 (일봉)</h2><div class=\"ranges\" id=\"ranges\">";
+    h += "<div class=\"card\" id=\"s1\"><h2>주가 · 거래량 · RSI · MACD</h2><div class=\"ctrls\">";
     h += RANGES.map(function (r, i) { return "<button type=\"button\" data-n=\"" + r[1] + "\"" + (i === 3 ? " class=\"on\"" : "") + ">" + r[0] + "</button>"; }).join("");
-    h += "</div><div id=\"priceChart\"></div></div>";
-    h += "<div class=\"card\"><h2>주요 지표</h2><table class=\"kv\">" + metricRows(d) + "</table></div></div>";
+    h += "<button type=\"button\" data-reset=\"1\">초기화</button>";
+    h += "<span class=\"hint\">확대/축소: 마우스 휠 · 이동: 드래그</span></div>";
+    h += "<div id=\"chart\"></div></div>";
+    h += "<div class=\"card\"><h2>주요 지표</h2>" + metricHtml(d) + "</div>";
     h += "<div class=\"card\" id=\"s2\"><h2>매출</h2><div id=\"revChart\"></div><div class=\"sub\">연간 매출입니다. 실적치(회색)와 추정치(파란색, E)를 함께 봅니다.</div></div>";
     h += "<div class=\"card\"><h2>주당순이익 (EPS)</h2><div id=\"epsChart\"></div><div class=\"sub\">분기 주당순이익 실적치(회색)와 추정치(파란색)입니다.</div></div>";
     h += "<div class=\"card\" id=\"s3\">" + analystHtml(d) + "</div>";
     h += "<div class=\"card\" id=\"s4\">" + profileHtml(d) + "</div>";
     app.innerHTML = h;
 
-    if (d.hist && d.close && d.hist.length) {
-      drawPrice(document.getElementById("priceChart"), d.hist, d.close, range || d.hist.length);
+    var chartHost = document.getElementById("chart");
+    if (d.ch && d.ch.c && d.ch.c.length) {
+      CH.host = chartHost;
+      CH.series = seriesFrom(d.ch);
+      CH.drag = null;
+      setRange(range);
     } else {
-      document.getElementById("priceChart").innerHTML = "<p class=\"sub\">차트 데이터가 없습니다.</p>";
+      chartHost.innerHTML = "<p class=\"sub\">차트 데이터가 없습니다.</p>";
     }
     var rev = revenueRows(d);
     if (rev.length) { drawBars(document.getElementById("revChart"), rev); }
     var eps = epsRows(d);
     if (eps.length) { drawBars(document.getElementById("epsChart"), eps); }
-    Array.prototype.forEach.call(document.querySelectorAll("#ranges button"), function (btn) {
+    Array.prototype.forEach.call(document.querySelectorAll(".ctrls button"), function (btn) {
       btn.addEventListener("click", function () {
-        Array.prototype.forEach.call(document.querySelectorAll("#ranges button"), function (x) { x.classList.remove("on"); });
+        if (btn.getAttribute("data-reset")) {
+          setRange(252);
+          return;
+        }
+        Array.prototype.forEach.call(document.querySelectorAll(".ctrls button"), function (x) { x.classList.remove("on"); });
         btn.classList.add("on");
-        var n = Number(btn.getAttribute("data-n"));
-        drawPrice(document.getElementById("priceChart"), d.hist, d.close, n || d.hist.length);
+        setRange(Number(btn.getAttribute("data-n")));
       });
     });
   }
