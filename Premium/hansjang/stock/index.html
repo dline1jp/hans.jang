@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="/Premium/gate.js"></script>
+  <title>종목 정보</title>
+  <style>
+    body { background: #111; color: #fff; font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; margin: 0; padding: 16px; }
+    a { color: #4da3ff; }
+    .home { color: #D8C0FF; font-size: 20px; text-decoration: none; }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+    .search { display: flex; gap: 8px; margin: 12px 0 16px; }
+    .search input { flex: 1; min-width: 0; background: #1a1a1a; color: #fff; border: 1px solid #555; border-radius: 8px; padding: 10px 12px; font-size: 16px; }
+    .search button { background: #1a4fbf; color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font-size: 16px; font-weight: 700; cursor: pointer; }
+    .card { background: #181818; border: 1px solid #444; border-radius: 12px; padding: 14px; margin: 0 0 14px; }
+    .sym { font-size: 15px; color: #9cc; }
+    .nm { font-size: 26px; color: #FFFFE0; margin: 2px 0 8px; line-height: 1.3; }
+    .px { font-size: 40px; font-weight: 700; }
+    .chg { font-size: 22px; font-weight: 700; margin-left: 10px; }
+    .up { color: #7dcea0; }
+    .down { color: #f1948a; }
+    .sub { color: #aaa; font-size: 14px; line-height: 1.6; margin-top: 8px; }
+    .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 14px; }
+    .tabs a { background: #1a1a1a; border: 1px solid #555; border-radius: 8px; padding: 7px 14px; color: #ddd; font-weight: 700; text-decoration: none; font-size: 15px; }
+    .tabs a:hover { border-color: #4da3ff; color: #fff; }
+    h2 { color: #FFFFE0; font-size: 20px; margin: 0 0 10px; }
+    .grid2 { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; align-items: start; }
+    .ranges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+    .ranges button { background: #1a1a1a; color: #ddd; border: 1px solid #555; border-radius: 6px; padding: 4px 10px; font-size: 13px; cursor: pointer; }
+    .ranges button.on { background: #24406e; border-color: #4da3ff; color: #fff; }
+    svg.chart { width: 100%; height: auto; display: block; background: #0c0c0c; border-radius: 8px; }
+    table.kv { width: 100%; border-collapse: collapse; font-size: 14px; }
+    table.kv td { padding: 7px 2px; border-bottom: 1px solid #2a2a2a; }
+    table.kv td:first-child { color: #9cc; }
+    table.kv td:last-child { text-align: right; font-weight: 700; }
+    .bar-row { display: flex; align-items: center; gap: 8px; margin: 5px 0; font-size: 13px; }
+    .bar-row .lbl { width: 88px; flex: 0 0 auto; color: #9cc; }
+    .bar-row .track { flex: 1; height: 16px; background: #222; border-radius: 4px; overflow: hidden; display: flex; }
+    .bar-row .track i { display: block; height: 100%; }
+    .bar-row .val { width: 96px; flex: 0 0 auto; text-align: right; }
+    .g { display: inline-block; min-width: 40px; text-align: center; padding: 2px 8px; border-radius: 6px; font-weight: 800; font-size: 13px; color: #111; }
+    .g.a { background: #2e7d5b; color: #fff; }
+    .g.b { background: #7dcea0; }
+    .g.c { background: #f7dc6f; }
+    .g.d { background: #f0a05a; }
+    .g.f { background: #ef5350; color: #fff; }
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 820px) { .grid2, .two { grid-template-columns: 1fr; } .nm { font-size: 21px; } .px { font-size: 30px; } }
+    .tip { position: fixed; pointer-events: none; background: #000d; border: 1px solid #666; border-radius: 8px; padding: 6px 10px; font-size: 12px; line-height: 1.5; display: none; z-index: 9; white-space: nowrap; }
+    .msg { color: #ffd76a; font-size: 16px; line-height: 1.6; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <p><a class="home" href="../index.html">← 한스장 타점</a></p>
+  <form class="search" id="sform" autocomplete="off">
+    <input id="q" list="tickers" placeholder="티커를 입력하세요 (예: NVDA, 005930, SOXL)" aria-label="티커 검색">
+    <datalist id="tickers"></datalist>
+    <button type="submit">검색</button>
+  </form>
+  <div id="app"></div>
+</div>
+<div class="tip" id="tip"></div>
+<script>
+(function () {
+  var NS = "http://www.w3.org/2000/svg";
+  var tip = document.getElementById("tip");
+  var app = document.getElementById("app");
+  var q = document.getElementById("q");
+  var dl = document.getElementById("tickers");
+
+  function esc(s) { return String(s === null || s === undefined ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  function isNum(v) { return v !== null && v !== undefined && v !== "" && !isNaN(v); }
+  function num(v, d) { if (!isNum(v)) { return "-"; } var n = (d === undefined ? 2 : d); return Number(v).toLocaleString("en-US", { minimumFractionDigits: n, maximumFractionDigits: n }); }
+  function pct(v) { return isNum(v) ? (Number(v) * 100).toFixed(2) + "%" : "-"; }
+  function big(v) {
+    if (!isNum(v)) { return "-"; }
+    var s = Math.abs(v), sign = v < 0 ? "-" : "";
+    if (s >= 1e12) { return sign + (s / 1e12).toFixed(2) + "T"; }
+    if (s >= 1e9) { return sign + (s / 1e9).toFixed(2) + "B"; }
+    if (s >= 1e6) { return sign + (s / 1e6).toFixed(2) + "M"; }
+    if (s >= 1e3) { return sign + (s / 1e3).toFixed(1) + "K"; }
+    return sign + s.toFixed(0);
+  }
+  function ns(tag, attrs, text) {
+    var n = document.createElementNS(NS, tag);
+    for (var k in attrs) { if (attrs[k] !== null && attrs[k] !== undefined) { n.setAttribute(k, attrs[k]); } }
+    if (text !== undefined) { n.textContent = text; }
+    return n;
+  }
+  function svgBox(host, w, h) {
+    host.innerHTML = "";
+    var s = ns("svg", { class: "chart", viewBox: "0 0 " + w + " " + h });
+    host.appendChild(s);
+    return s;
+  }
+  function tipOn(ev, html) {
+    tip.style.display = "block";
+    tip.style.left = (ev.clientX + 14) + "px";
+    tip.style.top = (ev.clientY + 14) + "px";
+    tip.innerHTML = html;
+  }
+  function drawPrice(host, dates, closes, count) {
+    var n = dates.length;
+    var start = Math.max(0, n - (count || n));
+    var xs = dates.slice(start), ys = closes.slice(start);
+    var W = 1000, H = 300, PL = 8, PR = 8, PT = 12, PB = 26;
+    var x0 = PL, x1 = W - PR, y0 = PT, y1 = H - PB;
+    var lo = Math.min.apply(null, ys), hi = Math.max.apply(null, ys);
+    var pad = (hi - lo) * 0.08 || 1; lo -= pad; hi += pad;
+    function X(i) { return x0 + (x1 - x0) * (ys.length < 2 ? 0.5 : i / (ys.length - 1)); }
+    function Y(v) { return y1 - (v - lo) / (hi - lo) * (y1 - y0); }
+    var up = ys[ys.length - 1] >= ys[0];
+    var col = up ? "#7dcea0" : "#f1948a";
+    var d = "";
+    for (var i = 0; i < ys.length; i++) { d += (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(ys[i]).toFixed(1) + " "; }
+    var svg = svgBox(host, W, H);
+    svg.appendChild(ns("path", { d: d + "L" + X(ys.length - 1).toFixed(1) + " " + y1 + " L" + X(0).toFixed(1) + " " + y1 + " Z", fill: up ? "rgba(125,206,160,0.12)" : "rgba(241,148,138,0.12)" }));
+    svg.appendChild(ns("path", { d: d, fill: "none", stroke: col, "stroke-width": 2 }));
+    for (var t = 0; t <= 4; t++) {
+      var idx = Math.round((ys.length - 1) * t / 4);
+      svg.appendChild(ns("text", { x: X(idx), y: H - 6, fill: "#999", "font-size": 13, "text-anchor": t === 0 ? "start" : (t === 4 ? "end" : "middle") }, xs[idx].slice(0, 7)));
+    }
+    svg.appendChild(ns("text", { x: x0 + 2, y: y0 + 12, fill: "#888", "font-size": 13 }, "고 " + num(hi - pad)));
+    svg.appendChild(ns("text", { x: x0 + 2, y: y1 - 4, fill: "#888", "font-size": 13 }, "저 " + num(lo + pad)));
+    var line = ns("line", { x1: 0, y1: y0, x2: 0, y2: y1, stroke: "#888", "stroke-dasharray": "3 3", opacity: 0 });
+    svg.appendChild(line);
+    svg.addEventListener("mousemove", function (ev) {
+      var p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
+      var pt = p.matrixTransform(svg.getScreenCTM().inverse());
+      var k = Math.round((pt.x - x0) / (x1 - x0) * (ys.length - 1));
+      if (k < 0) { k = 0; }
+      if (k >= ys.length) { k = ys.length - 1; }
+      line.setAttribute("x1", X(k)); line.setAttribute("x2", X(k)); line.setAttribute("opacity", 1);
+      tipOn(ev, xs[k] + "<br>종가 " + num(ys[k]));
+    });
+    svg.addEventListener("mouseleave", function () { tip.style.display = "none"; line.setAttribute("opacity", 0); });
+  }
+
+  function drawBars(host, rows, opt) {
+    opt = opt || {};
+    var W = 1000, H = 320, PL = 80, PR = 12, PT = 18, PB = 54;
+    var x0 = PL, x1 = W - PR, y0 = PT, y1 = H - PB;
+    var all = [0];
+    rows.forEach(function (r) { all.push(r.a === null || r.a === undefined ? 0 : r.a); if (r.b !== undefined && r.b !== null) { all.push(r.b); } });
+    var hi = Math.max.apply(null, all), lo = Math.min.apply(null, all);
+    var span = (hi - lo) || 1;
+    function Y(v) { return y1 - (v - lo) / span * (y1 - y0); }
+    var svg = svgBox(host, W, H);
+    svg.appendChild(ns("line", { x1: x0, y1: Y(0), x2: x1, y2: Y(0), stroke: "#555" }));
+    svg.appendChild(ns("text", { x: x0 - 8, y: Y(hi) + 5, fill: "#888", "font-size": 12, "text-anchor": "end" }, big(hi)));
+    svg.appendChild(ns("text", { x: x0 - 8, y: Y(lo) + 5, fill: "#888", "font-size": 12, "text-anchor": "end" }, big(lo)));
+    var slot = (x1 - x0) / rows.length;
+    var bw = Math.min(44, slot * 0.3);
+    rows.forEach(function (r, i) {
+      var cx = x0 + slot * (i + 0.5);
+      var two = !(r.b === undefined || r.b === null);
+      var total = two ? (bw * 2 + 6) : bw;
+      var left = cx - total / 2;
+      function bar(v, color, xo, lab, labCol) {
+        if (v === null || v === undefined) { return; }
+        var top = Math.min(Y(v), Y(0)), hgt = Math.abs(Y(v) - Y(0));
+        svg.appendChild(ns("rect", { x: xo, y: top, width: bw, height: Math.max(2, hgt), fill: color, rx: 3 }));
+        if (lab) { svg.appendChild(ns("text", { x: xo + bw / 2, y: v >= 0 ? top - 5 : top + hgt + 15, fill: labCol, "font-size": 13, "text-anchor": "middle" }, lab)); }
+      }
+      if (two) {
+        bar(r.a, "#3f4a57", left, r.aText, "#ccd", 0);
+        bar(r.b, "#5aa9e6", left + bw + 6, r.bText, "#9fd");
+      } else {
+        bar(r.a, r.est ? "#5aa9e6" : "#3f4a57", left, r.aText, "#ccd");
+      }
+      svg.appendChild(ns("text", { x: cx, y: H - 32, fill: "#ddd", "font-size": 14, "text-anchor": "middle" }, r.label));
+      if (r.sub) { svg.appendChild(ns("text", { x: cx, y: H - 13, fill: "#888", "font-size": 12, "text-anchor": "middle" }, r.sub)); }
+    });
+  }
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function grade(score) {
+    if (score >= 88) { return ["A+", "a"]; }
+    if (score >= 78) { return ["A", "a"]; }
+    if (score >= 68) { return ["B+", "b"]; }
+    if (score >= 58) { return ["B", "b"]; }
+    if (score >= 48) { return ["C+", "c"]; }
+    if (score >= 38) { return ["C", "c"]; }
+    if (score >= 28) { return ["D", "d"]; }
+    return ["F", "f"];
+  }
+  function row(k, v) { return "<tr><td>" + k + "</td><td>" + v + "</td></tr>"; }
+
+  function factors(d) {
+    var g = d.growth || {};
+    var mom = null;
+    if (d.close && d.close.length > 130) {
+      var a = d.close[d.close.length - 126], b = d.close[d.close.length - 1];
+      mom = clamp(50 + (b / a - 1) * 120, 0, 100);
+    }
+    return [
+      { k: "밸류에이션", v: (isNum(d.pe) && d.pe > 0) ? clamp(100 - (d.pe - 8) * 2.2, 0, 100) : null },
+      { k: "성장성", v: isNum(g.rev) ? clamp(50 + ((g.rev || 0) + (g.earn || 0)) * 40, 0, 100) : null },
+      { k: "수익성", v: isNum(g.margin) ? clamp((g.margin || 0) * 100 + (g.roe || 0) * 40, 0, 100) : null },
+      { k: "모멘텀", v: mom },
+      { k: "배당", v: isNum(d.divY) ? clamp(d.divY * 100 * 14, 0, 100) : null },
+      { k: "재무건전성", v: isNum(g.debt) ? clamp(100 - (g.debt - 30) * 0.7, 0, 100) : null },
+    ];
+  }
+
+  function metricRows(d) {
+    return row("시가총액", big(d.mcap)) +
+      row("거래량", isNum(d.vol) ? Number(d.vol).toLocaleString("en-US") : "-") +
+      row("평균 거래량", big(d.avgVol)) +
+      row("전일 종가", num(d.prev)) +
+      row("52주 범위", num(d.w52L) + " ~ " + num(d.w52H)) +
+      row("PER (TTM)", num(d.pe)) +
+      row("PER (FWD)", num(d.fpe)) +
+      row("EPS (TTM)", num(d.eps)) +
+      row("EPS (FWD)", num(d.feps)) +
+      row("PBR", num(d.pb)) +
+      row("배당", num(d.div)) +
+      row("배당수익률", pct(d.divY)) +
+      row("공매도 잔량", isNum(d.short) ? big(d.short) + " (" + pct(d.shortPct) + ")" : "-") +
+      row("공매도 비율", num(d.shortRatio)) +
+      row("베타", num(d.beta));
+  }
+
+  function nextQuarter(label, step) {
+    var m = /^(\d)Q(\d{4})$/.exec(label || "");
+    if (!m) { return "추정"; }
+    var q = Number(m[1]) + step, y = Number(m[2]);
+    while (q > 4) { q -= 4; y += 1; }
+    return q + "Q" + y;
+  }
+
+  function revenueRows(d) {
+    var rows = [];
+    var annual = (d.fin && d.fin.annual) || [];
+    annual.forEach(function (a) { rows.push({ label: String(a.y), a: a.rev, aText: big(a.rev) }); });
+    var lastYear = annual.length ? Number(annual[annual.length - 1].y) : null;
+    (d.trend || []).forEach(function (t) {
+      if (t.p === "0y" || t.p === "+1y") {
+        var add = t.p === "0y" ? 1 : 2;
+        rows.push({ label: (lastYear ? String(lastYear + add) : t.p) + "E", a: t.rev, est: true, aText: big(t.rev) });
+      }
+    });
+    return rows;
+  }
+
+  function epsRows(d) {
+    var rows = [];
+    var eps = (d.fin && d.fin.eps) || [];
+    eps.forEach(function (e) {
+      rows.push({ label: e.q, a: e.act, b: e.est, aText: isNum(e.act) ? num(e.act, 2) : "", bText: isNum(e.est) ? num(e.est, 2) : "" });
+    });
+    var last = eps.length ? eps[eps.length - 1].q : "";
+    (d.trend || []).forEach(function (t) {
+      if (t.p === "0q" || t.p === "+1q") {
+        var step = t.p === "0q" ? 1 : 2;
+        rows.push({ label: nextQuarter(last, step), a: t.eps, est: true, aText: isNum(t.eps) ? num(t.eps, 2) : "" });
+      }
+    });
+    return rows;
+  }
+
+  function analystHtml(d) {
+    var r = d.rec || {};
+    var total = (r.sb || 0) + (r.b || 0) + (r.h || 0) + (r.s || 0) + (r.ss || 0);
+    var ko = { strong_buy: "강력 매수", buy: "매수", hold: "보유", underperform: "비중 축소", sell: "매도" }[r.key] || "";
+    var h = "<h2>애널 평가</h2><div class=\"two\"><div><table class=\"kv\">" +
+      row("증권가 의견", ko ? "<b>" + ko + "</b>" : "-") +
+      row("평균 평점", num(r.mean)) +
+      row("참여 애널리스트", isNum(r.n) ? num(r.n, 0) + "명" : "-") +
+      row("목표주가 평균", num(r.tgt)) +
+      row("목표주가 최고 / 최저", num(r.tgtH) + " / " + num(r.tgtL)) +
+      "</table></div><div>";
+    if (total) {
+      [["강력 매수", r.sb, "#2e7d5b"], ["매수", r.b, "#7dcea0"], ["보유", r.h, "#f7dc6f"], ["매도", r.s, "#f0a05a"], ["강력 매도", r.ss, "#ef5350"]].forEach(function (x) {
+        var c = x[1] || 0;
+        h += "<div class=\"bar-row\"><span class=\"lbl\">" + x[0] + "</span><span class=\"track\"><i style=\"width:" + (c / total * 100) + "%;background:" + x[2] + "\"></i></span><span class=\"val\">" + c + "명</span></div>";
+      });
+      h += "<p class=\"sub\">합계 " + total + "명 · 출처 Yahoo Finance</p>";
+    } else {
+      h += "<p class=\"sub\">애널 의견 데이터가 없습니다.</p>";
+    }
+    h += "</div></div><h2 style=\"margin-top:16px\">팩터 등급 (참고 계산)</h2><div class=\"two\">";
+    var list = factors(d), cols = [[], []];
+    list.forEach(function (f, i) { cols[i % 2].push(f); });
+    cols.forEach(function (col) {
+      h += "<div><table class=\"kv\">";
+      col.forEach(function (f) {
+        var g = f.v === null ? ["-", "c"] : grade(f.v);
+        h += "<tr><td>" + f.k + "</td><td><span class=\"g " + g[1] + "\">" + g[0] + "</span></td></tr>";
+      });
+      h += "</table></div>";
+    });
+    h += "</div><p class=\"sub\">시킹알파의 등급이 아니라, 공개 재무지표로 계산한 참고용 등급입니다.</p>";
+    return h;
+  }
+
+  function profileHtml(d) {
+    var p = d.prof || {};
+    var asof = (d.hist && d.hist.length) ? d.hist[d.hist.length - 1] : "";
+    var h = "<h2>회사 정보</h2><table class=\"kv\">" +
+      row("국가", esc(p.c || "-")) +
+      row("섹터", esc(p.s || "-")) +
+      row("산업", esc(p.i || "-")) +
+      row("본사", esc(p.city || "-")) +
+      row("직원 수", isNum(p.emp) ? Number(p.emp).toLocaleString("en-US") + "명" : "-") +
+      row("홈페이지", p.web ? "<a href=\"" + esc(p.web) + "\" target=\"_blank\" rel=\"noopener\">" + esc(String(p.web).replace(/^https?:\/\//, "")) + "</a>" : "-") +
+      "</table>";
+    if (p.sum) { h += "<p class=\"sub\" style=\"margin-top:12px\">" + esc(p.sum) + "</p>"; }
+    h += "<p class=\"sub\">출처 Yahoo Finance · 기준 " + esc(asof) + "</p>";
+    return h;
+  }
+  var RANGES = [["1개월", 22], ["3개월", 63], ["6개월", 126], ["1년", 0], ["전체", 251]];
+  var range = 0;
+
+  function render(d) {
+    document.title = d.t + " · " + d.n;
+    var up = (d.chg || 0) >= 0;
+    var cls = up ? "up" : "down";
+    var h = "<div class=\"card\"><div class=\"sym\">" + esc(d.ex || "") + " · " + esc(d.cur || "") + " · " + esc(d.t) + "</div>";
+    h += "<div class=\"nm\">" + esc(d.n) + "</div>";
+    h += "<div><span class=\"px\">" + num(d.px) + "</span><span class=\"chg " + cls + "\">" + (up ? "+" : "") + num(d.chg) + " (" + (up ? "+" : "") + pct(d.chgPct) + ")</span></div>";
+    h += "<div class=\"sub\">" + (d.dayL && d.dayH ? "장중 " + num(d.dayL) + " ~ " + num(d.dayH) + " · " : "") + "전일 " + num(d.prev) + " · 52주 " + num(d.w52L) + " ~ " + num(d.w52H) + "</div></div>";
+    h += "<nav class=\"tabs\"><a href=\"#s1\">요약</a><a href=\"#s2\">실적</a><a href=\"#s3\">애널 평가</a><a href=\"#s4\">회사 정보</a></nav>";
+    h += "<div class=\"grid2\" id=\"s1\"><div class=\"card\"><h2>주가 (일봉)</h2><div class=\"ranges\" id=\"ranges\">";
+    h += RANGES.map(function (r, i) { return "<button type=\"button\" data-n=\"" + r[1] + "\"" + (i === 3 ? " class=\"on\"" : "") + ">" + r[0] + "</button>"; }).join("");
+    h += "</div><div id=\"priceChart\"></div></div>";
+    h += "<div class=\"card\"><h2>주요 지표</h2><table class=\"kv\">" + metricRows(d) + "</table></div></div>";
+    h += "<div class=\"card\" id=\"s2\"><h2>매출</h2><div id=\"revChart\"></div><div class=\"sub\">연간 매출입니다. 실적치(회색)와 추정치(파란색, E)를 함께 봅니다.</div></div>";
+    h += "<div class=\"card\"><h2>주당순이익 (EPS)</h2><div id=\"epsChart\"></div><div class=\"sub\">분기 주당순이익 실적치(회색)와 추정치(파란색)입니다.</div></div>";
+    h += "<div class=\"card\" id=\"s3\">" + analystHtml(d) + "</div>";
+    h += "<div class=\"card\" id=\"s4\">" + profileHtml(d) + "</div>";
+    app.innerHTML = h;
+
+    if (d.hist && d.close && d.hist.length) {
+      drawPrice(document.getElementById("priceChart"), d.hist, d.close, range || d.hist.length);
+    } else {
+      document.getElementById("priceChart").innerHTML = "<p class=\"sub\">차트 데이터가 없습니다.</p>";
+    }
+    var rev = revenueRows(d);
+    if (rev.length) { drawBars(document.getElementById("revChart"), rev); }
+    var eps = epsRows(d);
+    if (eps.length) { drawBars(document.getElementById("epsChart"), eps); }
+    Array.prototype.forEach.call(document.querySelectorAll("#ranges button"), function (btn) {
+      btn.addEventListener("click", function () {
+        Array.prototype.forEach.call(document.querySelectorAll("#ranges button"), function (x) { x.classList.remove("on"); });
+        btn.classList.add("on");
+        var n = Number(btn.getAttribute("data-n"));
+        drawPrice(document.getElementById("priceChart"), d.hist, d.close, n || d.hist.length);
+      });
+    });
+  }
+
+  function fileName(sym) {
+    return String(sym).toUpperCase().replace(/\./g, "_").replace(/\^/g, "IDX_").replace(/-/g, "_");
+  }
+
+  function load(sym) {
+    app.innerHTML = "<p class=\"msg\">불러오는 중…</p>";
+    fetch("data/" + fileName(sym) + ".json").then(function (r) {
+      if (!r.ok) { throw new Error("notfound"); }
+      return r.json();
+    }).then(function (d) {
+      render(d);
+      if (q) { q.value = d.t; }
+    }).catch(function () {
+      app.innerHTML = "<p class=\"msg\">'" + esc(sym) + "' 는 저장된 데이터가 없습니다.<br>" +
+        "미국은 S&P 500 종목, 한국은 주요 종목(6자리 코드 예: 005930), ETF는 QQQ · SPY · SOXX · SOXL · TQQQ 등을 볼 수 있습니다.<br>" +
+        "데이터를 늘리려면 <code>python Premium/hansjang/stock/update_stock.py</code> 를 실행합니다.</p>";
+    });
+  }
+
+  document.getElementById("sform").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var v = (q.value || "").trim();
+    if (!v) { return; }
+    location.href = "?symbol=" + encodeURIComponent(v.split(/\s+/)[0]);
+  });
+
+  fetch("index.json").then(function (r) { return r.json(); }).then(function (rows) {
+    var frag = document.createDocumentFragment();
+    rows.forEach(function (r) {
+      var o = document.createElement("option");
+      o.value = r.t;
+      o.label = r.n + (r.m ? " · " + r.m : "");
+      frag.appendChild(o);
+    });
+    dl.appendChild(frag);
+  }).catch(function () {});
+
+  var sym = new URLSearchParams(location.search).get("symbol") || "NVDA";
+  load(sym);
+})();
+</script>
+</body>
+</html>
