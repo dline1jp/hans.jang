@@ -605,6 +605,14 @@
 
   var INDEX = [];
   var INDEX_READY = false;
+  // 자주 쓰는 줄임말 (풀네임은 index 의 k 로 자동 매칭)
+  var ALIAS = {
+    "삼전": "005930.KS", "현대차": "005380.KS", "기아차": "000270.KS", "하닉": "000660.KS",
+    "엘지": "003550.KS", "엘지화학": "051910.KS", "엘지전자": "066570.KS",
+    "삼바": "207940.KS", "두산": "000150.KS", "한전": "015760.KS", "쌍용차": "003620.KS",
+    "포스코": "005490.KS", "네이버": "035420.KS", "엔비디아": "NVDA", "애플": "AAPL",
+    "테슬라": "TSLA", "마이크론": "MU", "브로드컴": "AVGO", "반도체": "SOXX", "나스닥": "QQQ"
+  };
 
   function resolve(input) {
     var raw = String(input || "").trim();
@@ -614,13 +622,29 @@
     var upper = raw.toUpperCase();
     var flat = upper.replace(/\s+/g, "");
     var i;
-    for (i = 0; i < INDEX.length; i++) { if (INDEX[i].t.toUpperCase() === upper) { return INDEX[i].t; } }
-    if (INDEX_READY) {
-      for (i = 0; i < INDEX.length; i++) { if (INDEX[i].k && INDEX[i].k === raw) { return INDEX[i].t; } }
-      for (i = 0; i < INDEX.length; i++) { if (INDEX[i].k && INDEX[i].k.replace(/\s+/g, "").toUpperCase().indexOf(flat) >= 0) { return INDEX[i].t; } }
-      for (i = 0; i < INDEX.length; i++) { if ((INDEX[i].n || "").replace(/\s+/g, "").toUpperCase().indexOf(flat) >= 0) { return INDEX[i].t; } }
+    for (i = 0; i < INDEX.length; i++) {
+      var tk = INDEX[i].t.toUpperCase();
+      if (tk === upper || tk.indexOf(upper + ".") === 0) { return INDEX[i].t; }
     }
-    return raw;
+    if (ALIAS[raw]) { return ALIAS[raw]; }
+    if (!INDEX_READY) { return raw; }
+    function shorter(cur, row) {
+      if (!row.k) { return cur; }
+      return (cur === null || row.k.length < cur.k.length) ? row : cur;
+    }
+    var exact = null, prefix = null, part = null, en = null;
+    for (i = 0; i < INDEX.length; i++) {
+      var row = INDEX[i];
+      if (row.k) {
+        var kf = row.k.replace(/\s+/g, "");
+        if (row.k === raw) { exact = shorter(exact, row); }
+        if (kf.indexOf(flat) === 0) { prefix = shorter(prefix, row); }
+        if (kf.indexOf(flat) >= 0) { part = shorter(part, row); }
+      }
+      if (en === null && (row.n || "").replace(/\s+/g, "").toUpperCase().indexOf(flat) >= 0) { en = row; }
+    }
+    var hit = exact || prefix || part || en;
+    return hit ? hit.t : raw;
   }
 
   function loadIndex() {
