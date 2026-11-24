@@ -37,14 +37,14 @@
 <body>
   <p><a class="home" href="../index.html">← AI 혁신주 타점</a></p>
   <h1>SOXL 타점</h1>
-  <p class="warn">투자 권유가 아닙니다. 참고용. SOXX 일봉 RSI(14)가 30 아래로 세 번 내려갈 때를 매수 타점으로 봅니다.</p>
+  <p class="warn">투자 권유가 아닙니다. 참고용. SOXX 일봉 RSI(14)가 30 아래로 네 번 내려갈 때를 매수 타점으로 봅니다.</p>
   <p class="note" id="asof">불러오는 중…</p>
 
   <section class="rule">
     <h2>규칙</h2>
     <ol>
       <li>경기순환사이클 하락 추정 시기에는 <b>SOXX</b> 일봉 RSI(14)가 <b>30 아래</b>로 내려갔다 올라오기를 반복합니다.</li>
-      <li>그렇게 <b>세 번</b> 내려간 날이 매수 타점입니다. (내려감 → 올라옴 → 내려감 → 올라옴 → 내려감)</li>
+      <li>그렇게 <b>네 번</b> 내려간 날이 매수 타점입니다. (내려감 → 올라옴 → 내려감 → 올라옴 → 내려감 → 올라옴 → 내려감)</li>
       <li>복기 구간: <b>2018-2019</b>, <b>2022-2023</b>. 추정 구간(경기순환사이클 하락): <b>2026-2027</b>, <b>2029-2030</b>, <b>2033-2034</b>.</li>
       <li>차트는 SOXX 일봉과 RSI(14)입니다. 3배 레버리지 매매는 <b>SOXL</b>로 합니다.</li>
     </ol>
@@ -60,7 +60,7 @@
 
   <section class="card">
     <h2>구간별 타점</h2>
-    <p class="sub">RSI 가 30 아래로 내려간 횟수와, 세 번째로 내려간 날(타점)을 정리했습니다.</p>
+    <p class="sub">RSI 가 30 아래로 내려간 횟수와, 네 번째로 내려간 날(타점)을 정리했습니다.</p>
     <div style="overflow-x: auto"><table id="tbl"></table></div>
   </section>
 
@@ -85,7 +85,7 @@
   var pT = T, pB = T + pH, rT = pB + gap, rB = H - 26;
   var x0 = L, x1 = W - R, xw = x1 - x0;
   var last = bars[bars.length - 1];
-  asofEl.textContent = "기준 " + data.asof + " · " + data.ticker + " " + (data.name || "") + " 종가 " + last[4].toFixed(2) + " " + data.currency + " · RSI(" + data.rsiPeriod + ") 30 아래 세 번 이탈 시 매수";
+  asofEl.textContent = "기준 " + data.asof + " · " + data.ticker + " " + (data.name || "") + " 종가 " + last[4].toFixed(2) + " " + data.currency + " · RSI(" + data.rsiPeriod + ") 30 아래 네 번 이탈 시 매수";
 
   function el(tag, attrs, text) {
     var n = document.createElementNS(NS, tag);
@@ -129,21 +129,21 @@
   function drawFuture(w) {
     svg.appendChild(el("rect", { x: 0, y: 0, width: W, height: H, fill: "#0c0c0c" }));
     svg.appendChild(el("text", { x: W / 2, y: 100, fill: "#ffd76a", "font-size": 26, "font-weight": 700, "text-anchor": "middle" }, w.key + " · " + kindOf(w) + " 구간 (경기순환사이클 하락)"));
-    svg.appendChild(el("text", { x: W / 2, y: 146, fill: "#ddd", "font-size": 17, "text-anchor": "middle" }, "아직 시세 데이터가 없습니다. SOXX 일봉 RSI 가 30 아래로 세 번 내려가면,"));
-    svg.appendChild(el("text", { x: W / 2, y: 174, fill: "#ddd", "font-size": 17, "text-anchor": "middle" }, "세 번째로 내려간 날이 매수 타점입니다."));
-    svg.appendChild(el("line", { x1: 220, y1: 300, x2: 880, y2: 300, stroke: "#b33", "stroke-dasharray": "5 4" }));
-    svg.appendChild(el("text", { x: 208, y: 304, fill: "#b33", "font-size": 12, "text-anchor": "end" }, "RSI 30"));
+    svg.appendChild(el("text", { x: W / 2, y: 146, fill: "#ddd", "font-size": 17, "text-anchor": "middle" }, "아직 시세 데이터가 없습니다. SOXX 일봉 RSI 가 30 아래로 네 번 내려가면,"));
+    svg.appendChild(el("text", { x: W / 2, y: 174, fill: "#ddd", "font-size": 17, "text-anchor": "middle" }, "네 번째로 내려간 날이 매수 타점입니다."));
+    svg.appendChild(el("line", { x1: 160, y1: 300, x2: 900, y2: 300, stroke: "#b33", "stroke-dasharray": "5 4" }));
+    svg.appendChild(el("text", { x: 148, y: 304, fill: "#b33", "font-size": 12, "text-anchor": "end" }, "RSI 30"));
     var pts = [], i;
-    for (i = 0; i < 3; i++) {
-      var cx = 320 + i * 230;
-      pts.push([cx - 110, 250], [cx - 75, 258], [cx - 42, 342], [cx, 372], [cx + 42, 342], [cx + 75, 262], [cx + 110, 258]);
+    for (i = 0; i < 4; i++) {
+      var cx = 250 + i * 180;
+      pts.push([cx - 90, 248], [cx - 60, 256], [cx - 33, 340], [cx, 372], [cx + 33, 340], [cx + 60, 260], [cx + 90, 256]);
     }
     svg.appendChild(el("path", { d: pts.map(function (p, k) { return (k ? "L" : "M") + p[0] + " " + p[1]; }).join(" "), fill: "none", stroke: "#f7dc6f", "stroke-width": 2 }));
-    for (i = 0; i < 3; i++) {
-      svg.appendChild(el("circle", { cx: 320 + i * 230, cy: 372, r: 6, fill: "#ef5350" }));
-      svg.appendChild(el("text", { x: 320 + i * 230, y: 408, fill: "#ef5350", "font-size": 13, "text-anchor": "middle" }, (i + 1) + "회"));
+    for (i = 0; i < 4; i++) {
+      svg.appendChild(el("circle", { cx: 250 + i * 180, cy: 372, r: 6, fill: "#ef5350" }));
+      svg.appendChild(el("text", { x: 250 + i * 180, y: 408, fill: "#ef5350", "font-size": 13, "text-anchor": "middle" }, (i + 1) + "회"));
     }
-    svg.appendChild(el("text", { x: 780, y: 448, fill: "#7dcea0", "font-size": 16, "font-weight": 700, "text-anchor": "middle" }, "세 번째 → 매수"));
+    svg.appendChild(el("text", { x: 790, y: 452, fill: "#7dcea0", "font-size": 16, "font-weight": 700, "text-anchor": "middle" }, "네 번째 → 매수"));
     svg.appendChild(el("text", { x: W / 2, y: 500, fill: "#888", "font-size": 13, "text-anchor": "middle" }, "구간 " + w.from + " ~ " + w.to + " · 데이터가 쌓이면 이 화면에 차트가 자동으로 그려집니다."));
   }
   function draw() {
@@ -239,7 +239,7 @@
 
     titleEl.textContent = w ? w.key + " · " + kindOf(w) + " · " + stateOf(w) : "SOXX 일봉 · RSI";
     subEl.textContent = w
-      ? "RSI 30 이탈 " + w.dips.length + "회 · " + (w.buy === null || w.buy === undefined ? "세 번째 이탈 대기 중" : "세 번째 이탈 " + w.buyDate + " 을 타점으로 봄")
+      ? "RSI 30 이탈 " + w.dips.length + "회 · " + (w.buy === null || w.buy === undefined ? (w.state === "past" ? "네 번째 이탈 없음" : "네 번째 이탈 대기 중") : "네 번째 이탈 " + w.buyDate + " 을 타점으로 봄")
       : "전체 기간입니다. 연한 파란 띠가 경기순환사이클 하락 추정 구간입니다.";
   }
   svg.addEventListener("mousemove", function (ev) {
@@ -264,7 +264,7 @@
   });
   svg.addEventListener("mouseleave", function () { tip.style.display = "none"; if (scale && scale.hover) { scale.hover.setAttribute("opacity", 0); } });
 
-  var head = "<thead><tr><th>구간</th><th>구분</th><th>RSI 30 이탈</th><th>세 번째 타점일</th><th>타점 종가</th><th>타점 구간 최저</th></tr></thead>";
+  var head = "<thead><tr><th>구간</th><th>구분</th><th>RSI 30 이탈</th><th>네 번째 타점일</th><th>타점 종가</th><th>타점 구간 최저</th></tr></thead>";
   var body = "";
   windows.forEach(function (w) {
     var dates = w.dips.map(function (i) { return dips[i].startDate; });
@@ -272,7 +272,7 @@
     body += "<tr><td>" + w.key + '<div class="muted">' + w.from + " ~ " + w.to + "</div></td>" +
       "<td>" + kindOf(w) + " · " + stateOf(w) + "</td>" +
       "<td>" + dates.length + "회" + '<div class="muted">' + (dates.join(", ") || "-") + "</div></td>" +
-      "<td>" + (hasBuy ? '<span class="buy">' + w.buyDate + "</span>" : '<span class="wait">대기</span>') + "</td>" +
+      "<td>" + (hasBuy ? '<span class="buy">' + w.buyDate + "</span>" : '<span class="wait">' + (w.state === "past" ? "없음" : "대기") + "</span>") + "</td>" +
       "<td>" + (hasBuy ? fmt(w.buyPrice) : '<span class="muted">-</span>') + "</td>" +
       "<td>" + (hasBuy ? fmt(w.lowPrice) + '<div class="muted">' + w.lowDate + "</div>" : '<span class="muted">-</span>') + "</td></tr>";
   });

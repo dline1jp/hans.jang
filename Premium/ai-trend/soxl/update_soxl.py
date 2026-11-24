@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""SOXL 타점: SOXX 일봉 RSI(14)가 30 아래로 세 번 내려갈 때를 매수 타점으로 본다.
+"""SOXL 타점: SOXX 일봉 RSI(14)가 30 아래로 네 번 내려갈 때를 매수 타점으로 본다.
 
 경기순환사이클 하락 추정 시기(2026-2027, 2029-2030, 2033-2034)와
 과거 복기(2018-2019, 2022-2023)를 같은 규칙으로 계산한다.
@@ -143,7 +143,7 @@ def main():
     windows = []
     for window in WINDOWS:
         picked = [i for i, dip in enumerate(dips) if window["from"] <= dip["startDate"] <= window["to"]]
-        buy = picked[2] if len(picked) >= 3 else None
+        buy = picked[3] if len(picked) >= 4 else None
         if window["from"] > asof:
             state = "future"
         elif window["to"] < asof:
