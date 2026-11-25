@@ -41,6 +41,21 @@ MOM_DECIMALS = 2    # 전월비는 소수 둘째 자리(예: -0.06%)까지. Supa
 START_YEAR = 2000   # 차트/타점 시작 연도
 WINDOW_YEARS = 4    # 3~4년 단위로 차트를 나눈다.
 
+# 미국 키친(Kitchin) 경기순환사이클 상승기: 주가는 선행지수라 이 시기엔 이미 올라 있으므로 매수에서 제외한다.
+# (start_year, end_year) 양끝 포함.
+KITCHIN_UP = [
+    (2003, 2003),
+    (2006, 2007),
+    (2009, 2010),
+    (2013, 2014),
+    (2016, 2017),
+    (2020, 2021),
+    (2024, 2025),
+    (2028, 2029),
+    (2031, 2032),
+    (2035, 2036),
+]
+
 
 def get(url, headers=None, timeout=60):
     merged = dict(HEADERS)
@@ -54,6 +69,12 @@ def get(url, headers=None, timeout=60):
 def month_index(period):
     year, month = int(period[0:4]), int(period[5:7])
     return year * 12 + month - 1
+
+
+def in_kitchin_up(period):
+    """미국 키친 경기순환사이클 상승기(주가 선행 상승 구간)인지 확인한다."""
+    year = int(str(period)[0:4])
+    return any(start <= year <= end for start, end in KITCHIN_UP)
 
 
 def fetch_oecd_cli():
@@ -241,16 +262,19 @@ def main():
     price_asof = bars[-1][0]
 
     raw_signals = find_signals(cli)
-    signals = []
+    all_signals = []
     for row in raw_signals:
         index, bar = bar_in_month(bars, row["period"])
-        signals.append({
+        all_signals.append({
             "period": row["period"],
             "mom": row["mom"],
             "obs": row["obs"],
             "barDate": bar[0] if bar else None,
             "price": bar[4] if bar else None,
         })
+    # 미국 키친 상승기 타점은 매수에서 제외한다.
+    signals = [signal for signal in all_signals if not in_kitchin_up(signal["period"])]
+    excluded = [signal for signal in all_signals if in_kitchin_up(signal["period"])]
 
     blocks = build_windows(cli)
     windows = []
@@ -284,6 +308,8 @@ def main():
         "bars": bars,
         "cli": [[row["period"], row["obs"], row["mom"]] for row in cli],
         "signals": signals,
+        "excluded": excluded,
+        "kitchinUp": [[start, end] for start, end in KITCHIN_UP],
         "windows": windows,
     }
     DATA.write_text(
@@ -291,11 +317,13 @@ def main():
         encoding="utf-8",
     )
 
-    print("cli=%d %s..%s  bars=%d %s..%s  signals=%d"
-          % (len(cli), cli[0]["period"], asof, len(bars), bars[0][0], price_asof, len(signals)))
+    print("cli=%d %s..%s  bars=%d %s..%s  signals=%d  excluded=%d"
+          % (len(cli), cli[0]["period"], asof, len(bars), bars[0][0], price_asof, len(signals), len(excluded)))
     for window in windows:
         marks = ", ".join(window["signals"]) or "-"
         print("  %-9s %-7s %s" % (window["key"], window["state"], marks))
+    if excluded:
+        print("  키친 상승기 제외: " + ", ".join(signal["period"] for signal in excluded))
 
 
 if __name__ == "__main__":
