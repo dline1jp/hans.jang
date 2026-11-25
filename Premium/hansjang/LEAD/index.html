@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="/Premium/gate.js"></script>
+  <title>선행지수 타점</title>
+  <style>
+    body { background: #111; color: #fff; font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; margin: 0; padding: 16px; }
+    a { color: #4da3ff; }
+    .home { color: #D8C0FF; font-size: 22px; text-decoration: none; }
+    h1 { text-align: center; color: #FFFFE0; font-size: 30px; line-height: 1.35; margin: 10px 0; }
+    .warn { max-width: 1100px; margin: 12px auto; background: #3a2a12; color: #ffe08a; border: 1px solid #8a6a2a; border-radius: 12px; padding: 12px 16px; font-size: 16px; line-height: 1.55; font-weight: 700; }
+    .note { max-width: 1100px; margin: 8px auto; color: #ccc; font-size: 14px; line-height: 1.6; }
+    .rule { max-width: 1100px; margin: 14px auto; background: #181818; border: 1px solid #444; border-radius: 12px; padding: 14px 16px; }
+    .rule h2 { margin: 0 0 8px; color: #FFFFE0; font-size: 20px; }
+    .rule ol { margin: 0; padding-left: 1.2em; color: #ddd; font-size: 15px; line-height: 1.8; }
+    .rule b { color: #ffd76a; }
+    .tabs { max-width: 1100px; margin: 14px auto; display: flex; flex-wrap: wrap; gap: 8px; }
+    .tabs button { background: #1a1a1a; color: #ddd; border: 1px solid #555; border-radius: 8px; padding: 8px 14px; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .tabs button.on { background: #24406e; color: #fff; border-color: #4da3ff; }
+    .card { max-width: 1100px; margin: 0 auto 16px; background: #181818; border: 1px solid #444; border-radius: 12px; padding: 12px; }
+    .card h2 { margin: 0 0 8px; color: #FFFFE0; font-size: 19px; }
+    .card .sub { color: #aaa; font-size: 13px; margin: 0 0 8px; line-height: 1.6; }
+    svg.chart { width: 100%; height: auto; display: block; background: #0c0c0c; border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { border-bottom: 1px solid #333; padding: 8px 6px; text-align: right; vertical-align: top; }
+    th { color: #D8C0FF; font-weight: 700; }
+    td:first-child, th:first-child { text-align: left; }
+    .buy { color: #7dcea0; font-weight: 700; }
+    .wait { color: #ffd76a; font-weight: 700; }
+    .muted { color: #888; font-size: 12px; }
+    .tip { position: fixed; pointer-events: none; background: #000d; border: 1px solid #666; border-radius: 8px; padding: 6px 10px; font-size: 12px; line-height: 1.5; display: none; z-index: 9; white-space: nowrap; }
+    @media (max-width: 800px) { h1 { font-size: 22px; } .note, .rule ol { font-size: 12px; } .card, .tabs { max-width: 100%; } }
+  </style>
+</head>
+<body>
+  <p><a class="home" href="../index.html">← 한스장 타점</a></p>
+  <h1>선행지수 타점</h1>
+  <p class="warn">투자 권유가 아닙니다. 참고용. <b>G20 경기선행지수(CLI) 전월비(mom)</b>가 하락하다가 <b>하락폭을 줄인 지 2달째 되는 달</b>을 나스닥100(QQQ) 매수 타점으로 봅니다.</p>
+  <p class="note" id="asof">불러오는 중…</p>
+
+  <section class="rule">
+    <h2>규칙</h2>
+    <ol>
+      <li>G20(경기선행지수)의 <b>전월비(mom)</b>가 <b>음수인 하락 구간</b>만 봅니다.</li>
+      <li>하락폭이 <b>전월 대비 더 커지다가</b>(하락 심화), <b>하락폭을 줄이기 시작</b>합니다.</li>
+      <li>하락폭을 줄인 지 <b>2달째</b> 되는 달을 <b>매수 타점</b>으로 봅니다. (2달 내리 줄인 달 = 두 번째 달)</li>
+      <li>차트는 <b>나스닥100(QQQ)</b> 주봉과 아래 패널의 <b>G20 전월비</b>입니다. 2000년부터 <b>4년 단위</b>로 나눠서 봅니다.</li>
+      <li>데이터는 G20은 OECD·Supabase, QQQ는 Yahoo Finance에서 자동 갱신됩니다. 타점에서 진짜 매수할 것인지는 <b>한스장</b>이 최종 판단합니다.</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2>구간별 타점 (요약)</h2>
+    <p class="sub">전월비가 하락 심화 뒤 하락폭을 줄인 지 2달째 되는 달을 타점으로 봅니다. 표의 날짜는 그 달의 첫 QQQ 주봉 기준입니다.</p>
+    <div style="overflow-x: auto"><table id="tbl"></table></div>
+  </section>
+
+  <div class="tabs" id="tabs"></div>
+
+  <section class="card">
+    <h2 id="chart-title">QQQ 주봉 · G20 전월비</h2>
+    <p class="sub" id="chart-sub"></p>
+    <svg class="chart" id="chart" viewBox="0 0 1100 620" role="img" aria-label="QQQ 주봉과 G20 전월비"></svg>
+  </section>
+
+  <div class="tip" id="tip"></div>
+  <script src="lead-data.js"></script>
+  <script>
+(function () {
+  var NS = "http://www.w3.org/2000/svg";
+  var data = window.LEAD_DATA;
+  var asofEl = document.getElementById("asof");
+  var svg = document.getElementById("chart");
+  var tip = document.getElementById("tip");
+  var titleEl = document.getElementById("chart-title");
+  var subEl = document.getElementById("chart-sub");
+  if (!data) {
+    asofEl.textContent = "lead-data.js 를 불러오지 못했습니다. python Premium/hansjang/LEAD/update_lead.py 를 실행해 주세요.";
+    return;
+  }
+  var bars = data.bars, cli = data.cli || [], signals = data.signals || [], windows = data.windows || [];
+  var W = 1100, H = 620, L = 60, R = 18, T = 26;
+  var pH = 320, gap = 46;
+  var pT = T, pB = T + pH, cT = pB + gap, cB = H - 30;
+  var x0 = L, x1 = W - R, xw = x1 - x0;
+  var last = bars[bars.length - 1];
+
+  var signalMap = {};
+  signals.forEach(function (s) { signalMap[s.period] = s; });
+
+  function momText(v) { return (v > 0 ? "+" : "") + Number(v).toFixed(data.momDecimals) + "%"; }
+  function fmt(v) { return Number(v).toFixed(2); }
+  function t(iso) { return Date.parse(iso + "T00:00:00Z"); }
+  function monthOf(iso) { return iso.slice(0, 7); }
+
+  asofEl.textContent = "기준 G20 " + data.asof + " · QQQ " + data.priceAsof + " 종가 " + fmt(last[4]) + " " + data.currency +
+    " · 타점 " + signals.length + "회 · 규칙: G20 전월비 하락 심화 뒤 하락폭을 줄인 지 2달째 매수";
+
+  function el(tag, attrs, text) {
+    var n = document.createElementNS(NS, tag);
+    if (attrs) { for (var k in attrs) { n.setAttribute(k, attrs[k]); } }
+    if (text !== undefined) { n.textContent = text; }
+    return n;
+  }
+  function firstBarAtOrAfter(iso) { for (var i = 0; i < bars.length; i++) { if (bars[i][0] >= iso) return i; } return bars.length - 1; }
+  function lastBarAtOrBefore(iso) { var r = -1; for (var i = 0; i < bars.length; i++) { if (bars[i][0] <= iso) r = i; } return r; }
+  function winOf(key) { for (var i = 0; i < windows.length; i++) { if (windows[i].key === key) return windows[i]; } return null; }
+  function stateText(w) { return w.state === "future" ? "예정" : w.state === "active" ? "진행 중" : "복기"; }
+
+  // 현재 하락폭 축소 진행 상태
+  function currentState() {
+    var prev = null, deepened = false, narrowing = 0, lastRow = null;
+    for (var i = 0; i < cli.length; i++) {
+      var m = cli[i][2];
+      if (m === null || m === undefined) { continue; }
+      lastRow = cli[i];
+      if (prev === null) { prev = m; continue; }
+      if (m >= 0) { deepened = false; narrowing = 0; }
+      else if (m < prev) { deepened = true; narrowing = 0; }
+      else if (m > prev) { if (deepened) { narrowing += 1; } else { narrowing = 0; } }
+      else { narrowing = 0; }
+      prev = m;
+    }
+    return { row: lastRow, deepened: deepened, narrowing: narrowing };
+  }
+
+  var view = { key: "all", i0: 0, i1: bars.length - 1, tMin: 0, tMax: 0, future: null };
+  var scale = null;
+
+  var tabs = document.getElementById("tabs");
+  function addTab(key, label) {
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = label; b.setAttribute("data-key", key);
+    b.addEventListener("click", function () { setView(key); });
+    tabs.appendChild(b);
+  }
+  addTab("all", "전체");
+  windows.forEach(function (w) { addTab(w.key, w.key + " " + stateText(w)); });
+
+  function setView(key) {
+    view.key = key;
+    if (key === "all") {
+      view.i0 = 0; view.i1 = bars.length - 1; view.future = null;
+      view.tMin = t(bars[0][0]); view.tMax = t(bars[view.i1][0]);
+    } else {
+      var w = winOf(key);
+      var a = firstBarAtOrAfter(w.from), b = lastBarAtOrBefore(w.to);
+      if (b < 0 || b < a) { view.future = w; view.i0 = view.i1 = -1; }
+      else {
+        view.future = null;
+        view.i0 = Math.max(0, a); view.i1 = b;
+        view.tMin = t(bars[view.i0][0]); view.tMax = t(bars[view.i1][0]);
+      }
+    }
+    Array.prototype.forEach.call(tabs.children, function (x) { x.classList.toggle("on", x.getAttribute("data-key") === key); });
+    draw();
+  }
+
+  function drawFuture(w) {
+    svg.appendChild(el("rect", { x: 0, y: 0, width: W, height: H, fill: "#0c0c0c" }));
+    svg.appendChild(el("text", { x: W / 2, y: 120, fill: "#ffd76a", "font-size": 26, "font-weight": 700, "text-anchor": "middle" }, w.key + " · 예정 구간"));
+    svg.appendChild(el("text", { x: W / 2, y: 166, fill: "#ddd", "font-size": 17, "text-anchor": "middle" }, "아직 시세 데이터가 없습니다. 이 구간이 되면 G20 전월비가"));
+    svg.appendChild(el("text", { x: W / 2, y: 194, fill: "#ddd", "font-size": 17, "text-anchor": "middle" }, "하락 심화 뒤 하락폭을 줄인 지 2달째 되는 달이 매수 타점입니다."));
+    svg.appendChild(el("line", { x1: 180, y1: 300, x2: 920, y2: 300, stroke: "#333", "stroke-dasharray": "4 4" }));
+    svg.appendChild(el("text", { x: 168, y: 304, fill: "#888", "font-size": 12, "text-anchor": "end" }, "전월비 0"));
+    svg.appendChild(el("text", { x: W / 2, y: 360, fill: "#7dcea0", "font-size": 16, "font-weight": 700, "text-anchor": "middle" }, "2달째 하락폭 축소 → 매수"));
+    svg.appendChild(el("text", { x: W / 2, y: 430, fill: "#888", "font-size": 13, "text-anchor": "middle" }, "구간 " + w.from + " ~ " + w.to + " · 데이터가 쌓이면 자동으로 그려집니다."));
+  }
+
+  function draw() {
+    while (svg.firstChild) { svg.removeChild(svg.firstChild); }
+    var w = view.key === "all" ? null : winOf(view.key);
+    if (view.future) { scale = null; drawFuture(view.future); setTitles(w); return; }
+    var i0 = view.i0, i1 = Math.max(view.i0, view.i1);
+
+    var lo = Infinity, hi = -Infinity, k;
+    for (k = i0; k <= i1; k++) { if (bars[k][2] > hi) hi = bars[k][2]; if (bars[k][3] < lo) lo = bars[k][3]; }
+    var pad = (hi - lo) * 0.08 || 1; lo -= pad; hi += pad;
+
+    var tMin = view.tMin, tMax = view.tMax, span = (tMax - tMin) || 1;
+    function X(dt) { return x0 + xw * (dt - tMin) / span; }
+    function Y(v) { return pB - (v - lo) / (hi - lo) * (pB - pT); }
+
+    var cliView = cli.filter(function (m) { var d = t(m[0] + "-01"); return d >= tMin && d <= tMax; });
+    var cLo = 0, cHi = 0;
+    cliView.forEach(function (m) { if (m[2] === null) { return; } if (m[2] < cLo) cLo = m[2]; if (m[2] > cHi) cHi = m[2]; });
+    var cPad = (cHi - cLo) * 0.14 || 0.1; cLo -= cPad; cHi += cPad;
+    function CY(v) { return cB - (v - cLo) / (cHi - cLo) * (cB - cT); }
+
+    scale = { i0: i0, i1: i1, tMin: tMin, tMax: tMax, X: X, Y: Y, CY: CY, hover: null };
+
+    svg.appendChild(el("rect", { x: x0, y: pT, width: xw, height: pB - pT, fill: "#0a0a0a" }));
+    svg.appendChild(el("rect", { x: x0, y: cT, width: xw, height: cB - cT, fill: "#0a0a0a" }));
+    svg.appendChild(el("text", { x: x0 + 4, y: pT + 16, fill: "#8ec8ff", "font-size": 13, "font-weight": 700 }, data.ticker + " 주봉"));
+    svg.appendChild(el("text", { x: x0 + 4, y: cT + 16, fill: "#f7dc6f", "font-size": 13, "font-weight": 700 }, data.area + " 전월비(mom)"));
+
+    var g;
+    for (g = 0; g <= 4; g++) {
+      var v = lo + (hi - lo) * g / 4, y = Y(v);
+      svg.appendChild(el("line", { x1: x0, y1: y, x2: x1, y2: y, stroke: "#242424" }));
+      svg.appendChild(el("text", { x: x0 - 6, y: y + 4, fill: "#999", "font-size": 11, "text-anchor": "end" }, fmt(v)));
+    }
+
+    var y0 = CY(0);
+    if (y0 < cB) {
+      svg.appendChild(el("rect", { x: x0, y: y0, width: xw, height: cB - y0, fill: "rgba(220,80,80,0.08)" }));
+      svg.appendChild(el("text", { x: x1 - 6, y: cB - 6, fill: "#c66", "font-size": 11, "text-anchor": "end" }, "하락 구간 (전월비 < 0)"));
+    }
+    svg.appendChild(el("line", { x1: x0, y1: y0, x2: x1, y2: y0, stroke: "#555", "stroke-dasharray": "4 4" }));
+    svg.appendChild(el("text", { x: x0 - 6, y: y0 + 4, fill: "#bbb", "font-size": 11, "text-anchor": "end" }, "0"));
+
+    var cpath = "";
+    cliView.forEach(function (m) {
+      if (m[2] === null) { return; }
+      cpath += (cpath === "" ? "M" : "L") + X(t(m[0] + "-01")).toFixed(1) + " " + CY(m[2]).toFixed(1) + " ";
+    });
+    if (cpath) { svg.appendChild(el("path", { d: cpath, fill: "none", stroke: "#f7dc6f", "stroke-width": 1.4 })); }
+
+    if ((i1 - i0) > 260) {
+      var dline = "";
+      for (k = i0; k <= i1; k++) { dline += (k === i0 ? "M" : "L") + X(t(bars[k][0])).toFixed(1) + " " + Y(bars[k][4]).toFixed(1) + " "; }
+      svg.appendChild(el("path", { d: dline, fill: "none", stroke: "#4da3ff", "stroke-width": 1.4 }));
+    } else {
+      for (k = i0; k <= i1; k++) {
+        var bar = bars[k], up = bar[4] >= bar[1], col = up ? "#4caf50" : "#ef5350", xx = X(t(bar[0]));
+        svg.appendChild(el("line", { x1: xx, y1: Y(bar[2]), x2: xx, y2: Y(bar[3]), stroke: col, "stroke-width": 1 }));
+        var yt = Y(Math.max(bar[1], bar[4])), yb = Y(Math.min(bar[1], bar[4]));
+        svg.appendChild(el("rect", { x: xx - 2.2, y: yt, width: 4.4, height: Math.max(1, yb - yt), fill: col }));
+      }
+    }
+
+    signals.forEach(function (s) {
+      if (!s.barDate) { return; }
+      var dt = t(s.barDate);
+      if (dt < tMin || dt > tMax) { return; }
+      var xx = X(dt), yy = s.price === null ? pB - 20 : Y(s.price);
+      svg.appendChild(el("line", { x1: xx, y1: pT, x2: xx, y2: cB, stroke: "rgba(125,206,160,0.55)", "stroke-width": 1, "stroke-dasharray": "4 3" }));
+      svg.appendChild(el("polygon", { points: (xx) + "," + (yy + 10) + " " + (xx - 8) + "," + (yy + 26) + " " + (xx + 8) + "," + (yy + 26), fill: "#7dcea0" }));
+      svg.appendChild(el("text", { x: xx, y: yy + 42, fill: "#7dcea0", "font-size": 11, "font-weight": 700, "text-anchor": "middle" }, "매수 " + s.period));
+      var mt = t(s.period + "-01");
+      if (mt >= tMin && mt <= tMax && s.mom !== null) {
+        svg.appendChild(el("circle", { cx: X(mt), cy: CY(s.mom), r: 4, fill: "#7dcea0" }));
+      }
+    });
+
+    var steps = (i1 - i0) > 260 ? 7 : 5;
+    for (g = 0; g <= steps; g++) {
+      var idx = Math.round(i0 + (i1 - i0) * g / steps);
+      svg.appendChild(el("text", { x: X(t(bars[idx][0])), y: H - 8, fill: "#999", "font-size": 11, "text-anchor": "middle" }, bars[idx][0].slice(0, 7)));
+    }
+
+    scale.hover = el("line", { x1: x0, y1: pT, x2: x0, y2: cB, stroke: "#888", "stroke-dasharray": "3 3", opacity: 0 });
+    svg.appendChild(scale.hover);
+
+    setTitles(w);
+  }
+
+  function setTitles(w) {
+    var st = currentState();
+    var curMom = st.row ? st.row[2] : null;
+    var cur = st.row ? (st.row[0] + " 전월비 " + (curMom === null ? "-" : momText(curMom)) +
+      (st.narrowing > 0 ? " · 하락폭 축소 " + st.narrowing + "달째" + (st.narrowing >= 2 ? " (타점)" : "") : " · 하락 심화/대기")) : "";
+    if (w) {
+      var marks = w.signals.length ? w.signals.join(", ") : "없음";
+      titleEl.textContent = w.key + " · " + stateText(w) + " · 타점 " + w.signals.length + "회";
+      subEl.textContent = "구간 타점: " + marks + " · " + cur;
+    } else {
+      titleEl.textContent = "QQQ 주봉 · G20 전월비 (전체)";
+      subEl.textContent = "연한 초록 세로선이 매수 타점입니다. 아래 패널은 G20 전월비이고 붉은 영역이 전월비 < 0 인 하락 구간입니다. · " + cur;
+    }
+  }
+
+  svg.addEventListener("mousemove", function (ev) {
+    if (!scale) { return; }
+    var pt = svg.createSVGPoint();
+    pt.x = ev.clientX; pt.y = ev.clientY;
+    var p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    if (scale.hover) { scale.hover.setAttribute("opacity", 0); }
+    if (p.x < x0 || p.x > x1) { tip.style.display = "none"; return; }
+    var ratio = (p.x - x0) / xw;
+    var target = scale.tMin + ratio * (scale.tMax - scale.tMin);
+    var idx = scale.i0, best = Infinity;
+    for (var k = scale.i0; k <= scale.i1; k++) {
+      var dd = Math.abs(t(bars[k][0]) - target);
+      if (dd < best) { best = dd; idx = k; }
+    }
+    var xx = scale.X(t(bars[idx][0]));
+    if (scale.hover) { scale.hover.setAttribute("x1", xx); scale.hover.setAttribute("x2", xx); scale.hover.setAttribute("opacity", 1); }
+    var mon = monthOf(bars[idx][0]), momLine = "";
+    for (var c = 0; c < cli.length; c++) {
+      if (cli[c][0] === mon) { momLine = "<br>G20 전월비 " + (cli[c][2] === null ? "-" : momText(cli[c][2])); break; }
+    }
+    var sig = signalMap[mon];
+    tip.style.display = "block";
+    tip.style.left = (ev.clientX + 14) + "px";
+    tip.style.top = (ev.clientY + 14) + "px";
+    tip.innerHTML = bars[idx][0] + "<br>시 " + fmt(bars[idx][1]) + " · 고 " + fmt(bars[idx][2]) + " · 저 " + fmt(bars[idx][3]) + " · 종 " + fmt(bars[idx][4]) + momLine + (sig ? "<br><b>매수 타점</b>" : "");
+  });
+  svg.addEventListener("mouseleave", function () { tip.style.display = "none"; if (scale && scale.hover) { scale.hover.setAttribute("opacity", 0); } });
+
+  var head = "<thead><tr><th>구간</th><th>구분</th><th>타점 (하락폭 축소 2달째)</th><th>타점 전월비</th><th>타점 QQQ 종가</th></tr></thead>";
+  var body = "";
+  windows.forEach(function (w) {
+    var rows = w.signals.map(function (period) {
+      var s = signalMap[period];
+      return '<span class="buy">' + period + '</span><div class="muted">' + (s && s.barDate ? s.barDate : "") + " 주봉</div>";
+    });
+    var momCell = w.signals.map(function (period) { var s = signalMap[period]; return s ? momText(s.mom) : "-"; }).join(", ");
+    var priceCell = w.signals.map(function (period) { var s = signalMap[period]; return s && s.price !== null ? fmt(s.price) : "-"; }).join(", ");
+    var cell = rows.length ? rows.join("<br>") : '<span class="wait">' + (w.state === "past" ? "없음" : "대기") + "</span>";
+    body += "<tr><td>" + w.key + '<div class="muted">' + w.from + " ~ " + w.to + "</div></td>" +
+      "<td>" + stateText(w) + "</td>" +
+      "<td>" + cell + "</td>" +
+      "<td>" + (momCell || '<span class="muted">-</span>') + "</td>" +
+      "<td>" + (priceCell || '<span class="muted">-</span>') + "</td></tr>";
+  });
+  document.getElementById("tbl").innerHTML = head + "<tbody>" + body + "</tbody>";
+
+  var startKey = new URLSearchParams(location.search).get("w");
+  setView(startKey && winOf(startKey) ? startKey : "all");
+  window.addEventListener("resize", function () { if (scale) { draw(); } });
+})();
+  </script>
+</body>
+</html>
+
+
