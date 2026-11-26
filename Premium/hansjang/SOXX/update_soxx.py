@@ -6,7 +6,7 @@
 2. 30 이탈이 세 번 나온 뒤, 네 번째와 그 이후에도 30 아래로 내려가면 매수하지 않고 계속 대기한다.
 3. 그 뒤 RSI 가 35 아래로 내려왔지만 30 아래로는 가지 않은 저점에서, 그 저점보다 2 오른 날이 매수 타점이다.
    (상승 다이버전스 출현으로 보고 매수한다.)
-4. 30 이탈끼리 반년(6개월) 이상 벌어지면 앞의 이탈은 무시하고 새로 센다.
+4. 30 이탈끼리 1년 이상 벌어지면 앞의 이탈은 무시하고 새로 센다.
 
     python Premium/hansjang/SOXX/update_soxx.py
 
@@ -42,7 +42,7 @@ RSI_LEVEL = 30.0        # 30 이탈 = 하락 신호
 RSI_LEVEL_BUY = 35.0    # 35 이하 저점이되 30 위에서 멈춘 자리 = 상승 다이버전스 후보
 REBOUND = 2.0           # 저점보다 2 오르면 타점
 MIN_DIPS = 3            # 30 이탈이 세 번은 있어야 한다
-RESET_MONTHS = 6        # 30 이탈끼리 반년 이상 벌어지면 앞의 이탈은 무시하고 새로 센다
+RESET_MONTHS = 12       # 30 이탈끼리 1년 이상 벌어지면 앞의 이탈은 무시하고 새로 센다
 RESET_DAYS = 365        # 30 이탈 사이 간격이 이만큼 벌어지면 앞의 이탈은 다른 하락으로 보고 새로 센다
 
 # kind: past = 과거 복기, cycle = 경기순환사이클 하락 추정 시기
@@ -221,7 +221,7 @@ def rebound_index(series, bars, dip, limit_day):
 def plan_window(window, strict, loose, series, bars):
     """한 구간의 매수 타점을 규칙대로 계산한다. 30 이탈과 35 이하(30 위) 저점을 시간 순서로 본다.
 
-    30 이탈끼리 반년 이상 벌어지면(앞 이탈의 끝 ~ 다음 이탈의 시작) 앞의 이탈은 무시하고 새로 센다.
+    30 이탈끼리 1년 이상 벌어지면(앞 이탈의 끝 ~ 다음 이탈의 시작) 앞의 이탈은 무시하고 새로 센다.
 
     reason: dips = 30 이탈 3회 미만, div = 35 이하(30 위) 저점 없음,
             wait = 저점은 나왔지만 아직 +2 반등 없음.
@@ -245,7 +245,7 @@ def plan_window(window, strict, loose, series, bars):
         if kind == 0:
             start = as_date(dip["startDate"])
             if last_end is not None and start >= add_months(last_end, RESET_MONTHS):
-                ignored.extend(picked)      # 반년 이상 벌어졌다. 앞의 이탈은 무시하고 새로 센다.
+                ignored.extend(picked)      # 1년 이상 벌어졌다. 앞의 이탈은 무시하고 새로 센다.
                 del picked[:]
             picked.append(dip)              # 4번째 이후 30 이탈도 여기서 센다.
             last_end = as_date(dip["endDate"])
