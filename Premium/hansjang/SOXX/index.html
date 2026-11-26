@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="/Premium/gate.js"></script>
+  <title>SOXX 타점</title>
+  <style>
+    body { background: #111; color: #fff; font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; margin: 0; padding: 16px; }
+    a { color: #4da3ff; }
+    .home { color: #D8C0FF; font-size: 22px; text-decoration: none; }
+    h1 { text-align: center; color: #FFFFE0; font-size: 30px; line-height: 1.35; margin: 10px 0; }
+    .warn { max-width: 1100px; margin: 12px auto; background: #3a2a12; color: #ffe08a; border: 1px solid #8a6a2a; border-radius: 12px; padding: 12px 16px; font-size: 16px; line-height: 1.55; font-weight: 700; }
+    .note { max-width: 1100px; margin: 8px auto; color: #ccc; font-size: 14px; line-height: 1.6; }
+    .rule { max-width: 1100px; margin: 14px auto; background: #181818; border: 1px solid #444; border-radius: 12px; padding: 14px 16px; }
+    .rule h2 { margin: 0 0 8px; color: #FFFFE0; font-size: 20px; }
+    .rule ol { margin: 0 0 10px; padding-left: 1.2em; color: #ddd; font-size: 15px; line-height: 1.8; }
+    .rule p { margin: 0 0 6px; color: #ddd; font-size: 15px; line-height: 1.7; }
+    .rule p:last-child { margin: 0; }
+    .rule b { color: #ffd76a; }
+    .rule .dim { color: #aaa; }
+    .tabs { max-width: 1100px; margin: 14px auto; display: flex; flex-wrap: wrap; gap: 8px; }
+    .tabs button { background: #1a1a1a; color: #ddd; border: 1px solid #555; border-radius: 8px; padding: 8px 14px; font-size: 15px; font-weight: 700; cursor: pointer; }
+    .tabs button.on { background: #24406e; color: #fff; border-color: #4da3ff; }
+    .card { max-width: 1100px; margin: 0 auto 16px; background: #181818; border: 1px solid #444; border-radius: 12px; padding: 12px; }
+    .card h2 { margin: 0 0 8px; color: #FFFFE0; font-size: 19px; }
+    .card .sub { color: #aaa; font-size: 13px; margin: 0 0 8px; line-height: 1.6; }
+    svg.chart { width: 100%; height: auto; display: block; background: #0c0c0c; border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { border-bottom: 1px solid #333; padding: 8px 6px; text-align: right; vertical-align: top; }
+    th { color: #D8C0FF; font-weight: 700; white-space: nowrap; }
+    td:first-child, th:first-child { text-align: left; }
+    .buy { color: #7dcea0; font-weight: 700; }
+    .wait { color: #ffd76a; font-weight: 700; }
+    .none { color: #9aa0a6; font-weight: 700; }
+    .muted { color: #888; font-size: 12px; }
+    .tip { position: fixed; pointer-events: none; background: #000d; border: 1px solid #666; border-radius: 8px; padding: 6px 10px; font-size: 12px; line-height: 1.5; display: none; z-index: 9; white-space: nowrap; }
+    @media (max-width: 800px) { h1 { font-size: 22px; } .note, .rule ol, .rule p { font-size: 12px; } .card, .tabs { max-width: 100%; } table { font-size: 12px; } }
+  </style>
+</head>
+<body>
+<p><a class="home" href="../index.html">← 한스장 타점</a></p>
+  <h1>SOXX 타점</h1>
+  <p class="warn">투자 권유가 아닙니다. 참고용. 경기순환사이클 하락 시기에 SOXX 일봉 RSI(14)가 30 아래로 <b>세 번</b> 내려간 뒤에는, 네 번째와 그 이후의 30 이탈은 모두 기다립니다. 그 뒤 <b>35 이하(30 위)</b> 저점에서 <b>2</b> 오르면 상승 다이버전스로 보고 매수 타점으로 봅니다.</p>
+  <p class="note" id="asof">불러오는 중…</p>
+
+  <section class="rule">
+    <h2>규칙</h2>
+    <ol>
+      <li>경기순환사이클 하락 추정 시기에는 <b>SOXX</b> 일봉 RSI(14)가 <b>30 아래</b>로 내려갔다 올라오기를 반복합니다.</li>
+      <li>그렇게 <b>세 번</b> 내려간 뒤, <b>네 번째와 그 이후</b>에도 30 이하로 내려가면 매수하지 않고 계속 대기합니다.</li>
+      <li>그 후 RSI가 <b>35 이하</b>로 내려갔는데 <b>30 이하까지는 안 내려간</b> 저점에서, 그 <b>최저점보다 2 더 올라가면</b> 매수 타점입니다. (= 상승 다이버전스 출현으로 간주하고 매수합니다.)</li>
+      <li>RSI가 3번 이상 30 이하로 내려가더라도 <b>1년 이상 하락하지 않는다면</b> 매수하지 않습니다. (첫 30 이탈부터 타점까지 365일 미만이면 매수 없음)</li>
+    </ol>
+    <p class="dim">경기순환사이클 하락시기 복기 구간: <b>2000-2002</b>, <b>2003-2004</b>, <b>2007-2009</b>, <b>2011-2012</b>, <b>2015-2016</b>, <b>2018-2019</b>, <b>2022-2023</b>. 추정 구간(경기순환사이클 하락): <b>2025-2027</b>, <b>2029-2031</b>, <b>2033-2035</b>.</p>
+    <p class="dim">차트는 SOXX 일봉과 RSI(14)입니다. 30 이탈은 빨간 띠, 35 이하(30 위) 저점은 주황 띠로 표시하고, 저점에서 2 오른 날을 매수 타점으로 그립니다. SOXX 상장이 2001-07-13이라 <b>2000-2002</b> 구간은 2001-07-13부터 계산합니다. 타점에서 진짜 매수할 것인지는 <b>한스장</b>이 최종 판단합니다.</p>
+  </section>
+
+  <section class="card">
+    <h2>구간별 타점 (요약)</h2>
+    <p class="sub">30 이탈 3회 뒤의 30 이탈은 모두 대기입니다. 그 뒤 35 이하(30 위) 저점이 나오고 저점보다 2 오르면 매수 타점입니다.</p>
+    <div style="overflow-x: auto"><table id="tbl"></table></div>
+  </section>
+
+  <div class="tabs" id="tabs"></div>
+
+  <section class="card">
+    <h2 id="chart-title">SOXX 일봉 · RSI</h2>
+    <p class="sub" id="chart-sub"></p>
+    <svg class="chart" id="chart" viewBox="0 0 1100 600" role="img" aria-label="SOXX 일봉과 RSI"></svg>
+  </section>
+
+  <div class="tip" id="tip"></div>
+<script src="soxx-data.js"></script>
+  <script>
+(function () {
+  var NS = "http://www.w3.org/2000/svg";
+  var data = window.SOXX_DATA;
+  var asofEl = document.getElementById("asof");
+  var svg = document.getElementById("chart");
+  var tip = document.getElementById("tip");
+  var titleEl = document.getElementById("chart-title");
+  var subEl = document.getElementById("chart-sub");
+  if (!data) {
+    asofEl.textContent = "soxx-data.js 를 불러오지 못했습니다. python Premium/hansjang/SOXX/update_soxx.py 를 실행해 주세요.";
+    return;
+  }
+  var bars = data.bars, RSI = data.rsi, dips = data.dips || [], windows = data.windows || [];
+  var W = 1100, H = 600, L = 64, R = 18, T = 26;
+  var pH = 330, gap = 44;
+  var pT = T, pB = T + pH, rT = pB + gap, rB = H - 26;
+  var x0 = L, x1 = W - R, xw = x1 - x0;
+  var last = bars[bars.length - 1];
+  asofEl.textContent = "기준 " + data.asof + " · " + data.ticker + " " + (data.name || "") + " 종가 " + last[4].toFixed(2) + " " + data.currency
+    + " · RSI(" + data.rsiPeriod + ") " + data.rsiLevel + " 아래 3회 뒤 네 번째부터는 대기, " + data.rsiLevelBuy + " 이하(30 위) 저점 +" + data.rebound + " 반등이 타점";
+
+  function el(tag, attrs, text) {
+    var n = document.createElementNS(NS, tag);
+    if (attrs) { for (var k in attrs) { n.setAttribute(k, attrs[k]); } }
+    if (text !== undefined) { n.textContent = text; }
+    return n;
+  }
+  function fmt(v) { return v.toFixed(2); }
+  function firstIdx(date) { for (var i = 0; i < bars.length; i++) { if (bars[i][0] >= date) { return i; } } return bars.length - 1; }
+  function lastIdx(date) { var r = -1; for (var i = 0; i < bars.length; i++) { if (bars[i][0] <= date) { r = i; } } return r; }
+  function winOf(key) { for (var i = 0; i < windows.length; i++) { if (windows[i].key === key) { return windows[i]; } } return null; }
+  function kindOf(w) { return w.kind === "cycle" ? "추정" : "복기"; }
+  function stateOf(w) { return w.state === "future" ? "예정" : (w.state === "active" ? "진행 중" : "완료"); }
+  function hasBuy(w) { return !(w.buy === null || w.buy === undefined); }
+
+  function reasonOf(w) {
+    if (hasBuy(w)) { return "매수 " + w.buyDate; }
+    if (w.state === "future") { return "예정"; }
+    if (w.reason === "dips") { return "매수 없음 · 30 이탈 " + w.dips.length + "회(3회 미만)"; }
+    if (w.reason === "span") { return "매수 없음 · 첫 이탈부터 " + w.spanDays + "일(1년 미만)"; }
+    if (w.reason === "div" && w.state === "past") { return "매수 없음 · 35 이하(30 위) 저점 없음"; }
+    if (w.reason === "wait" && w.state === "past") { return "매수 없음 · 35 이하 저점 " + w.divDate + " 뒤 +" + data.rebound + " 반등 없음"; }
+    if (w.reason === "wait") { return "대기 · 35 이하 저점 " + w.divDate + " +" + data.rebound + " 반등 기다림"; }
+    return "대기 · " + w.dips.length + "회 30 이탈, 35 이하(30 위) 저점 기다림";
+  }
+  function stateClass(w) {
+    if (hasBuy(w)) { return "buy"; }
+    if (w.state === "future" || w.reason === "dips" || w.reason === "span") { return "none"; }
+    if (w.state === "past") { return "none"; }
+    return "wait";
+  }
+
+  var view = { key: "all", i0: 0, i1: bars.length - 1 };
+  var scale = null;
+
+  var tabs = document.getElementById("tabs");
+  function addTab(key, label) {
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = label; b.setAttribute("data-key", key);
+    b.addEventListener("click", function () { setView(key); });
+    tabs.appendChild(b);
+  }
+  addTab("all", "전체");
+  windows.forEach(function (w) { addTab(w.key, w.key + " " + kindOf(w)); });
+
+  function setView(key) {
+    view.key = key;
+    if (key === "all") { view.i0 = 0; view.i1 = bars.length - 1; }
+    else {
+      var w = winOf(key);
+      var a = firstIdx(w.from), b = lastIdx(w.to);
+      if (b < a) { view.i0 = bars.length - 1; view.i1 = bars.length - 1; }
+      else { view.i0 = Math.max(0, a - 8); view.i1 = b; }
+    }
+    Array.prototype.forEach.call(tabs.children, function (x) { x.classList.toggle("on", x.getAttribute("data-key") === key); });
+    draw();
+  }
+
+  function drawFuture(w) {
+    svg.appendChild(el("rect", { x: 0, y: 0, width: W, height: H, fill: "#0c0c0c" }));
+    svg.appendChild(el("text", { x: W / 2, y: 74, fill: "#ffd76a", "font-size": 24, "font-weight": 700, "text-anchor": "middle" }, w.key + " · " + kindOf(w) + " 구간 (경기순환사이클 하락)"));
+    svg.appendChild(el("text", { x: W / 2, y: 112, fill: "#ddd", "font-size": 16, "text-anchor": "middle" }, "아직 시세 데이터가 없습니다. 구간이 오면 아래 순서로 타점을 찾습니다."));
+    svg.appendChild(el("rect", { x: 110, y: 140, width: 880, height: 280, fill: "#0a0a0a", stroke: "#222" }));
+    svg.appendChild(el("text", { x: 124, y: 162, fill: "#f7dc6f", "font-size": 13, "font-weight": 700 }, "RSI(" + data.rsiPeriod + ")"));
+
+    function RY(v) { return 330 - (v - 30) * 7; }
+    svg.appendChild(el("line", { x1: 170, y1: RY(30), x2: 960, y2: RY(30), stroke: "#b33", "stroke-dasharray": "5 4" }));
+    svg.appendChild(el("text", { x: 164, y: RY(30) + 4, fill: "#c66", "font-size": 12, "text-anchor": "end" }, "30"));
+    svg.appendChild(el("line", { x1: 170, y1: RY(35), x2: 960, y2: RY(35), stroke: "#8a5a2a", "stroke-dasharray": "2 4" }));
+    svg.appendChild(el("text", { x: 164, y: RY(35) + 4, fill: "#c08a4a", "font-size": 12, "text-anchor": "end" }, "35"));
+
+    var pts = [[190, 200], [240, 393], [285, 190], [330, 393], [375, 190], [420, 393], [465, 190],
+      [510, 393], [555, 190], [600, 393], [655, 190], [710, 309], [790, 295], [860, 205]];
+    svg.appendChild(el("path", {
+      d: pts.map(function (p, k) { return (k ? "L" : "M") + p[0] + " " + p[1]; }).join(" "),
+      fill: "none", stroke: "#f7dc6f", "stroke-width": 2
+    }));
+    [240, 330, 420, 510, 600].forEach(function (cx) {
+      svg.appendChild(el("circle", { cx: cx, cy: 393, r: 4, fill: "#ef5350" }));
+    });
+    svg.appendChild(el("circle", { cx: 710, cy: 309, r: 6, fill: "#f0a05a" }));
+    svg.appendChild(el("circle", { cx: 790, cy: 295, r: 6, fill: "#7dcea0" }));
+    svg.appendChild(el("text", { x: 790, y: 278, fill: "#7dcea0", "font-size": 13, "font-weight": 700, "text-anchor": "middle" }, "매수"));
+    [["1회", 240], ["2회", 330], ["3회", 420], ["4회 대기", 510], ["5회 대기", 600], ["35 이하", 710]].forEach(function (it) {
+      svg.appendChild(el("text", { x: it[1], y: 412, fill: "#ccc", "font-size": 12, "text-anchor": "middle" }, it[0]));
+    });
+    svg.appendChild(el("text", { x: W / 2, y: 462, fill: "#ddd", "font-size": 15, "text-anchor": "middle" }, "1~3회 30 이탈 → 4회 이후에도 30 이탈이면 계속 대기 → 그 뒤 35 이하(30 위) 저점에서 +" + data.rebound + " 반등 = 매수"));
+    svg.appendChild(el("text", { x: W / 2, y: 492, fill: "#ddd", "font-size": 15, "text-anchor": "middle" }, "첫 30 이탈부터 타점까지 " + data.minDays + "일(1년) 이상이어야 매수합니다. 그보다 짧으면 매수하지 않습니다."));
+    svg.appendChild(el("text", { x: W / 2, y: 534, fill: "#888", "font-size": 13, "text-anchor": "middle" }, "구간 " + w.from + " ~ " + w.to + " · 데이터가 쌓이면 이 화면에 차트가 자동으로 그려집니다."));
+  }
+
+  function draw() {
+    while (svg.firstChild) { svg.removeChild(svg.firstChild); }
+    var w = winOf(view.key);
+    if (w && w.state === "future") {
+      scale = null;
+      drawFuture(w);
+      titleEl.textContent = w.key + " · " + kindOf(w) + " · " + stateOf(w);
+      subEl.textContent = "아직 시세 데이터가 없습니다. 30 이탈 3회 뒤 4번째와 그 이후의 30 이탈은 대기하고, 그 뒤 35 이하(30 위) 저점에서 +" + data.rebound + " 오르면 매수 타점입니다.";
+      return;
+    }
+    var i0 = view.i0, i1 = Math.max(view.i0 + 1, view.i1);
+    var lo = Infinity, hi = -Infinity, k;
+    for (k = i0; k <= i1; k++) { if (bars[k][2] > hi) { hi = bars[k][2]; } if (bars[k][3] < lo) { lo = bars[k][3]; } }
+    var pad = (hi - lo) * 0.08 || 1; lo -= pad; hi += pad;
+    function X(i) { return x0 + xw * (i - i0) / (i1 - i0); }
+    function Y(v) { return pB - (v - lo) / (hi - lo) * (pB - pT); }
+    function RY(v) { return rB - (v / 100) * (rB - rT); }
+    scale = { i0: i0, i1: i1, X: X, Y: Y, hover: null };
+
+    svg.appendChild(el("rect", { x: x0, y: pT, width: xw, height: pB - pT, fill: "#0a0a0a" }));
+    svg.appendChild(el("rect", { x: x0, y: rT, width: xw, height: rB - rT, fill: "#0a0a0a" }));
+    svg.appendChild(el("text", { x: x0 + 4, y: pT + 16, fill: "#8ec8ff", "font-size": 13, "font-weight": 700 }, data.ticker));
+    svg.appendChild(el("text", { x: x0 + 4, y: rT + 16, fill: "#f7dc6f", "font-size": 13, "font-weight": 700 }, "RSI(" + data.rsiPeriod + ")"));
+
+    var g, v, y;
+    for (g = 0; g <= 4; g++) {
+      v = lo + (hi - lo) * g / 4; y = Y(v);
+      svg.appendChild(el("line", { x1: x0, y1: y, x2: x1, y2: y, stroke: "#242424" }));
+      svg.appendChild(el("text", { x: x0 - 6, y: y + 4, fill: "#999", "font-size": 11, "text-anchor": "end" }, fmt(v)));
+    }
+    [[30, "#a33", "5 4", "#c66"], [35, "#8a5a2a", "2 4", "#c08a4a"], [50, "#242424", "", "#999"], [70, "#242424", "", "#999"]].forEach(function (lv) {
+      var yy = RY(lv[0]);
+      svg.appendChild(el("line", { x1: x0, y1: yy, x2: x1, y2: yy, stroke: lv[1], "stroke-dasharray": lv[2] }));
+      svg.appendChild(el("text", { x: x0 - 6, y: yy + 4, fill: lv[3], "font-size": 11, "text-anchor": "end" }, lv[0]));
+    });
+
+    if (view.key === "all") {
+      windows.forEach(function (ww) {
+        if (ww.from > data.asof) { return; }
+        var a = firstIdx(ww.from), b = lastIdx(ww.to);
+        if (b < 0 || b < i0 || a > i1) { return; }
+        var xa = X(Math.max(a, i0)), xb = X(Math.min(b, i1));
+        if (xb - xa < 1) { return; }
+        svg.appendChild(el("rect", { x: xa, y: pT, width: xb - xa, height: pB - pT, fill: "rgba(77,163,255,0.06)" }));
+        svg.appendChild(el("text", { x: (xa + xb) / 2, y: pT + 30, fill: "#8ec8ff", "font-size": 10, "text-anchor": "middle" }, ww.key));
+      });
+    }
+
+    dips.forEach(function (d) {
+      if (d.start > i1 || d.end < i0) { return; }
+      var a = Math.max(d.start, i0), b = Math.min(d.end, i1);
+      svg.appendChild(el("rect", {
+        x: X(a) - 1, y: rT, width: Math.max(1.5, X(b) - X(a) + 2), height: rB - rT,
+        fill: d.strict ? "rgba(220,80,80,0.18)" : "rgba(240,160,90,0.26)"
+      }));
+    });
+
+    if ((i1 - i0) > 260) {
+      var dline = "";
+      for (k = i0; k <= i1; k++) { dline += (k === i0 ? "M" : "L") + X(k).toFixed(1) + " " + Y(bars[k][4]).toFixed(1) + " "; }
+      svg.appendChild(el("path", { d: dline, fill: "none", stroke: "#4da3ff", "stroke-width": 1.4 }));
+    } else {
+      for (k = i0; k <= i1; k++) {
+        var bar = bars[k], up = bar[4] >= bar[1], col = up ? "#4caf50" : "#ef5350", xx = X(k);
+        svg.appendChild(el("line", { x1: xx, y1: Y(bar[2]), x2: xx, y2: Y(bar[3]), stroke: col, "stroke-width": 1 }));
+        var yt = Y(Math.max(bar[1], bar[4])), yb = Y(Math.min(bar[1], bar[4]));
+        svg.appendChild(el("rect", { x: xx - 1.6, y: yt, width: 3.2, height: Math.max(1, yb - yt), fill: col }));
+      }
+    }
+
+    var rline = "";
+    for (k = i0; k <= i1; k++) {
+      if (RSI[k] === null || RSI[k] === undefined) { continue; }
+      rline += (rline === "" ? "M" : "L") + X(k).toFixed(1) + " " + RY(RSI[k]).toFixed(1) + " ";
+    }
+    svg.appendChild(el("path", { d: rline, fill: "none", stroke: "#f7dc6f", "stroke-width": 1.4 }));
+
+    if ((i1 - i0) <= 900) {
+      dips.forEach(function (d) {
+        if (d.start < i0 || d.start > i1) { return; }
+        svg.appendChild(el("circle", {
+          cx: X(d.low), cy: RY(d.lowValue), r: d.strict ? 2.6 : 4.5,
+          fill: d.strict ? "#ff8a8a" : "#f0a05a"
+        }));
+      });
+    }
+
+    windows.forEach(function (ww) {
+      if (ww.div === null || ww.div === undefined) { return; }
+      var dip = dips[ww.div];
+      if (dip.low < i0 || dip.low > i1) { return; }
+      svg.appendChild(el("circle", { cx: X(dip.low), cy: RY(dip.lowValue), r: 5, fill: "none", stroke: "#f0a05a", "stroke-width": 2 }));
+      if (!hasBuy(ww)) { return; }
+      var xa = X(dip.low), ya = RY(dip.lowValue), xb = X(ww.buy), yb2 = RY(ww.buyRsi);
+      svg.appendChild(el("line", { x1: xa, y1: ya, x2: xb, y2: yb2, stroke: "#f0a05a", "stroke-width": 1.2, "stroke-dasharray": "4 3" }));
+      svg.appendChild(el("text", { x: (xa + xb) / 2, y: Math.min(ya, yb2) - 6, fill: "#f0a05a", "font-size": 11, "text-anchor": "middle" }, "+" + data.rebound + " 반등"));
+      var xx = X(ww.buy), yy = Y(ww.buyPrice);
+      svg.appendChild(el("line", { x1: xx, y1: yy, x2: xx, y2: pB, stroke: "#7dcea0", "stroke-width": 1, "stroke-dasharray": "3 3" }));
+      svg.appendChild(el("polygon", { points: xx + "," + (yy + 8) + " " + (xx - 8) + "," + (yy + 24) + " " + (xx + 8) + "," + (yy + 24), fill: "#7dcea0" }));
+      svg.appendChild(el("text", { x: xx, y: yy + 40, fill: "#7dcea0", "font-size": 12, "font-weight": 700, "text-anchor": "middle" }, "매수 " + ww.buyDate));
+    });
+
+    for (g = 0; g <= 6; g++) {
+      var idx = Math.round(i0 + (i1 - i0) * g / 6);
+      svg.appendChild(el("text", { x: X(idx), y: H - 8, fill: "#999", "font-size": 11, "text-anchor": "middle" }, bars[idx][0].slice(0, 7)));
+    }
+
+    scale.hover = el("line", { x1: x0, y1: pT, x2: x0, y2: rB, stroke: "#888", "stroke-dasharray": "3 3", opacity: 0 });
+    svg.appendChild(scale.hover);
+
+    titleEl.textContent = w ? w.key + " · " + kindOf(w) + " · " + stateOf(w) : "SOXX 일봉 · RSI(14) · 전체";
+    subEl.textContent = w
+      ? "RSI 30 이탈 " + w.dips.length + "회 · " + reasonOf(w)
+      : "전체 기간입니다. 연한 파란 띠가 경기순환사이클 하락 구간, 빨간 띠가 RSI 30 이탈, 주황 띠가 35 이하(30 위) 저점입니다.";
+  }
+
+  svg.addEventListener("mousemove", function (ev) {
+    if (!scale) { return; }
+    var pt = svg.createSVGPoint();
+    pt.x = ev.clientX; pt.y = ev.clientY;
+    var p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    if (scale.hover) { scale.hover.setAttribute("opacity", 0); }
+    if (p.x < x0 || p.x > x1) { tip.style.display = "none"; return; }
+    var ratio = (p.x - x0) / xw;
+    var idx = Math.round(scale.i0 + ratio * (scale.i1 - scale.i0));
+    if (idx < 0) { idx = 0; }
+    if (idx >= bars.length) { idx = bars.length - 1; }
+    var xx = scale.X(idx);
+    if (scale.hover) {
+      scale.hover.setAttribute("x1", xx); scale.hover.setAttribute("x2", xx); scale.hover.setAttribute("opacity", 1);
+    }
+    tip.style.display = "block";
+    tip.style.left = (ev.clientX + 14) + "px";
+    tip.style.top = (ev.clientY + 14) + "px";
+    tip.innerHTML = bars[idx][0] + "<br>시 " + fmt(bars[idx][1]) + " · 고 " + fmt(bars[idx][2]) + " · 저 " + fmt(bars[idx][3]) + " · 종 " + fmt(bars[idx][4]) + "<br>RSI " + (RSI[idx] === null ? "-" : RSI[idx]);
+  });
+  svg.addEventListener("mouseleave", function () { tip.style.display = "none"; if (scale && scale.hover) { scale.hover.setAttribute("opacity", 0); } });
+
+  var head = "<thead><tr><th>구간</th><th>구분</th><th>RSI 30 이탈</th><th>35 이하 저점 (30 위)</th><th>타점 (저점 +" + data.rebound + " 반등)</th><th>타점 종가</th><th>구간 최저</th></tr></thead>";
+  var body = "";
+  windows.forEach(function (w) {
+    var dates = w.dips.map(function (i) { return dips[i].startDate; });
+    var shown = dates.slice(0, 3).join(", ") + (dates.length > 3 ? " 외 " + (dates.length - 3) + "회" : "");
+    var divCell = (w.div === null || w.div === undefined)
+      ? '<span class="muted">-</span>'
+      : w.divDate + '<div class="muted">RSI ' + w.divValue + "(" + w.divLowDate + ")</div>";
+    var buyCell;
+    if (hasBuy(w)) {
+      buyCell = '<span class="buy">' + w.buyDate + '</span><div class="muted">RSI ' + w.buyRsi + " · 첫 이탈부터 " + w.spanDays + "일</div>";
+    } else {
+      buyCell = '<span class="' + stateClass(w) + '">' + reasonOf(w) + "</span>";
+    }
+    body += "<tr><td>" + w.key + '<div class="muted">' + w.from + " ~ " + w.to + "</div></td>" +
+      "<td>" + kindOf(w) + " · " + stateOf(w) + "</td>" +
+      "<td>" + w.dips.length + "회" + '<div class="muted">' + (shown || "-") + "</div></td>" +
+      "<td>" + divCell + "</td>" +
+      "<td>" + buyCell + "</td>" +
+      "<td>" + (hasBuy(w) ? fmt(w.buyPrice) : '<span class="muted">-</span>') + "</td>" +
+      "<td>" + (w.lowPrice === null || w.lowPrice === undefined
+        ? '<span class="muted">-</span>'
+        : fmt(w.lowPrice) + '<div class="muted">' + w.lowDate + "</div>") + "</td></tr>";
+  });
+  document.getElementById("tbl").innerHTML = head + "<tbody>" + body + "</tbody>";
+
+  setView("all");
+})();
+  </script>
+</body>
+</html>

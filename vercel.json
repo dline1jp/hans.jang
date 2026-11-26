@@ -9,6 +9,26 @@
       "source": "/Premium/hansjang/bond/:path*",
       "destination": "/Premium/hansjang/BOND/:path*",
       "permanent": true
+    },
+    {
+      "source": "/Premium/ai-trend/soxl",
+      "destination": "/Premium/hansjang/SOXX",
+      "permanent": true
+    },
+    {
+      "source": "/Premium/ai-trend/soxl/:path*",
+      "destination": "/Premium/hansjang/SOXX/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/Premium/hansjang/soxx",
+      "destination": "/Premium/hansjang/SOXX",
+      "permanent": true
+    },
+    {
+      "source": "/Premium/hansjang/soxx/:path*",
+      "destination": "/Premium/hansjang/SOXX/:path*",
+      "permanent": true
     }
   ]
 }
