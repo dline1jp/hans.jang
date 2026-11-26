@@ -6,7 +6,6 @@
 2. 30 이탈이 세 번 나온 뒤, 네 번째와 그 이후에도 30 아래로 내려가면 매수하지 않고 계속 대기한다.
 3. 그 뒤 RSI 가 35 아래로 내려왔지만 30 아래로는 가지 않은 저점에서, 그 저점보다 2 오른 날이 매수 타점이다.
    (상승 다이버전스 출현으로 보고 매수한다.)
-4. 첫 30 이탈부터 타점까지 1년(365일) 이상 이어지지 않으면 매수하지 않는다.
 
     python Premium/hansjang/SOXX/update_soxx.py
 
@@ -19,7 +18,7 @@ import json
 import re
 import time
 import urllib.request
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 TICKER = "SOXX"
@@ -42,7 +41,6 @@ RSI_LEVEL = 30.0        # 30 이탈 = 하락 신호
 RSI_LEVEL_BUY = 35.0    # 35 이하 저점이되 30 위에서 멈춘 자리 = 상승 다이버전스 후보
 REBOUND = 2.0           # 저점보다 2 오르면 타점
 MIN_DIPS = 3            # 30 이탈이 세 번은 있어야 한다
-MIN_DAYS = 365          # 1년 이상 이어진 하락만 매수
 
 # kind: past = 과거 복기, cycle = 경기순환사이클 하락 추정 시기
 WINDOWS = [
@@ -186,60 +184,64 @@ def annotate(dip, bars):
     return dip
 
 
-def days_between(first_day, second_day):
-    first = date(*[int(part) for part in first_day.split("-")])
-    second = date(*[int(part) for part in second_day.split("-")])
-    return (second - first).days
-
-
 def rebound_index(series, bars, dip, limit_day):
-    """저점보다 REBOUND 만큼 오른 첫 봉. 그 전에 다시 30 아래로 내려가면 상승 다이버전스가 아니다."""
+    """저점보다 REBOUND 만큼 오른 첫 봉.
+
+    buy = 그 봉, fail = 그 전에 다시 30 아래로 내려가 상승 다이버전스가 아님,
+    pending = 구간이 끝날 때까지 +2 반등이 아직 없음.
+    """
     target = dip["lowValue"] + REBOUND
     for index in range(dip["low"] + 1, len(series)):
         if bars[index][0] > limit_day:
-            return None
+            return None, "pending"
         value = series[index]
         if value is None:
             continue
         if value < RSI_LEVEL:
-            return None
+            return None, "fail"
         if value >= target:
-            return index
-    return None
+            return index, "buy"
+    return None, "pending"
 
 
 def plan_window(window, strict, loose, series, bars):
-    """한 구간의 매수 타점을 규칙대로 계산한다.
+    """한 구간의 매수 타점을 규칙대로 계산한다. 30 이탈과 35 이하(30 위) 저점을 시간 순서로 본다.
 
-    reason: dips = 30 이탈 3회 미만, div = 35 이하 저점 없음,
-            wait = 저점은 나왔지만 아직 +2 반등 없음, span = 1년 미만.
+    reason: dips = 30 이탈 3회 미만, div = 35 이하(30 위) 저점 없음,
+            wait = 저점은 나왔지만 아직 +2 반등 없음.
     """
-    picked = [dip for dip in strict if window["from"] <= dip["startDate"] <= window["to"]]
-    plan = {"dips": picked, "div": None, "trigger": None, "reason": None}
-    if len(picked) < MIN_DIPS:
-        plan["reason"] = "dips"
-        return plan
-    last = picked[-1]
+    events = []
+    for dip in strict:
+        if window["from"] <= dip["startDate"] <= window["to"]:
+            events.append((dip["start"], 0, dip))   # RSI 30 이탈
     for dip in loose:
-        if dip["start"] <= last["end"]:
-            continue
-        if dip["startDate"] > window["to"]:
-            break
         if dip["lowValue"] < RSI_LEVEL:
-            continue  # 30 아래까지 간 구간은 30 이탈로 이미 셌다
-        plan["div"] = dip
-        plan["trigger"] = rebound_index(series, bars, dip, window["to"])
-        break
+            continue                                # 30 이탈 쪽에서 이미 센다
+        if window["from"] <= dip["startDate"] <= window["to"]:
+            events.append((dip["start"], 1, dip))   # RSI 35 이하이면서 30 위인 저점
+    events.sort(key=lambda item: (item[0], item[1]))
+
+    picked = []
+    plan = {"dips": picked, "div": None, "trigger": None, "reason": None}
+    for _start, kind, dip in events:
+        if kind == 0:
+            picked.append(dip)          # 4번째 이후 30 이탈도 여기서 센다.
+            continue
+        if len(picked) < MIN_DIPS:
+            continue                    # 30 이탈이 세 번은 있어야 한다
+        trigger, status = rebound_index(series, bars, dip, window["to"])
+        if status == "buy":
+            plan["div"] = dip
+            plan["trigger"] = trigger
+            break
+        if status == "pending":
+            plan["div"] = dip           # 저점은 나왔고 반등을 기다린다
+            break
+        # fail: 35 이하 저점이 다시 30 아래로 내려갔다. 다음 이벤트로 넘긴다.
     if plan["div"] is None:
-        plan["reason"] = "div"
-        return plan
-    if plan["trigger"] is None:
+        plan["reason"] = "dips" if len(picked) < MIN_DIPS else "div"
+    elif plan["trigger"] is None:
         plan["reason"] = "wait"
-        return plan
-    plan["spanDays"] = days_between(picked[0]["startDate"], bars[plan["trigger"]][0])
-    if plan["spanDays"] < MIN_DAYS:
-        plan["reason"] = "span"
-        plan["trigger"] = None
     return plan
 
 
@@ -321,9 +323,9 @@ def main():
 
     for dip in strict:
         add(dip, True)
-    for plan in plans:
-        if plan["div"] is not None:
-            add(plan["div"], False)
+    for dip in loose:
+        if dip["lowValue"] >= RSI_LEVEL:
+            add(dip, False)   # 35 이하(30 위) 저점은 모두 차트에 표시한다
 
     dips = sorted(pool.values(), key=lambda item: item["start"])
     position = {}
@@ -338,7 +340,7 @@ def main():
             "key": window["key"], "from": window["from"], "to": window["to"],
             "kind": window["kind"], "state": plan["state"],
             "dips": [position[(dip["start"], dip["end"])] for dip in plan["dips"]],
-            "div": None, "buy": None, "reason": plan["reason"], "spanDays": None,
+            "div": None, "buy": None, "reason": plan["reason"],
             "lowDate": low[0] if low else None,
             "lowPrice": round(low[3], 2) if low else None,
             "firstDipDate": plan["dips"][0]["startDate"] if plan["dips"] else None,
@@ -353,7 +355,6 @@ def main():
             entry["buyDate"] = bars[plan["trigger"]][0]
             entry["buyPrice"] = bars[plan["trigger"]][4]
             entry["buyRsi"] = series[plan["trigger"]]
-        entry["spanDays"] = plan.get("spanDays")
         windows.append(entry)
 
     payload = {
@@ -365,7 +366,6 @@ def main():
         "rsiLevel": RSI_LEVEL,
         "rsiLevelBuy": RSI_LEVEL_BUY,
         "rebound": REBOUND,
-        "minDays": MIN_DAYS,
         "bars": bars,
         "rsi": series,
         "dips": dips,
