@@ -92,7 +92,7 @@
     asofEl.textContent = "lead-data.js 를 불러오지 못했습니다. python Premium/hansjang/LEAD/update_lead.py 를 실행해 주세요.";
     return;
   }
-  var bars = data.bars, cli = data.cli || [], signals = data.signals || [], windows = data.windows || [];
+  var bars = data.bars, cli = data.cli || [], windows = data.windows || [];
   var days = data.days || [], buyDays = data.buyDays || [], buyPeriods = data.buyPeriods || [], dips = data.dips || [];
   var rsiPeriod = data.rsiPeriod || 14, rsiDipLevel = data.rsiDipLevel || 30, rsiDivLevel = data.rsiDivLevel || 35;
   var rebound = data.rebound || 2, minDips = data.minDips || 3;
@@ -103,8 +103,6 @@
   var x0 = L, x1 = W - R, xw = x1 - x0;
   var last = bars[bars.length - 1];
 
-  var signalMap = {};
-  signals.forEach(function (s) { signalMap[s.period] = s; });
   function inBuyPeriod(period) {
     var y = Number(String(period).slice(0, 4));
     return buyPeriods.some(function (r) { return r[0] <= y && y <= r[1]; });
@@ -252,19 +250,6 @@
       }
     }
 
-    signals.forEach(function (s) {
-      if (!s.barDate) { return; }
-      var dt = t(s.barDate);
-      if (dt < tMin || dt > tMax) { return; }
-      var xx = X(dt);
-      svg.appendChild(el("line", { x1: xx, y1: pT, x2: xx, y2: cB, stroke: "rgba(140,140,140,0.5)", "stroke-width": 1, "stroke-dasharray": "4 3" }));
-      svg.appendChild(el("text", { x: xx, y: pT + 14, fill: "#9aa0a6", "font-size": 10, "text-anchor": "middle" }, "신호 " + s.period));
-      var mt = t(s.period + "-01");
-      if (mt >= tMin && mt <= tMax && s.mom !== null) {
-        svg.appendChild(el("circle", { cx: X(mt), cy: CY(s.mom), r: 4, fill: "none", stroke: "#9aa0a6", "stroke-width": 1.2 }));
-      }
-    });
-
     buyDays.forEach(function (s) {
       var dt = t(s.date);
       if (dt < tMin || dt > tMax) { return; }
@@ -293,14 +278,13 @@
     var cur = st.row ? (st.row[0] + " 전월비 " + (curMom === null ? "-" : momText(curMom)) +
       (st.narrowing > 0 ? " · 하락폭 축소 " + st.narrowing + "달째" + (st.narrowing >= 2 ? (curBuy ? " (매수 구간)" : " (구간 밖)") : "") : " · 하락 심화/대기")) : "";
     if (w) {
-      var marks = w.signals.length ? w.signals.join(", ") : "없음";
       var bd = windowBuyDays(w);
       var bdays = bd.length ? bd.map(function (d) { return d.date; }).join(", ") : "없음";
-      titleEl.textContent = w.key + " · " + stateText(w) + " · 매수 신호 " + w.signals.length + "회 · 매수일 " + bd.length + "일";
-      subEl.textContent = "신호 월: " + marks + " · 분할 매수일: " + bdays + " · " + cur;
+      titleEl.textContent = w.key + " · " + stateText(w) + " · 매수 타점 " + bd.length + "회";
+      subEl.textContent = "매수 타점: " + bdays + " · " + cur;
     } else {
       titleEl.textContent = "QQQ 주봉 · G20 전월비 (전체)";
-      subEl.textContent = "초록 세로선이 매수 신호 월, 초록 점은 매수 타점(일봉 RSI " + rsiDipLevel + " 이탈 " + minDips + "회 뒤 " + rsiDivLevel + " 이하 저점 +" + rebound + " 반등)입니다. 아래 패널은 G20 전월비이고 붉은 영역이 전월비 < 0 인 하락 구간입니다. · " + cur;
+      subEl.textContent = "세로선/점이 매수 타점(일봉 RSI " + rsiDipLevel + " 이탈 " + minDips + "회 뒤 " + rsiDivLevel + " 이하 저점 +" + rebound + " 반등)입니다. 아래 패널은 G20 전월비이고 붉은 영역이 전월비 < 0 인 하락 구간입니다. · " + cur;
     }
   }
 
@@ -398,31 +382,20 @@
     for (var c = 0; c < cli.length; c++) {
       if (cli[c][0] === mon) { momLine = "<br>G20 전월비 " + (cli[c][2] === null ? "-" : momText(cli[c][2])); break; }
     }
-    var sig = signalMap[mon];
     tip.style.display = "block";
     tip.style.left = (ev.clientX + 14) + "px";
     tip.style.top = (ev.clientY + 14) + "px";
-    tip.innerHTML = bars[idx][0] + "<br>시 " + fmt(bars[idx][1]) + " · 고 " + fmt(bars[idx][2]) + " · 저 " + fmt(bars[idx][3]) + " · 종 " + fmt(bars[idx][4]) + momLine + (sig ? "<br><b>매수 신호 월</b>" : "");
+    tip.innerHTML = bars[idx][0] + "<br>시 " + fmt(bars[idx][1]) + " · 고 " + fmt(bars[idx][2]) + " · 저 " + fmt(bars[idx][3]) + " · 종 " + fmt(bars[idx][4]) + momLine;
   });
   svg.addEventListener("mouseleave", function () { tip.style.display = "none"; if (scale && scale.hover) { scale.hover.setAttribute("opacity", 0); } });
 
-  var head = "<thead><tr><th>구간</th><th>구분</th><th>하락폭 2달째 월 (참고)</th><th>2달째 전월비</th><th>2달째 QQQ 종가</th><th>매수 타점 (일봉 RSI " + rsiDipLevel + " 이탈 " + minDips + "회 → " + rsiDivLevel + " 이하 저점 +" + rebound + " 반등)</th></tr></thead>";
+  var head = "<thead><tr><th>구간</th><th>구분</th><th>매수 타점 (일봉 RSI " + rsiDipLevel + " 이탈 " + minDips + "회 → " + rsiDivLevel + " 이하 저점 +" + rebound + " 반등)</th></tr></thead>";
   var body = "";
   windows.forEach(function (w) {
-    var rows = w.signals.map(function (period) {
-      var s = signalMap[period];
-      return '<span class="buy">' + period + '</span><div class="muted">' + (s && s.barDate ? s.barDate : "") + " 주봉</div>";
-    });
-    var momCell = w.signals.map(function (period) { var s = signalMap[period]; return s ? momText(s.mom) : "-"; }).join(", ");
-    var priceCell = w.signals.map(function (period) { var s = signalMap[period]; return s && s.price !== null ? fmt(s.price) : "-"; }).join(", ");
     var bd = windowBuyDays(w);
-    var buyCell = bd.length ? bd.map(function (d) { return '<span class="buy">' + d.date + '</span><div class="muted">RSI ' + Number(d.rsi).toFixed(1) + " · 저점 " + d.divLowRsi + " (" + d.divLowDate + ") · " + d.dips + "회 이탈 · " + fmt(d.price) + "</div>"; }).join("<br>") : '<span class="muted">-</span>';
-    var cell = rows.length ? rows.join("<br>") : '<span class="wait">' + (w.state === "past" ? "없음" : "대기") + "</span>";
+    var buyCell = bd.length ? bd.map(function (d) { return '<span class="buy">' + d.date + '</span><div class="muted">RSI ' + Number(d.rsi).toFixed(1) + " · 저점 " + d.divLowRsi + " (" + d.divLowDate + ") · " + d.dips + "회 이탈 · " + fmt(d.price) + "</div>"; }).join("<br>") : '<span class="wait">' + (w.state === "past" ? "없음" : "대기") + "</span>";
     body += "<tr><td>" + w.key + '<div class="muted">' + w.from + " ~ " + w.to + "</div></td>" +
       "<td>" + stateText(w) + "</td>" +
-      "<td>" + cell + "</td>" +
-      "<td>" + (momCell || '<span class="muted">-</span>') + "</td>" +
-      "<td>" + (priceCell || '<span class="muted">-</span>') + "</td>" +
       "<td>" + buyCell + "</td></tr>";
   });
   document.getElementById("tbl").innerHTML = head + "<tbody>" + body + "</tbody>";
