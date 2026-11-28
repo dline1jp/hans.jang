@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="/Premium/gate.js"></script>
+  <title>쌍바닥 계단식 타점</title>
+  <style>
+    body { background: #111; color: #fff; font-family: "Malgun Gothic", "Apple SD Gothic Neo", Arial, sans-serif; margin: 0; padding: 16px; }
+    a { color: #4da3ff; }
+    .home { color: #D8C0FF; font-size: 22px; text-decoration: none; }
+    h1 { text-align: center; color: #FFFFE0; font-size: 30px; line-height: 1.35; margin: 10px 0; }
+    .warn { max-width: 1150px; margin: 12px auto; background: #3a2a12; color: #ffe08a; border: 1px solid #8a6a2a; border-radius: 12px; padding: 12px 16px; font-size: 15px; line-height: 1.6; font-weight: 700; }
+    .note { max-width: 1150px; margin: 8px auto; color: #ccc; font-size: 14px; line-height: 1.6; }
+    .rule { max-width: 1150px; margin: 14px auto; background: #181818; border: 1px solid #444; border-radius: 12px; padding: 14px 16px; }
+    .rule h2 { margin: 0 0 8px; color: #FFFFE0; font-size: 20px; }
+    .rule ol { margin: 0; padding-left: 1.2em; color: #ddd; font-size: 14px; line-height: 1.8; }
+    .rule b { color: #ffd76a; }
+    .card { max-width: 1150px; margin: 0 auto 16px; background: #181818; border: 1px solid #444; border-radius: 12px; padding: 12px; }
+    .card h2 { margin: 0 0 8px; color: #FFFFE0; font-size: 19px; }
+    .card .sub { color: #aaa; font-size: 13px; margin: 0 0 8px; line-height: 1.6; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border-bottom: 1px solid #333; padding: 7px 6px; text-align: left; vertical-align: top; }
+    th { color: #D8C0FF; font-weight: 700; white-space: nowrap; }
+    .buy { color: #7dcea0; font-weight: 700; }
+    .muted { color: #888; font-size: 12px; }
+    .num { text-align: right; }
+    details { margin: 6px 0; }
+    summary { cursor: pointer; color: #8ec8ff; font-weight: 700; }
+    .step { color: #ffd76a; font-weight: 700; }
+  </style>
+</head>
+<body>
+  <p><a class="home" href="../index.html">← 한스장 타점</a></p>
+  <h1>쌍바닥 계단식 타점</h1>
+  <p class="warn">투자 권유가 아닙니다. 참고용. <b>G20 경기선행지수(CLI) 전월비 하락폭이 2달 연속 줄어든 뒤</b>, 주가 <b>쌍바닥</b>의 <b>2번째 바닥</b>에서 <b>계단식 하락법</b> 단계가 오면 매수하는 기법입니다. (v1 · 아래 계산 가정은 검증 중입니다.)</p>
+  <p class="note" id="asof">불러오는 중…</p>
+
+  <section class="rule">
+    <h2>규칙</h2>
+    <ol>
+      <li>G20(경기선행지수)의 <b>전월비(mom)</b>가 <b>음수인 하락 구간</b>만 봅니다.</li>
+      <li>하락폭이 <b>전월 대비 더 커지다가</b>(하락 심화), <b>하락폭을 줄이기 시작</b>합니다.</li>
+      <li>하락폭을 <b>2달 연속</b> 줄이면 <b>매수 시그널</b>입니다. (Rule 1: 최신달 1회 축소는 일시적이라 무시 · Rule 2: 지난달의 2달 축소는 무시 → <b>최신 발표월만</b> 봄)</li>
+      <li>시그널 후 <b>4개월 이내</b> 주가 하락이 오면 <b>쌍바닥</b>을 찾습니다.</li>
+      <li>쌍바닥의 <b>2번째 바닥</b>에서 매수합니다.</li>
+      <li><b>Case A</b>(천장→1쌍바닥 <b>4개월 초과 ~ 18개월 미만</b>): <b>2쌍이 1쌍보다 낮고</b>, 2쌍이 1쌍을 뚫은 뒤부터 <b>계단식 카운트 → 4단계</b> 매수.</li>
+      <li><b>Case B</b>(<b>4개월 이하 또는 18개월 이상</b>): <b>1쌍이 더 낮고</b>, 2쌍 시작(직전 전고점)부터 <b>계단식 카운트 → 3단계</b> 매수.</li>
+      <li><b>계단식 하락법</b>: 일봉 하락률을 <b>절대치 크기순</b>으로 카운트합니다. 1단계=가장 큰 하락, 2단계=2번째, 3단계=3번째 … (더 큰 하락이 나오면 앞 단계로 복귀)</li>
+      <li>Rule 6: 바닥으로부터 <b>만 5개월</b> 이후 쌍바닥 사이 <b>전고점</b>을 넘으면 바닥 탈출, 못 넘으면 2차 하락 대비(Rule 8).</li>
+      <li>Rule 9(매도): CLI 2회 이상 증가 → 두번째 쌍봉에서 매도. Rule 10(매수): CLI 2회 이상 하락 후 두번째 쌍바닥에서, 1쌍 골보다 낮아지고 3일 후 매수.</li>
+      <li>Rule 7: CLI 값은 <b>소수점 한자리</b>까지만 적용합니다.</li>
+      <li>데이터: G20 CLI(OECD·Supabase, 선행지수 타점과 동일), 주가는 QQQ(Yahoo).</li>
+    </ol>
+  </section>
+
+  <section class="card">
+    <h2>사례별 자동 표 (v1)</h2>
+    <p class="sub" id="assump"></p>
+    <div style="overflow-x:auto"><table id="tbl"></table></div>
+  </section>
+
+  <section class="card">
+    <h2>사례별 상세 (스윙 천장/저점 · 계단식 단계)</h2>
+    <p class="sub">스윙은 QQQ 일봉 종가 지그재그입니다. 쌍바닥 후보를 눈으로 확인하세요.</p>
+    <div id="detail"></div>
+  </section>
+
+  <script src="turn-data.js"></script>
+  <script>
+(function () {
+  var data = window.TURN_DATA;
+  var asofEl = document.getElementById("asof");
+  if (!data) {
+    asofEl.textContent = "turn-data.js 를 불러오지 못했습니다. python Premium/hansjang/TURN/update_turn.py 를 실행해 주세요.";
+    return;
+  }
+  function fmt(v) { return (v === null || v === undefined) ? "-" : Number(v).toFixed(2); }
+  function esc(s) { return String(s == null ? "" : s); }
+
+  asofEl.textContent = "기준 " + data.ticker + " " + data.asof + " · 지그재그 " + Math.round(data.zigzagPct * 100) + "% · CLI 소수점 " + data.cliDecimals + "자리";
+
+  document.getElementById("assump").textContent =
+    "v1 계산 가정: (1) 천장/바닥 = 일봉 종가 지그재그 " + Math.round(data.zigzagPct * 100) + "% 스윙. " +
+    "(2) 쌍바닥 = 사례 구간의 마지막 두 스윙 저점. " +
+    "(3) 계단식 = 카운트 시작점 이후 일봉 하락률을 절대치 크기순 정렬. " +
+    "(4) Case A/B = 천장→1쌍바닥 개월 수(4 이하 또는 18 이상이면 B). → 가정이 실제와 다르면 알려주세요.";
+
+  var head = "<thead><tr><th>사례</th><th>구간</th><th>천장</th><th>1쌍바닥</th><th>2쌍바닥</th>"
+    + "<th>Case</th><th>천장~1쌍</th><th>2쌍까지</th><th>낮은쪽</th><th>하락폭</th><th>CLI 2달축소 신호월</th><th>계단식 매수(3·4단계)</th><th>참고(엑셀)</th></tr></thead>";
+  var body = "";
+  data.cases.forEach(function (c) {
+    var s3 = c.steps.filter(function (s) { return s.step === 3; })[0];
+    var s4 = c.steps.filter(function (s) { return s.step === 4; })[0];
+    var buyCell = "";
+    if (s3) { buyCell += '<span class="buy">3단계 ' + s3.date + '</span> <span class="muted">(' + fmt(s3.pct) + "%, " + fmt(s3.price) + ")</span><br>"; }
+    if (s4) { buyCell += '<span class="buy">4단계 ' + s4.date + '</span> <span class="muted">(' + fmt(s4.pct) + "%, " + fmt(s4.price) + ")</span>"; }
+    var ref = c.ref || {};
+    var refCell = "";
+    if (ref.case) { refCell += "Case " + ref.case + " "; }
+    if (ref.lower) { refCell += "낮은쪽 " + ref.lower + " "; }
+    if (ref.to1) { refCell += "1쌍 " + ref.to1 + " "; }
+    if (ref.to2) { refCell += "2쌍 " + ref.to2 + " "; }
+    if (ref.stairDays) { refCell += "계단식 " + ref.stairDays + "일 "; }
+    if (ref.drop30) { refCell += "하락 " + Math.round(ref.drop30 * 100) + "%"; }
+    body += "<tr><td>" + esc(c.key) + "</td>"
+      + '<td class="muted">' + esc(c.from) + "<br>~ " + esc(c.to) + "</td>"
+      + "<td>" + esc(c.peak.date) + '<br><span class="muted">' + fmt(c.peak.price) + "</span></td>"
+      + "<td>" + esc(c.first.date) + '<br><span class="muted">' + fmt(c.first.price) + "</span></td>"
+      + "<td>" + esc(c.second.date) + '<br><span class="muted">' + fmt(c.second.price) + "</span></td>"
+      + "<td>" + esc(c.caseKind) + "</td>"
+      + '<td class="num">' + c.to1 + "개월</td>"
+      + '<td class="num">' + c.to2 + "개월</td>"
+      + "<td>" + esc(c.lower) + "</td>"
+      + '<td class="num">' + Math.round(c.drop30 * 100) + "%</td>"
+      + "<td>" + (c.signals.length ? c.signals.join(", ") : "-") + "</td>"
+      + "<td>" + buyCell + "</td>"
+      + '<td class="muted">' + (refCell || "-") + "</td></tr>";
+  });
+  document.getElementById("tbl").innerHTML = head + "<tbody>" + body + "</tbody>";
+
+  var detail = "";
+  data.cases.forEach(function (c) {
+    detail += "<details><summary>" + esc(c.key) + " — " + esc(c.from) + " ~ " + esc(c.to)
+      + " (카운트 시작 " + esc(c.startDate) + " · " + esc(c.startNote) + ")</summary>";
+    detail += '<div class="muted" style="margin:6px 0">스윙 저점: '
+      + c.pivotLows.map(function (l) { return l.date + "(" + fmt(l.price) + ")"; }).join(" → ") + "</div>";
+    detail += "<table><thead><tr><th>단계</th><th>날짜</th><th>하락률</th><th>가격</th></tr></thead><tbody>";
+    c.steps.forEach(function (s) {
+      var mark = (s.step === 3 || s.step === 4) ? ' class="step"' : "";
+      detail += "<tr" + mark + "><td>" + s.step + "단계</td><td>" + esc(s.date) + "</td><td>" + fmt(s.pct) + "%</td><td>" + fmt(s.price) + "</td></tr>";
+    });
+    detail += "</tbody></table></details>";
+  });
+  document.getElementById("detail").innerHTML = detail;
+})();
+  </script>
+</body>
+</html>
