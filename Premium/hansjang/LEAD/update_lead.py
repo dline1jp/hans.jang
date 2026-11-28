@@ -51,6 +51,7 @@ RSI_DIP_LEVEL = 30.0    # QQQ 일봉 RSI(14) 30 이탈 = 하락 신호
 RSI_DIV_LEVEL = 35.0    # 35 이하(30 위) 저점 = 상승 다이버전스 후보
 REBOUND = 2.0           # 저점보다 2 오르면 매수 타점
 MIN_DIPS = 3            # 30 이탈이 세 번은 있어야 한다
+RESET_MONTHS = 12       # 30 이탈끼리 1년 이상 벌어지면 앞의 이탈은 무시하고 새로 센다
 G20_MIN_MONTHS = 2      # G20 선행지수 전월비가 이만큼 연속 하락한 이후에만 매수한다
 
 # 경기순환사이클 하락 및 주가 바닥 가능시기: 이 구간에만 매수 타점을 적용한다. (start_year, end_year) 양끝 포함.
@@ -331,10 +332,16 @@ def rebound_index(series, bars, dip, limit):
     return None, "pending"
 
 
+def month_diff(start_day, end_day):
+    """start_day(YYYY-MM-DD) 부터 end_day 까지 개월 수."""
+    return ((int(end_day[0:4]) * 12 + int(end_day[5:7])) -
+            (int(start_day[0:4]) * 12 + int(start_day[5:7])))
+
+
 def plan_entry(window, dips30, dips35, series, bars, gate):
     """한 매수허용구간의 진입 타점. 30 이탈 3회 뒤, 35 이하(30 위) 저점에서 +REBOUND 반등이면 매수한다.
 
-    30 이탈끼리 벌어짐에 따른 리셋 기준은 두지 않는다. (모든 30 이탈을 누적해서 센다.)
+    30 이탈끼리 RESET_MONTHS 달 이상 벌어지면(앞 이탈의 끝 ~ 다음 이탈의 시작) 앞의 이탈은 무시하고 새로 센다.
     gate(day) 가 False 면 그 후보는 건너뛰고 다음 저점을 본다. (하락폭 2달 축소 / G20 2달 하락 조건)
 
     reason: dips = 30 이탈 3회 미만, div = 35 이하(30 위) 저점 없음, wait = +2 반등 대기.
@@ -351,9 +358,13 @@ def plan_entry(window, dips30, dips35, series, bars, gate):
     events.sort(key=lambda item: (item[0], item[1]))
 
     picked = []
+    last_end = None
     for _start, kind, dip in events:
         if kind == 0:
+            if last_end is not None and month_diff(last_end, dip["startDate"]) >= RESET_MONTHS:
+                del picked[:]               # 1년 이상 벌어졌다. 앞의 이탈은 무시하고 새로 센다.
             picked.append(dip)              # 4번째 이후 30 이탈도 여기서 센다.
+            last_end = dip["endDate"]
             continue
         if len(picked) < MIN_DIPS:
             continue                        # 30 이탈이 세 번은 있어야 한다
@@ -517,6 +528,7 @@ def main():
         "rsiDivLevel": RSI_DIV_LEVEL,
         "rebound": REBOUND,
         "minDips": MIN_DIPS,
+        "resetMonths": RESET_MONTHS,
         "g20MinMonths": G20_MIN_MONTHS,
         "g20AsOf": cli[-1]["period"],
         "g20Run": g20_run.get(cli[-1]["period"], 0),
