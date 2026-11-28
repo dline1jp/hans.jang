@@ -37,7 +37,7 @@
 <body>
   <p><a class="home" href="../index.html">← 한스장 타점</a></p>
   <h1>선행지수 타점</h1>
-  <p class="warn">투자 권유가 아닙니다. 참고용. <b>G20 경기선행지수(CLI) 전월비(mom)</b>가 하락하다가 <b>하락폭을 줄인 지 2달째</b>가 되고, <b>경기순환사이클 하락·주가 바닥 가능시기</b> 안에서 <b>나스닥100(QQQ) 일봉 RSI(14)가 30 미만</b>으로 내려온 날을 분할 매수 타점으로 봅니다.</p>
+  <p class="warn">투자 권유가 아닙니다. 참고용. <b>G20 경기선행지수(CLI) 전월비(mom)</b> 하락폭이 <b>2달 이상 줄어든 뒤</b>, <b>경기순환사이클 하락·주가 바닥 가능시기</b> 안에서 <b>나스닥100(QQQ) 일봉 RSI(14)가 30 아래로 3회 내려간 뒤 35 이하(30 위) 저점에서 +2 반등</b>한 날을 매수 타점으로 봅니다. (G20 선행지수 전월비가 2달 이상 하락한 이후여야 합니다.)</p>
   <p class="note" id="asof">불러오는 중…</p>
 
   <section class="rule">
@@ -50,7 +50,6 @@
       <li>경기순환사이클 하락 추정 시기에는 <b>QQQ</b> 일봉 <b>RSI(14)</b>가 <b>30 아래</b>로 내려갔다 올라오기를 반복합니다.</li>
       <li>그렇게 <b>세 번</b> 내려간 뒤, <b>네 번째와 그 이후</b>에도 30 이하로 내려가면 매수하지 않고 계속 대기합니다.</li>
       <li>그 후 RSI가 <b>35 이하</b>로 내려갔는데 <b>30 이하까지는 안 내려간</b> 저점에서, 그 <b>최저점보다 2 더 올라가면</b> 매수 타점입니다. (= 상승 다이버전스 출현으로 간주하고 매수합니다.)</li>
-      <li>30 이탈끼리 <b>반년 이상</b> 벌어지면 앞의 이탈은 <b>무시하고 새로 셉니다.</b> (앞 이탈이 끝난 날부터 다음 이탈이 시작한 날까지 반년 이상)</li>
       <li>단, <b>G20 선행지수가 전월비 2달 이상 하락한 이후</b>여야 매수 조건입니다.</li>
       <li>차트는 위가 <b>나스닥100(QQQ)</b> 주봉과 <b>G20 전월비</b>, 아래가 <b>QQQ 일봉 RSI(14)</b>입니다. 2000년부터 <b>4년 단위</b>로 나눠서 봅니다.</li>
       <li>데이터는 G20은 OECD·Supabase, QQQ는 Yahoo Finance에서 자동 갱신됩니다. 타점에서 진짜 매수할 것인지는 <b>한스장</b>이 최종 판단합니다.</li>
@@ -59,7 +58,7 @@
 
   <section class="card">
     <h2>구간별 타점 (요약)</h2>
-    <p class="sub">전월비가 하락 심화 뒤 하락폭을 줄인 지 2달째 되는 달을 매수 신호 월로 봅니다. 실제 매수는 경기순환사이클 하락·주가 바닥 가능시기 안에서 일봉 RSI(14)가 30 미만으로 내려온 날 분할로 합니다.</p>
+    <p class="sub">하락폭이 2달 이상 줄어든 뒤, 경기순환사이클 하락·주가 바닥 가능시기 안에서 일봉 RSI(14)가 30 아래로 3회 내려간 뒤 35 이하(30 위) 저점에서 +2 반등한 날을 매수 타점으로 봅니다. 30 이탈끼리 벌어짐에 따른 리셋 기준은 두지 않습니다.</p>
     <div style="overflow-x: auto"><table id="tbl"></table></div>
   </section>
 
@@ -93,8 +92,10 @@
     return;
   }
   var bars = data.bars, cli = data.cli || [], signals = data.signals || [], windows = data.windows || [];
-  var days = data.days || [], buyDays = data.buyDays || [], buyPeriods = data.buyPeriods || [];
-  var rsiPeriod = data.rsiPeriod || 14, rsiBuyLevel = data.rsiBuyLevel || 30;
+  var days = data.days || [], buyDays = data.buyDays || [], buyPeriods = data.buyPeriods || [], dips = data.dips || [];
+  var rsiPeriod = data.rsiPeriod || 14, rsiDipLevel = data.rsiDipLevel || 30, rsiDivLevel = data.rsiDivLevel || 35;
+  var rebound = data.rebound || 2, minDips = data.minDips || 3;
+  var g20Min = data.g20MinMonths || 2, g20Run = data.g20Run || 0;
   var W = 1100, H = 620, L = 60, R = 18, T = 26;
   var pH = 320, gap = 46;
   var pT = T, pB = T + pH, cT = pB + gap, cB = H - 30;
@@ -114,7 +115,7 @@
   function monthOf(iso) { return iso.slice(0, 7); }
 
   asofEl.textContent = "기준 G20 " + data.asof + " · QQQ " + data.priceAsof + " 종가 " + fmt(last[4]) + " " + data.currency +
-    " · 매수 신호 " + signals.length + "회 · 분할 매수일 " + buyDays.length + "일 · 규칙: 전월비 하락폭 2달 축소 뒤 경기 하락·바닥 구간에서 일봉 RSI(" + rsiPeriod + ") " + rsiBuyLevel + " 미만 분할 매수";
+    " · 매수 타점 " + buyDays.length + "회 · 규칙: 하락폭 2달 이상 축소 + 경기 하락·바닥 구간에서 일봉 RSI(" + rsiPeriod + ") " + rsiDipLevel + " 이탈 " + minDips + "회 뒤 " + rsiDivLevel + " 이하 저점 +" + rebound + " 반등 매수 · G20 전월비 하락 " + g20Run + "달(" + (g20Run >= g20Min ? "조건 충족" : "조건 " + g20Min + "달 필요") + ")";
 
   function el(tag, attrs, text) {
     var n = document.createElementNS(NS, tag);
@@ -298,7 +299,7 @@
       subEl.textContent = "신호 월: " + marks + " · 분할 매수일: " + bdays + " · " + cur;
     } else {
       titleEl.textContent = "QQQ 주봉 · G20 전월비 (전체)";
-      subEl.textContent = "초록 세로선이 매수 신호 월, 초록 점은 일봉 RSI " + rsiBuyLevel + " 미만 분할 매수일입니다. 아래 패널은 G20 전월비이고 붉은 영역이 전월비 < 0 인 하락 구간입니다. · " + cur;
+      subEl.textContent = "초록 세로선이 매수 신호 월, 초록 점은 매수 타점(일봉 RSI " + rsiDipLevel + " 이탈 " + minDips + "회 뒤 " + rsiDivLevel + " 이하 저점 +" + rebound + " 반등)입니다. 아래 패널은 G20 전월비이고 붉은 영역이 전월비 < 0 인 하락 구간입니다. · " + cur;
     }
   }
 
@@ -336,12 +337,18 @@
       svgR.appendChild(el("rect", { x: xa, y: RT, width: xb - xa, height: RB - RT, fill: "rgba(125,206,160,0.07)" }));
     });
 
+    dips.forEach(function (d) {
+      var a = Math.max(0, d[0]), b = Math.min(days.length - 1, d[1]);
+      var xa = RX(t(days[a][0])), xb = RX(t(days[b][0]));
+      svgR.appendChild(el("rect", { x: xa - 1, y: RT, width: Math.max(1.5, xb - xa + 2), height: RB - RT, fill: d[3] === 1 ? "rgba(220,80,80,0.16)" : "rgba(240,160,90,0.22)" }));
+    });
+
     [10, 30, 50, 70, 90].forEach(function (v) {
-      var y = RY(v), strong = (v === rsiBuyLevel);
+      var y = RY(v), strong = (v === rsiDipLevel);
       svgR.appendChild(el("line", { x1: RL, y1: y, x2: RW - RR, y2: y, stroke: strong ? "#3f7f5f" : "#242424" }));
       svgR.appendChild(el("text", { x: RL - 6, y: y + 4, fill: strong ? "#7dcea0" : "#999", "font-size": 11, "text-anchor": "end" }, String(v)));
     });
-    svgR.appendChild(el("text", { x: RL + 4, y: RY(rsiBuyLevel) - 5, fill: "#7dcea0", "font-size": 11, "font-weight": 700 }, "RSI " + rsiBuyLevel + " 미만 → 분할 매수"));
+    svgR.appendChild(el("text", { x: RL + 4, y: RT + 14, fill: "#ddd", "font-size": 11, "font-weight": 700 }, "RSI " + rsiDipLevel + " 이탈 = 빨간 띠 · " + rsiDivLevel + " 이하 저점 = 주황 띠 · 초록 점 = 매수"));
 
     var path = "", started = false;
     for (k = 0; k < days.length; k++) {
@@ -367,7 +374,7 @@
     var w = view.key === "all" ? null : winOf(view.key);
     var count = w ? windowBuyDays(w).length : buyDays.length;
     rsiTitleEl.textContent = "QQQ 일봉 RSI(" + rsiPeriod + ")";
-    rsiSubEl.textContent = "일봉 종가 기준 RSI(" + rsiPeriod + ")입니다. 초록 영역은 매수허용구간, 초록 점은 RSI가 " + rsiBuyLevel + " 미만으로 내려온 분할 매수일(" + count + "일)입니다.";
+    rsiSubEl.textContent = "일봉 종가 기준 RSI(" + rsiPeriod + ")입니다. 초록 영역은 매수허용구간, 빨간 띠는 RSI " + rsiDipLevel + " 이탈, 주황 띠는 " + rsiDivLevel + " 이하(" + rsiDipLevel + " 위) 저점, 초록 점은 매수 타점(" + count + "회)입니다.";
   }
 
   svg.addEventListener("mousemove", function (ev) {
@@ -398,7 +405,7 @@
   });
   svg.addEventListener("mouseleave", function () { tip.style.display = "none"; if (scale && scale.hover) { scale.hover.setAttribute("opacity", 0); } });
 
-  var head = "<thead><tr><th>구간</th><th>구분</th><th>매수 신호 월 (하락폭 축소 2달째)</th><th>신호 전월비</th><th>신호 QQQ 종가</th><th>분할 매수일 (일봉 RSI&lt;" + rsiBuyLevel + ")</th></tr></thead>";
+  var head = "<thead><tr><th>구간</th><th>구분</th><th>매수 신호 월 (하락폭 축소 2달째)</th><th>신호 전월비</th><th>신호 QQQ 종가</th><th>매수 타점 (일봉 RSI " + rsiDipLevel + " 이탈 " + minDips + "회 → " + rsiDivLevel + " 이하 저점 +" + rebound + " 반등)</th></tr></thead>";
   var body = "";
   windows.forEach(function (w) {
     var rows = w.signals.map(function (period) {
@@ -408,7 +415,7 @@
     var momCell = w.signals.map(function (period) { var s = signalMap[period]; return s ? momText(s.mom) : "-"; }).join(", ");
     var priceCell = w.signals.map(function (period) { var s = signalMap[period]; return s && s.price !== null ? fmt(s.price) : "-"; }).join(", ");
     var bd = windowBuyDays(w);
-    var buyCell = bd.length ? bd.map(function (d) { return '<span class="buy">' + d.date.slice(5) + '</span><div class="muted">RSI ' + Number(d.rsi).toFixed(1) + " · " + fmt(d.price) + "</div>"; }).join("<br>") : '<span class="muted">-</span>';
+    var buyCell = bd.length ? bd.map(function (d) { return '<span class="buy">' + d.date + '</span><div class="muted">RSI ' + Number(d.rsi).toFixed(1) + " · 저점 " + d.divLowRsi + " (" + d.divLowDate + ") · " + d.dips + "회 이탈 · " + fmt(d.price) + "</div>"; }).join("<br>") : '<span class="muted">-</span>';
     var cell = rows.length ? rows.join("<br>") : '<span class="wait">' + (w.state === "past" ? "없음" : "대기") + "</span>";
     body += "<tr><td>" + w.key + '<div class="muted">' + w.from + " ~ " + w.to + "</div></td>" +
       "<td>" + stateText(w) + "</td>" +

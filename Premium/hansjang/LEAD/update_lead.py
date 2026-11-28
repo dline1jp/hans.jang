@@ -46,8 +46,12 @@ START_EPOCH = 915148800   # 1999-01-01 UTC (Yahoo period1)
 MOM_DECIMALS = 2    # 전월비는 소수 둘째 자리(예: -0.06%)까지. Supabase 표와 같은 규칙.
 START_YEAR = 2000   # 차트/타점 시작 연도
 WINDOW_YEARS = 4    # 3~4년 단위로 차트를 나눈다.
-RSI_PERIOD = 14     # 일봉 RSI 기간
-RSI_BUY_LEVEL = 30  # 일봉 RSI(14)가 이 값 미만이면 분할 매수한다.
+RSI_PERIOD = 14         # 일봉 RSI 기간
+RSI_DIP_LEVEL = 30.0    # QQQ 일봉 RSI(14) 30 이탈 = 하락 신호
+RSI_DIV_LEVEL = 35.0    # 35 이하(30 위) 저점 = 상승 다이버전스 후보
+REBOUND = 2.0           # 저점보다 2 오르면 매수 타점
+MIN_DIPS = 3            # 30 이탈이 세 번은 있어야 한다
+G20_MIN_MONTHS = 2      # G20 선행지수 전월비가 이만큼 연속 하락한 이후에만 매수한다
 
 # 경기순환사이클 하락 및 주가 바닥 가능시기: 이 구간에만 매수 타점을 적용한다. (start_year, end_year) 양끝 포함.
 BUY_PERIODS = [
@@ -268,6 +272,103 @@ def rsi_series(closes, period=RSI_PERIOD):
     return values
 
 
+def decline_run(cli):
+    """월별 G20 전월비 연속 하락 개월 수. {period: n}. 전월비가 0 이상이면 0 으로 초기화한다."""
+    run = {}
+    current = 0
+    for row in cli:
+        mom = row["mom"]
+        current = current + 1 if (mom is not None and mom < 0) else 0
+        run[row["period"]] = current
+    return run
+
+
+def find_dips(series, level):
+    """RSI 가 level 아래로 내려간 구간을 순서대로 모은다. level 위로 올라와야 구간이 나뉜다."""
+    dips = []
+    current = None
+    for index, value in enumerate(series):
+        if value is None:
+            continue
+        if value < level:
+            if current is None:
+                current = {"start": index, "end": index, "low": index, "lowValue": value}
+            else:
+                current["end"] = index
+                if value < current["lowValue"]:
+                    current["lowValue"] = value
+                    current["low"] = index
+        elif current is not None:
+            dips.append(current)
+            current = None
+    if current is not None:
+        dips.append(current)
+    return dips
+
+
+def annotate_dips(dips, bars):
+    for dip in dips:
+        dip["lowValue"] = round(dip["lowValue"], 2)
+        dip["startDate"] = bars[dip["start"]][0]
+        dip["endDate"] = bars[dip["end"]][0]
+        dip["lowDate"] = bars[dip["low"]][0]
+    return dips
+
+
+def rebound_index(series, bars, dip, limit):
+    """저점보다 REBOUND 만큼 오른 첫 봉. (index, 'buy') / (None, 'fail') / (None, 'pending')"""
+    target = dip["lowValue"] + REBOUND
+    for index in range(dip["low"] + 1, len(series)):
+        if bars[index][0] > limit:
+            return None, "pending"
+        value = series[index]
+        if value is None:
+            continue
+        if value < RSI_DIP_LEVEL:
+            return None, "fail"
+        if value >= target:
+            return index, "buy"
+    return None, "pending"
+
+
+def plan_entry(window, dips30, dips35, series, bars, gate):
+    """한 매수허용구간의 진입 타점. 30 이탈 3회 뒤, 35 이하(30 위) 저점에서 +REBOUND 반등이면 매수한다.
+
+    30 이탈끼리 벌어짐에 따른 리셋 기준은 두지 않는다. (모든 30 이탈을 누적해서 센다.)
+    gate(day) 가 False 면 그 후보는 건너뛰고 다음 저점을 본다. (하락폭 2달 축소 / G20 2달 하락 조건)
+
+    reason: dips = 30 이탈 3회 미만, div = 35 이하(30 위) 저점 없음, wait = +2 반등 대기.
+    """
+    events = []
+    for dip in dips30:
+        if window["from"] <= dip["startDate"] <= window["to"]:
+            events.append((dip["start"], 0, dip))
+    for dip in dips35:
+        if dip["lowValue"] < RSI_DIP_LEVEL:
+            continue                                # 30 이탈 쪽에서 이미 센다
+        if window["from"] <= dip["startDate"] <= window["to"]:
+            events.append((dip["start"], 1, dip))
+    events.sort(key=lambda item: (item[0], item[1]))
+
+    picked = []
+    for _start, kind, dip in events:
+        if kind == 0:
+            picked.append(dip)              # 4번째 이후 30 이탈도 여기서 센다.
+            continue
+        if len(picked) < MIN_DIPS:
+            continue                        # 30 이탈이 세 번은 있어야 한다
+        trigger, status = rebound_index(series, bars, dip, window["to"])
+        if status == "buy":
+            if not gate(bars[trigger][0]):
+                continue            # 매수 조건(하락폭 2달 축소 / G20 2달 하락) 미충족. 다음 후보를 본다.
+            return {"dips": len(picked), "div": dip, "trigger": trigger, "reason": None}
+        if status == "pending":
+            return {"dips": len(picked), "div": dip, "trigger": None, "reason": "wait"}
+        # fail: 35 이하 저점이 다시 30 아래로 내려갔다. 다음 이벤트로 넘긴다.
+    return {"dips": len(picked), "div": None, "trigger": None,
+            "reason": "dips" if len(picked) < MIN_DIPS else "div"}
+
+
 def bar_in_month(bars, period):
     """period('YYYY-MM')의 첫 주봉을 찾는다. (index, bar) 또는 (None, None)"""
     for index, bar in enumerate(bars):
@@ -344,20 +445,43 @@ def main():
             "rsiMinDate": None if lowest is None else lowest[1],
         })
 
-    # 분할 매수일: 하락폭을 2달 줄인 뒤(매수 구간), 매수허용구간 안에서 일봉 RSI(14) < 30 인 날.
-    buy_days = []
-    for index, bar in enumerate(daily):
-        value = daily_rsi[index]
-        if value is None or value >= RSI_BUY_LEVEL:
+    # 진입 타점: QQQ 일봉 RSI(14) 30 이탈 3회 뒤, 35 이하(30 위) 저점에서 +2 반등한 날 매수.
+    # 30 이탈끼리 벌어짐에 따른 리셋 기준은 두지 않는다. 하락폭 2달 이상 축소 + G20 전월비 2달 이상 하락 이후여야 한다.
+    g20_run = decline_run(cli)
+    dips30 = annotate_dips(find_dips(daily_rsi, RSI_DIP_LEVEL), daily)
+    dips35 = annotate_dips(find_dips(daily_rsi, RSI_DIV_LEVEL), daily)
+
+    def buy_gate(day):
+        period = day[:7]
+        return period in buy_zone and g20_run.get(period, 0) >= G20_MIN_MONTHS
+
+    buys = []
+    for start_year, end_year in BUY_PERIODS:
+        window = {"from": "%d-01-01" % start_year, "to": "%d-12-31" % end_year}
+        plan = plan_entry(window, dips30, dips35, daily_rsi, daily, buy_gate)
+        if plan["trigger"] is None:
             continue
-        period = bar[0][:7]
-        if period in buy_zone and in_buy_period(period):
-            buy_days.append({
-                "date": bar[0],
-                "period": period,
-                "rsi": round(value, 2),
-                "price": bar[4],
-            })
+        trigger = plan["trigger"]
+        day = daily[trigger][0]
+        period = day[:7]
+        buys.append({
+            "date": day,
+            "period": period,
+            "window": "%d-%d" % (start_year, end_year),
+            "rsi": round(daily_rsi[trigger], 2),
+            "price": daily[trigger][4],
+            "dips": plan["dips"],
+            "divLowDate": plan["div"]["lowDate"],
+            "divLowRsi": plan["div"]["lowValue"],
+        })
+    buys.sort(key=lambda item: item["date"])
+    buy_days = buys
+
+    # 차트용 30 이탈(strict) / 35 이하·30 위 저점 목록
+    dip_pool = [{"start": dip["start"], "end": dip["end"], "low": dip["low"], "strict": 1} for dip in dips30]
+    dip_pool += [{"start": dip["start"], "end": dip["end"], "low": dip["low"], "strict": 0}
+                 for dip in dips35 if dip["lowValue"] >= RSI_DIP_LEVEL]
+    dip_pool.sort(key=lambda item: item["start"])
 
     blocks = build_windows(cli)
     windows = []
@@ -389,10 +513,17 @@ def main():
         "startYear": START_YEAR,
         "windowYears": WINDOW_YEARS,
         "rsiPeriod": RSI_PERIOD,
-        "rsiBuyLevel": RSI_BUY_LEVEL,
+        "rsiDipLevel": RSI_DIP_LEVEL,
+        "rsiDivLevel": RSI_DIV_LEVEL,
+        "rebound": REBOUND,
+        "minDips": MIN_DIPS,
+        "g20MinMonths": G20_MIN_MONTHS,
+        "g20AsOf": cli[-1]["period"],
+        "g20Run": g20_run.get(cli[-1]["period"], 0),
         "bars": weekly,
         "cli": [[row["period"], row["obs"], row["mom"]] for row in cli],
         "days": days,
+        "dips": [[dip["start"], dip["end"], dip["low"], dip["strict"]] for dip in dip_pool],
         "signals": signals,
         "buyDays": buy_days,
         "buyPeriods": [[start, end] for start, end in BUY_PERIODS],
@@ -403,14 +534,14 @@ def main():
         encoding="utf-8",
     )
 
-    print("cli=%d %s..%s  weekly=%d %s..%s  daily=%d  signals=%d  buyDays=%d"
-          % (len(cli), cli[0]["period"], asof, len(weekly), weekly[0][0], price_asof,
-             len(daily), len(signals), len(buy_days)))
-    for window in windows:
-        marks = ", ".join(window["signals"]) or "-"
-        bd = [day for day in buy_days if window["from"] <= day["date"] <= window["to"]]
-        print("  %-9s %-7s 신호: %-26s 매수일: %d" % (window["key"], window["state"], marks, len(bd)))
-    print("  매수허용구간: " + ", ".join("%d-%d" % (start, end) for start, end in BUY_PERIODS))
+    print("cli=%d %s..%s  weekly=%d  daily=%d  signals=%d  buys=%d  dips30=%d dips35=%d"
+          % (len(cli), cli[0]["period"], asof, len(weekly), len(daily),
+             len(signals), len(buy_days), len(dips30), len(dips35)))
+    for start_year, end_year in BUY_PERIODS:
+        key = "%d-%d" % (start_year, end_year)
+        marks = [buy for buy in buy_days if buy["window"] == key]
+        print("  %-9s %s" % (key, ", ".join(
+            "%s (RSI %.2f, %d회 이탈)" % (buy["date"], buy["rsi"], buy["dips"]) for buy in marks) or "타점 없음"))
 
 
 if __name__ == "__main__":
