@@ -37,7 +37,7 @@
 <body>
   <p><a class="home" href="../index.html">← 한스장 타점</a></p>
   <h1>선행지수 타점</h1>
-  <p class="warn">투자 권유가 아닙니다. 참고용. <b>G20 경기선행지수(CLI) 전월비(mom)</b>가 하락하다가 <b>하락폭을 줄인 지 2달째 되는 달</b>을 나스닥100(QQQ) 매수 타점으로 봅니다. 단, 미국 <b>키친 경기순환사이클 상승기</b>는 주가가 선행해 이미 올라 있는 시기라 <b>매수에서 제외</b>합니다.</p>
+  <p class="warn">투자 권유가 아닙니다. 참고용. <b>G20 경기선행지수(CLI) 전월비(mom)</b>가 하락하다가 <b>하락폭을 줄인 지 2달째</b>가 되고, <b>경기순환사이클 하락·주가 바닥 가능시기</b> 안에서 <b>나스닥100(QQQ) 일봉 RSI(14)가 30 미만</b>으로 내려온 날을 분할 매수 타점으로 봅니다.</p>
   <p class="note" id="asof">불러오는 중…</p>
 
   <section class="rule">
@@ -45,16 +45,17 @@
     <ol>
       <li>G20(경기선행지수)의 <b>전월비(mom)</b>가 <b>음수인 하락 구간</b>만 봅니다.</li>
       <li>하락폭이 <b>전월 대비 더 커지다가</b>(하락 심화), <b>하락폭을 줄이기 시작</b>합니다.</li>
-      <li>하락폭을 줄인 지 <b>2달째</b> 되는 달을 <b>매수 타점</b>으로 봅니다. (2달 내리 줄인 달 = 두 번째 달)</li>
-      <li>미국 <b>키친(Kitchin) 경기순환사이클 상승기</b>는 주가가 선행해 이미 올라 있는 시기라 <b>매수에서 제외</b>합니다. (2003, 2006-2007, 2009-2010, 2013-2014, 2016-2017, 2020-2021, 2024-2025, 2028-2029, 2031-2032, 2035-2036)</li>
-      <li>차트는 <b>나스닥100(QQQ)</b> 주봉과 아래 패널의 <b>G20 전월비</b>입니다. 2000년부터 <b>4년 단위</b>로 나눠서 봅니다.</li>
+      <li>하락폭을 줄인 지 <b>2달째</b> 되는 달을 <b>매수 신호 월</b>로 봅니다. (2달 내리 줄인 달 = 두 번째 달)</li>
+      <li><b>경기순환사이클 하락 및 주가 바닥 가능시기</b>인 <b>2000-2002, 2003-2004, 2007-2009, 2011-2012, 2015-2016, 2018-2019, 2022-2023, 2025-2027, 2029-2031, 2033-2035</b> 사이에만 매수 타점을 적용합니다.</li>
+      <li><b>선행지수 전월비 하락폭을 2달 줄인 뒤</b>, <b>QQQ 일봉 RSI(14)가 30 미만</b>으로 내려온 날 <b>분할 매수</b>합니다.</li>
+      <li>차트는 위가 <b>나스닥100(QQQ)</b> 주봉과 <b>G20 전월비</b>, 아래가 <b>QQQ 일봉 RSI(14)</b>입니다. 2000년부터 <b>4년 단위</b>로 나눠서 봅니다.</li>
       <li>데이터는 G20은 OECD·Supabase, QQQ는 Yahoo Finance에서 자동 갱신됩니다. 타점에서 진짜 매수할 것인지는 <b>한스장</b>이 최종 판단합니다.</li>
     </ol>
   </section>
 
   <section class="card">
     <h2>구간별 타점 (요약)</h2>
-    <p class="sub">전월비가 하락 심화 뒤 하락폭을 줄인 지 2달째 되는 달을 타점으로 봅니다. 표의 날짜는 그 달의 첫 QQQ 주봉 기준입니다. 미국 키친(Kitchin) 경기순환사이클 상승기 타점은 매수에서 제외합니다.</p>
+    <p class="sub">전월비가 하락 심화 뒤 하락폭을 줄인 지 2달째 되는 달을 매수 신호 월로 봅니다. 실제 매수는 경기순환사이클 하락·주가 바닥 가능시기 안에서 일봉 RSI(14)가 30 미만으로 내려온 날 분할로 합니다.</p>
     <div style="overflow-x: auto"><table id="tbl"></table></div>
   </section>
 
@@ -64,6 +65,12 @@
     <h2 id="chart-title">QQQ 주봉 · G20 전월비</h2>
     <p class="sub" id="chart-sub"></p>
     <svg class="chart" id="chart" viewBox="0 0 1100 620" role="img" aria-label="QQQ 주봉과 G20 전월비"></svg>
+  </section>
+
+  <section class="card">
+    <h2 id="rsi-title">QQQ 일봉 RSI(14)</h2>
+    <p class="sub" id="rsi-sub"></p>
+    <svg class="chart" id="rsi-chart" viewBox="0 0 1100 320" role="img" aria-label="QQQ 일봉 RSI"></svg>
   </section>
 
   <div class="tip" id="tip"></div>
@@ -82,6 +89,8 @@
     return;
   }
   var bars = data.bars, cli = data.cli || [], signals = data.signals || [], windows = data.windows || [];
+  var days = data.days || [], buyDays = data.buyDays || [], buyPeriods = data.buyPeriods || [];
+  var rsiPeriod = data.rsiPeriod || 14, rsiBuyLevel = data.rsiBuyLevel || 30;
   var W = 1100, H = 620, L = 60, R = 18, T = 26;
   var pH = 320, gap = 46;
   var pT = T, pB = T + pH, cT = pB + gap, cB = H - 30;
@@ -90,10 +99,9 @@
 
   var signalMap = {};
   signals.forEach(function (s) { signalMap[s.period] = s; });
-  var excluded = data.excluded || [];
-  function isKitchinUp(period) {
+  function inBuyPeriod(period) {
     var y = Number(String(period).slice(0, 4));
-    return (data.kitchinUp || []).some(function (r) { return r[0] <= y && y <= r[1]; });
+    return buyPeriods.some(function (r) { return r[0] <= y && y <= r[1]; });
   }
 
   function momText(v) { return (v > 0 ? "+" : "") + Number(v).toFixed(data.momDecimals) + "%"; }
@@ -102,7 +110,7 @@
   function monthOf(iso) { return iso.slice(0, 7); }
 
   asofEl.textContent = "기준 G20 " + data.asof + " · QQQ " + data.priceAsof + " 종가 " + fmt(last[4]) + " " + data.currency +
-    " · 타점 " + signals.length + "회(키친 상승기 " + excluded.length + "회 제외) · 규칙: G20 전월비 하락폭을 줄인 지 2달째 매수, 미국 키친 상승기는 매수 제외";
+    " · 매수 신호 " + signals.length + "회 · 분할 매수일 " + buyDays.length + "일 · 규칙: 전월비 하락폭 2달 축소 뒤 경기 하락·바닥 구간에서 일봉 RSI(" + rsiPeriod + ") " + rsiBuyLevel + " 미만 분할 매수";
 
   function el(tag, attrs, text) {
     var n = document.createElementNS(NS, tag);
@@ -162,13 +170,14 @@
     }
     Array.prototype.forEach.call(tabs.children, function (x) { x.classList.toggle("on", x.getAttribute("data-key") === key); });
     draw();
+    drawRsi();
   }
 
   function drawFuture(w) {
     svg.appendChild(el("rect", { x: 0, y: 0, width: W, height: H, fill: "#0c0c0c" }));
     svg.appendChild(el("text", { x: W / 2, y: 120, fill: "#ffd76a", "font-size": 26, "font-weight": 700, "text-anchor": "middle" }, w.key + " · 예정 구간"));
     svg.appendChild(el("text", { x: W / 2, y: 166, fill: "#ddd", "font-size": 17, "text-anchor": "middle" }, "아직 시세 데이터가 없습니다. 이 구간이 되면 G20 전월비가"));
-    svg.appendChild(el("text", { x: W / 2, y: 194, fill: "#ddd", "font-size": 17, "text-anchor": "middle" }, "하락 심화 뒤 하락폭을 줄인 지 2달째 되는 달이 매수 타점입니다."));
+    svg.appendChild(el("text", { x: W / 2, y: 194, fill: "#ddd", "font-size": 17, "text-anchor": "middle" }, "하락 심화 뒤 하락폭을 줄인 지 2달째, 일봉 RSI 30 미만이면 분할 매수입니다."));
     svg.appendChild(el("line", { x1: 180, y1: 300, x2: 920, y2: 300, stroke: "#333", "stroke-dasharray": "4 4" }));
     svg.appendChild(el("text", { x: 168, y: 304, fill: "#888", "font-size": 12, "text-anchor": "end" }, "전월비 0"));
     svg.appendChild(el("text", { x: W / 2, y: 360, fill: "#7dcea0", "font-size": 16, "font-weight": 700, "text-anchor": "middle" }, "2달째 하락폭 축소 → 매수"));
@@ -251,18 +260,12 @@
       }
     });
 
-    excluded.forEach(function (s) {
-      if (!s.barDate) { return; }
-      var dt = t(s.barDate);
+    buyDays.forEach(function (s) {
+      var dt = t(s.date);
       if (dt < tMin || dt > tMax) { return; }
       var xx = X(dt), yy = s.price === null ? pB - 20 : Y(s.price);
-      svg.appendChild(el("line", { x1: xx, y1: pT, x2: xx, y2: cB, stroke: "rgba(150,150,150,0.5)", "stroke-width": 1, "stroke-dasharray": "2 4" }));
-      svg.appendChild(el("polygon", { points: (xx) + "," + (yy + 12) + " " + (xx - 7) + "," + (yy + 26) + " " + (xx + 7) + "," + (yy + 26), fill: "none", stroke: "#999", "stroke-width": 1.2 }));
-      svg.appendChild(el("text", { x: xx, y: yy + 40, fill: "#999", "font-size": 10, "text-anchor": "middle" }, "제외 " + s.period));
-      var mt = t(s.period + "-01");
-      if (mt >= tMin && mt <= tMax && s.mom !== null) {
-        svg.appendChild(el("circle", { cx: X(mt), cy: CY(s.mom), r: 4, fill: "none", stroke: "#999", "stroke-width": 1.2 }));
-      }
+      svg.appendChild(el("line", { x1: xx, y1: pT, x2: xx, y2: cB, stroke: "rgba(125,206,160,0.45)", "stroke-width": 1, "stroke-dasharray": "2 4" }));
+      svg.appendChild(el("circle", { cx: xx, cy: yy, r: 2.6, fill: "#7dcea0" }));
     });
 
     var steps = (i1 - i0) > 260 ? 7 : 5;
@@ -280,18 +283,87 @@
   function setTitles(w) {
     var st = currentState();
     var curMom = st.row ? st.row[2] : null;
-    var curUp = st.row ? isKitchinUp(st.row[0]) : false;
+    var curBuy = st.row ? (st.narrowing >= 2 && inBuyPeriod(st.row[0])) : false;
     var cur = st.row ? (st.row[0] + " 전월비 " + (curMom === null ? "-" : momText(curMom)) +
-      (st.narrowing > 0 ? " · 하락폭 축소 " + st.narrowing + "달째" + (st.narrowing >= 2 ? (curUp ? " (키친 상승기 → 매수 제외)" : " (타점)") : "") : " · 하락 심화/대기")) : "";
+      (st.narrowing > 0 ? " · 하락폭 축소 " + st.narrowing + "달째" + (st.narrowing >= 2 ? (curBuy ? " (매수 구간)" : " (구간 밖)") : "") : " · 하락 심화/대기")) : "";
     if (w) {
       var marks = w.signals.length ? w.signals.join(", ") : "없음";
-      var excs = excluded.filter(function (e) { return w.from <= e.period + "-01" && e.period + "-01" <= w.to; }).map(function (e) { return e.period; });
-      titleEl.textContent = w.key + " · " + stateText(w) + " · 타점 " + w.signals.length + "회";
-      subEl.textContent = "구간 타점: " + marks + (excs.length ? " · 키친 상승기 제외: " + excs.join(", ") : "") + " · " + cur;
+      var bd = windowBuyDays(w);
+      var bdays = bd.length ? bd.map(function (d) { return d.date; }).join(", ") : "없음";
+      titleEl.textContent = w.key + " · " + stateText(w) + " · 매수 신호 " + w.signals.length + "회 · 매수일 " + bd.length + "일";
+      subEl.textContent = "신호 월: " + marks + " · 분할 매수일: " + bdays + " · " + cur;
     } else {
       titleEl.textContent = "QQQ 주봉 · G20 전월비 (전체)";
-      subEl.textContent = "초록 세로선이 매수 타점, 회색 점선은 미국 키친 상승기라 제외한 타점입니다. 아래 패널은 G20 전월비이고 붉은 영역이 전월비 < 0 인 하락 구간입니다. · " + cur;
+      subEl.textContent = "초록 세로선이 매수 신호 월, 초록 점은 일봉 RSI " + rsiBuyLevel + " 미만 분할 매수일입니다. 아래 패널은 G20 전월비이고 붉은 영역이 전월비 < 0 인 하락 구간입니다. · " + cur;
     }
+  }
+
+  var svgR = document.getElementById("rsi-chart");
+  var rsiTitleEl = document.getElementById("rsi-title");
+  var rsiSubEl = document.getElementById("rsi-sub");
+  var RW = 1100, RH = 320, RL = 60, RR = 18, RT = 26, RB = RH - 28;
+
+  function windowBuyDays(w) {
+    return buyDays.filter(function (d) { return w.from <= d.date && d.date <= w.to; });
+  }
+
+  function drawRsi() {
+    if (!svgR) { return; }
+    while (svgR.firstChild) { svgR.removeChild(svgR.firstChild); }
+    if (!days.length) { return; }
+    if (view.future) {
+      svgR.appendChild(el("rect", { x: 0, y: 0, width: RW, height: RH, fill: "#0c0c0c" }));
+      svgR.appendChild(el("text", { x: RW / 2, y: RH / 2, fill: "#ffd76a", "font-size": 20, "font-weight": 700, "text-anchor": "middle" }, view.future.key + " · 예정 구간 (일봉 시세 없음)"));
+      rsiTitleEl.textContent = "QQQ 일봉 RSI(" + rsiPeriod + ")";
+      rsiSubEl.textContent = "아직 이 구간의 일봉 시세가 없습니다.";
+      return;
+    }
+    var tMin = view.tMin, tMax = view.tMax, span = (tMax - tMin) || 1;
+    function RX(dt) { return RL + (RW - RL - RR) * (dt - tMin) / span; }
+    function RY(v) { return RB - (v / 100) * (RB - RT); }
+    var g, k;
+
+    svgR.appendChild(el("rect", { x: RL, y: RT, width: RW - RL - RR, height: RB - RT, fill: "#0a0a0a" }));
+
+    buyPeriods.forEach(function (r) {
+      var xa = Math.max(RX(t(r[0] + "-01-01")), RL);
+      var xb = Math.min(RX(t((r[1] + 1) + "-01-01")), RW - RR);
+      if (xb <= xa) { return; }
+      svgR.appendChild(el("rect", { x: xa, y: RT, width: xb - xa, height: RB - RT, fill: "rgba(125,206,160,0.07)" }));
+    });
+
+    [10, 30, 50, 70, 90].forEach(function (v) {
+      var y = RY(v), strong = (v === rsiBuyLevel);
+      svgR.appendChild(el("line", { x1: RL, y1: y, x2: RW - RR, y2: y, stroke: strong ? "#3f7f5f" : "#242424" }));
+      svgR.appendChild(el("text", { x: RL - 6, y: y + 4, fill: strong ? "#7dcea0" : "#999", "font-size": 11, "text-anchor": "end" }, String(v)));
+    });
+    svgR.appendChild(el("text", { x: RL + 4, y: RY(rsiBuyLevel) - 5, fill: "#7dcea0", "font-size": 11, "font-weight": 700 }, "RSI " + rsiBuyLevel + " 미만 → 분할 매수"));
+
+    var path = "", started = false;
+    for (k = 0; k < days.length; k++) {
+      var d = days[k], dt = t(d[0]);
+      if (dt < tMin || dt > tMax) { started = false; continue; }
+      if (d[1] === null || d[1] === undefined) { started = false; continue; }
+      path += (started ? "L" : "M") + RX(dt).toFixed(1) + " " + RY(d[1]).toFixed(1) + " ";
+      started = true;
+    }
+    if (path) { svgR.appendChild(el("path", { d: path, fill: "none", stroke: "#c39bd3", "stroke-width": 1.1 })); }
+
+    buyDays.forEach(function (s) {
+      var dt = t(s.date);
+      if (dt < tMin || dt > tMax) { return; }
+      svgR.appendChild(el("circle", { cx: RX(dt), cy: RY(s.rsi), r: 3, fill: "#7dcea0" }));
+    });
+
+    for (g = 0; g <= 6; g++) {
+      var target = tMin + span * g / 6;
+      svgR.appendChild(el("text", { x: RX(target), y: RH - 8, fill: "#999", "font-size": 11, "text-anchor": "middle" }, new Date(target).toISOString().slice(0, 7)));
+    }
+
+    var w = view.key === "all" ? null : winOf(view.key);
+    var count = w ? windowBuyDays(w).length : buyDays.length;
+    rsiTitleEl.textContent = "QQQ 일봉 RSI(" + rsiPeriod + ")";
+    rsiSubEl.textContent = "일봉 종가 기준 RSI(" + rsiPeriod + ")입니다. 초록 영역은 매수허용구간, 초록 점은 RSI가 " + rsiBuyLevel + " 미만으로 내려온 분할 매수일(" + count + "일)입니다.";
   }
 
   svg.addEventListener("mousemove", function (ev) {
@@ -318,11 +390,11 @@
     tip.style.display = "block";
     tip.style.left = (ev.clientX + 14) + "px";
     tip.style.top = (ev.clientY + 14) + "px";
-    tip.innerHTML = bars[idx][0] + "<br>시 " + fmt(bars[idx][1]) + " · 고 " + fmt(bars[idx][2]) + " · 저 " + fmt(bars[idx][3]) + " · 종 " + fmt(bars[idx][4]) + momLine + (sig ? "<br><b>매수 타점</b>" : "");
+    tip.innerHTML = bars[idx][0] + "<br>시 " + fmt(bars[idx][1]) + " · 고 " + fmt(bars[idx][2]) + " · 저 " + fmt(bars[idx][3]) + " · 종 " + fmt(bars[idx][4]) + momLine + (sig ? "<br><b>매수 신호 월</b>" : "");
   });
   svg.addEventListener("mouseleave", function () { tip.style.display = "none"; if (scale && scale.hover) { scale.hover.setAttribute("opacity", 0); } });
 
-  var head = "<thead><tr><th>구간</th><th>구분</th><th>타점 (하락폭 축소 2달째)</th><th>타점 전월비</th><th>타점 QQQ 종가</th><th>키친 상승기 제외</th></tr></thead>";
+  var head = "<thead><tr><th>구간</th><th>구분</th><th>매수 신호 월 (하락폭 축소 2달째)</th><th>신호 전월비</th><th>신호 QQQ 종가</th><th>분할 매수일 (일봉 RSI&lt;" + rsiBuyLevel + ")</th></tr></thead>";
   var body = "";
   windows.forEach(function (w) {
     var rows = w.signals.map(function (period) {
@@ -331,21 +403,21 @@
     });
     var momCell = w.signals.map(function (period) { var s = signalMap[period]; return s ? momText(s.mom) : "-"; }).join(", ");
     var priceCell = w.signals.map(function (period) { var s = signalMap[period]; return s && s.price !== null ? fmt(s.price) : "-"; }).join(", ");
-    var exc = excluded.filter(function (e) { return w.from <= e.period + "-01" && e.period + "-01" <= w.to; });
-    var excCell = exc.length ? exc.map(function (e) { return '<span class="muted">' + e.period + " (상승기)</span>"; }).join("<br>") : '<span class="muted">-</span>';
+    var bd = windowBuyDays(w);
+    var buyCell = bd.length ? bd.map(function (d) { return '<span class="buy">' + d.date.slice(5) + '</span><div class="muted">RSI ' + Number(d.rsi).toFixed(1) + " · " + fmt(d.price) + "</div>"; }).join("<br>") : '<span class="muted">-</span>';
     var cell = rows.length ? rows.join("<br>") : '<span class="wait">' + (w.state === "past" ? "없음" : "대기") + "</span>";
     body += "<tr><td>" + w.key + '<div class="muted">' + w.from + " ~ " + w.to + "</div></td>" +
       "<td>" + stateText(w) + "</td>" +
       "<td>" + cell + "</td>" +
       "<td>" + (momCell || '<span class="muted">-</span>') + "</td>" +
       "<td>" + (priceCell || '<span class="muted">-</span>') + "</td>" +
-      "<td>" + excCell + "</td></tr>";
+      "<td>" + buyCell + "</td></tr>";
   });
   document.getElementById("tbl").innerHTML = head + "<tbody>" + body + "</tbody>";
 
   var startKey = new URLSearchParams(location.search).get("w");
   setView(startKey && winOf(startKey) ? startKey : "all");
-  window.addEventListener("resize", function () { if (scale) { draw(); } });
+  window.addEventListener("resize", function () { drawRsi(); if (scale) { draw(); } });
 })();
   </script>
 </body>

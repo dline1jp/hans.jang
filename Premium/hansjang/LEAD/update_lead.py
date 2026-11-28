@@ -4,11 +4,14 @@
 규칙
   1. G20 전월비(mom)가 음수인 하락 구간만 본다.
   2. 하락폭이 더 커지다가(전월 대비 더 큰 하락) 하락폭을 줄이기 시작한다.
-  3. 하락폭을 줄인 지 2달째 되는 달을 매수 타점으로 본다.
+  3. 하락폭을 줄인 지 2달째 되는 달을 매수 신호 월로 본다.
+  4. 경기순환사이클 하락 및 주가 바닥 가능시기(BUY_PERIODS)에만 매수 타점을 적용한다.
+  5. 선행지수 전월비 하락폭을 2달 줄인 뒤, QQQ 일봉 RSI(14)가 30 미만일 때 분할 매수한다.
 
 데이터
   - G20 CLI 월별: OECD SDMX(2000-01~) + Supabase(hangjang-table) 최신값을 덮어쓴다.
-  - QQQ 주봉: Yahoo Finance(수정주가, 2000~).
+  - QQQ 주봉: Yahoo Finance(수정주가, 2000~). 가격 차트에 쓴다.
+  - QQQ 일봉: Yahoo Finance(수정주가). 일봉 RSI(14)와 매수일에 쓴다.
 
     python Premium/hansjang/LEAD/update_lead.py
 
@@ -34,26 +37,30 @@ OECD_URL = (
     "OECD.SDD.STES,DSD_STES@DF_CLI,4.1/G20.M.LI.IX._Z.AA.IX._Z.H"
     "?startPeriod=2000-01&format=csvfilewithlabels&dimensionAtObservation=AllDimensions"
 )
-CHART_URL = "https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1wk&range=max"
+# range=max 는 interval 을 무시하고 월봉으로 떨어진다(예전엔 실제로 월봉이 내려왔다). period1/period2 로 기간을 지정한다.
+CHART_URL = ("https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
+             "?interval={interval}&period1={period1}&period2={period2}")
 HEADERS = {"User-Agent": "Mozilla/5.0"}
+START_EPOCH = 915148800   # 1999-01-01 UTC (Yahoo period1)
 
 MOM_DECIMALS = 2    # 전월비는 소수 둘째 자리(예: -0.06%)까지. Supabase 표와 같은 규칙.
 START_YEAR = 2000   # 차트/타점 시작 연도
 WINDOW_YEARS = 4    # 3~4년 단위로 차트를 나눈다.
+RSI_PERIOD = 14     # 일봉 RSI 기간
+RSI_BUY_LEVEL = 30  # 일봉 RSI(14)가 이 값 미만이면 분할 매수한다.
 
-# 미국 키친(Kitchin) 경기순환사이클 상승기: 주가는 선행지수라 이 시기엔 이미 올라 있으므로 매수에서 제외한다.
-# (start_year, end_year) 양끝 포함.
-KITCHIN_UP = [
-    (2003, 2003),
-    (2006, 2007),
-    (2009, 2010),
-    (2013, 2014),
-    (2016, 2017),
-    (2020, 2021),
-    (2024, 2025),
-    (2028, 2029),
-    (2031, 2032),
-    (2035, 2036),
+# 경기순환사이클 하락 및 주가 바닥 가능시기: 이 구간에만 매수 타점을 적용한다. (start_year, end_year) 양끝 포함.
+BUY_PERIODS = [
+    (2000, 2002),
+    (2003, 2004),
+    (2007, 2009),
+    (2011, 2012),
+    (2015, 2016),
+    (2018, 2019),
+    (2022, 2023),
+    (2025, 2027),
+    (2029, 2031),
+    (2033, 2035),
 ]
 
 
@@ -71,10 +78,10 @@ def month_index(period):
     return year * 12 + month - 1
 
 
-def in_kitchin_up(period):
-    """미국 키친 경기순환사이클 상승기(주가 선행 상승 구간)인지 확인한다."""
+def in_buy_period(period):
+    """경기순환사이클 하락/주가 바닥 가능시기(매수 타점을 적용하는 구간)인지 확인한다."""
     year = int(str(period)[0:4])
-    return any(start <= year <= end for start, end in KITCHIN_UP)
+    return any(start <= year <= end for start, end in BUY_PERIODS)
 
 
 def fetch_oecd_cli():
@@ -149,9 +156,10 @@ def build_cli():
     return series
 
 
-def fetch_bars():
-    """Yahoo Finance 주봉(수정주가) 전체 이력. [[date, open, high, low, close], ...]"""
-    url = CHART_URL.format(ticker=TICKER)
+def fetch_bars(interval):
+    """Yahoo Finance 봉(수정주가) 전체 이력. [[date, open, high, low, close], ...]"""
+    url = CHART_URL.format(ticker=TICKER, interval=interval,
+                           period1=START_EPOCH, period2=int(time.time()) + 86400)
     last_error = None
     for attempt in range(4):
         try:
@@ -191,9 +199,13 @@ def fetch_bars():
     raise SystemExit("QQQ 데이터를 가져오지 못했습니다: %s" % last_error)
 
 
-def find_signals(cli):
-    """G20 전월비 하락 구간에서, 하락폭을 2달 연속 줄인 달(2달째)을 타점으로 본다."""
-    result = []
+def narrowing_state(cli):
+    """월별 하락폭 축소 상태를 계산한다. {period: narrowing} (하락폭을 줄인 달 수).
+
+    하락폭을 줄인 지 2달째(narrowing == 2)가 매수 신호 월, 2달 이상(narrowing >= 2)이 매수 구간이다.
+    전월비가 0 이상으로 돌아서거나 다시 하락이 심화되면 초기화한다.
+    """
+    state = {}
     previous = None
     deepened = False
     narrowing = 0
@@ -203,6 +215,7 @@ def find_signals(cli):
             continue
         if previous is None:
             previous = mom
+            state[row["period"]] = 0
             continue
         if mom >= 0:
             deepened = False
@@ -213,14 +226,46 @@ def find_signals(cli):
         elif mom > previous:
             if deepened:
                 narrowing += 1
-                if narrowing == 2:
-                    result.append(row)
             else:
                 narrowing = 0
         else:
             narrowing = 0
+        state[row["period"]] = narrowing
         previous = mom
-    return result
+    return state
+
+
+def rsi_series(closes, period=RSI_PERIOD):
+    """Wilder 방식 RSI. 앞 period 구간은 None. [None, ..., float, ...]"""
+    values = [None] * len(closes)
+    if len(closes) <= period:
+        return values
+    gain = 0.0
+    loss = 0.0
+    for index in range(1, period + 1):
+        delta = closes[index] - closes[index - 1]
+        if delta >= 0:
+            gain += delta
+        else:
+            loss -= delta
+    avg_gain = gain / period
+    avg_loss = loss / period
+
+    def reading(avg_up, avg_down):
+        if avg_down == 0:
+            return 100.0
+        rs = avg_up / avg_down
+        return 100.0 - (100.0 / (1.0 + rs))
+
+    values[period] = reading(avg_gain, avg_loss)
+    for index in range(period + 1, len(closes)):
+        delta = closes[index] - closes[index - 1]
+        up = delta if delta > 0 else 0.0
+        down = -delta if delta < 0 else 0.0
+        avg_gain = (avg_gain * (period - 1) + up) / period
+        avg_loss = (avg_loss * (period - 1) + down) / period
+        values[index] = reading(avg_gain, avg_loss)
+    return values
 
 
 def bar_in_month(bars, period):
@@ -256,25 +301,63 @@ def build_windows(cli, start_year=START_YEAR, span=WINDOW_YEARS):
 
 def main():
     cli = build_cli()
-    bars, meta = fetch_bars()
+    weekly, meta = fetch_bars("1wk")
+    daily, _ = fetch_bars("1d")
     cli = [row for row in cli if row["period"][0:4].isdigit()]
     asof = cli[-1]["period"]
-    price_asof = bars[-1][0]
+    price_asof = weekly[-1][0]
+    cli_by_period = {row["period"]: row for row in cli}
 
-    raw_signals = find_signals(cli)
-    all_signals = []
-    for row in raw_signals:
-        index, bar = bar_in_month(bars, row["period"])
-        all_signals.append({
-            "period": row["period"],
+    # 일봉 RSI(14) 와 월별 최저 RSI(그 달에 RSI가 얼마나 내려왔는지)
+    daily_closes = [bar[4] for bar in daily]
+    daily_rsi = rsi_series(daily_closes)
+    days = []
+    month_rsi = {}
+    for index, bar in enumerate(daily):
+        value = daily_rsi[index]
+        if value is None:
+            days.append([bar[0], None])
+            continue
+        days.append([bar[0], round(value, 2)])
+        period = bar[0][:7]
+        lowest = month_rsi.get(period)
+        if lowest is None or value < lowest[0]:
+            month_rsi[period] = (value, bar[0])
+
+    # 하락폭 축소 상태: 2달째(narrowing == 2)가 매수 신호 월, 2달 이상(narrowing >= 2)이 매수 구간.
+    mom_state = narrowing_state(cli)
+    buy_zone = {period for period, narrowing in mom_state.items() if narrowing >= 2}
+
+    # 매수 신호 월: 매수허용구간(BUY_PERIODS) 안에 있는 2달째 월만 남긴다.
+    signals = []
+    for period in sorted(p for p, n in mom_state.items() if n == 2 and in_buy_period(p)):
+        row = cli_by_period[period]
+        index, bar = bar_in_month(weekly, period)
+        lowest = month_rsi.get(period)
+        signals.append({
+            "period": period,
             "mom": row["mom"],
             "obs": row["obs"],
             "barDate": bar[0] if bar else None,
             "price": bar[4] if bar else None,
+            "rsiMin": None if lowest is None else round(lowest[0], 2),
+            "rsiMinDate": None if lowest is None else lowest[1],
         })
-    # 미국 키친 상승기 타점은 매수에서 제외한다.
-    signals = [signal for signal in all_signals if not in_kitchin_up(signal["period"])]
-    excluded = [signal for signal in all_signals if in_kitchin_up(signal["period"])]
+
+    # 분할 매수일: 하락폭을 2달 줄인 뒤(매수 구간), 매수허용구간 안에서 일봉 RSI(14) < 30 인 날.
+    buy_days = []
+    for index, bar in enumerate(daily):
+        value = daily_rsi[index]
+        if value is None or value >= RSI_BUY_LEVEL:
+            continue
+        period = bar[0][:7]
+        if period in buy_zone and in_buy_period(period):
+            buy_days.append({
+                "date": bar[0],
+                "period": period,
+                "rsi": round(value, 2),
+                "price": bar[4],
+            })
 
     blocks = build_windows(cli)
     windows = []
@@ -305,11 +388,14 @@ def main():
         "momDecimals": MOM_DECIMALS,
         "startYear": START_YEAR,
         "windowYears": WINDOW_YEARS,
-        "bars": bars,
+        "rsiPeriod": RSI_PERIOD,
+        "rsiBuyLevel": RSI_BUY_LEVEL,
+        "bars": weekly,
         "cli": [[row["period"], row["obs"], row["mom"]] for row in cli],
+        "days": days,
         "signals": signals,
-        "excluded": excluded,
-        "kitchinUp": [[start, end] for start, end in KITCHIN_UP],
+        "buyDays": buy_days,
+        "buyPeriods": [[start, end] for start, end in BUY_PERIODS],
         "windows": windows,
     }
     DATA.write_text(
@@ -317,13 +403,14 @@ def main():
         encoding="utf-8",
     )
 
-    print("cli=%d %s..%s  bars=%d %s..%s  signals=%d  excluded=%d"
-          % (len(cli), cli[0]["period"], asof, len(bars), bars[0][0], price_asof, len(signals), len(excluded)))
+    print("cli=%d %s..%s  weekly=%d %s..%s  daily=%d  signals=%d  buyDays=%d"
+          % (len(cli), cli[0]["period"], asof, len(weekly), weekly[0][0], price_asof,
+             len(daily), len(signals), len(buy_days)))
     for window in windows:
         marks = ", ".join(window["signals"]) or "-"
-        print("  %-9s %-7s %s" % (window["key"], window["state"], marks))
-    if excluded:
-        print("  키친 상승기 제외: " + ", ".join(signal["period"] for signal in excluded))
+        bd = [day for day in buy_days if window["from"] <= day["date"] <= window["to"]]
+        print("  %-9s %-7s 신호: %-26s 매수일: %d" % (window["key"], window["state"], marks, len(bd)))
+    print("  매수허용구간: " + ", ".join("%d-%d" % (start, end) for start, end in BUY_PERIODS))
 
 
 if __name__ == "__main__":
