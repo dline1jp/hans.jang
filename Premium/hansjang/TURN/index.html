@@ -46,7 +46,7 @@
       <li>쌍바닥의 <b>2번째 바닥</b>에서 매수합니다.</li>
       <li><b>Case A</b>(천장→1쌍바닥 <b>4개월 초과 ~ 18개월 미만</b>): <b>2쌍이 1쌍보다 낮고</b>, 2쌍이 1쌍을 뚫은 뒤부터 <b>계단식 카운트 → 4단계</b> 매수.</li>
       <li><b>Case B</b>(<b>4개월 이하 또는 18개월 이상</b>): <b>1쌍이 더 낮고</b>, 2쌍 시작(직전 전고점)부터 <b>계단식 카운트 → 3단계</b> 매수.</li>
-      <li><b>계단식 하락법</b>: 일봉 하락률을 <b>절대치 크기순</b>으로 카운트합니다. 1단계=가장 큰 하락, 2단계=2번째, 3단계=3번째 … (더 큰 하락이 나오면 앞 단계로 복귀)</li>
+      <li><b>계단식 하락법</b>: 일봉 하락률을 <b>시간 순서</b>로 보며 <b>폭락폭이 줄면 단계 +1</b>, <b>늘면 앞(높은) 단계로 복귀</b>합니다. (문서: 리먼 -4.9%→-4.3%→-1.0% = 3단계에서 매수)</li>
       <li>Rule 6: 바닥으로부터 <b>만 5개월</b> 이후 쌍바닥 사이 <b>전고점</b>을 넘으면 바닥 탈출, 못 넘으면 2차 하락 대비(Rule 8).</li>
       <li>Rule 9(매도): CLI 2회 이상 증가 → 두번째 쌍봉에서 매도. Rule 10(매수): CLI 2회 이상 하락 후 두번째 쌍바닥에서, 1쌍 골보다 낮아지고 3일 후 매수.</li>
       <li>Rule 7: CLI 값은 <b>소수점 한자리</b>까지만 적용합니다.</li>
@@ -83,18 +83,17 @@
   document.getElementById("assump").textContent =
     "v1 계산 가정: (1) 천장/바닥 = 일봉 종가 지그재그 " + Math.round(data.zigzagPct * 100) + "% 스윙. " +
     "(2) 쌍바닥 = 사례 구간의 마지막 두 스윙 저점. " +
-    "(3) 계단식 = 카운트 시작점 이후 일봉 하락률을 절대치 크기순 정렬. " +
+    "(3) 계단식 = 카운트 시작점부터 일봉 하락률을 시간순으로 보며 폭락폭이 줄면 단계+1, 늘면 앞 단계로 복귀. " +
     "(4) Case A/B = 천장→1쌍바닥 개월 수(4 이하 또는 18 이상이면 B). → 가정이 실제와 다르면 알려주세요.";
 
   var head = "<thead><tr><th>사례</th><th>구간</th><th>천장</th><th>1쌍바닥</th><th>2쌍바닥</th>"
-    + "<th>Case</th><th>천장~1쌍</th><th>2쌍까지</th><th>낮은쪽</th><th>하락폭</th><th>CLI 2달축소 신호월</th><th>계단식 매수(3·4단계)</th><th>참고(엑셀)</th></tr></thead>";
+    + "<th>Case</th><th>천장~1쌍</th><th>2쌍까지</th><th>낮은쪽</th><th>하락폭</th><th>CLI 2달축소 신호월</th><th>계단식 매수(3단계)</th><th>참고(엑셀)</th></tr></thead>";
   var body = "";
   data.cases.forEach(function (c) {
-    var s3 = c.steps.filter(function (s) { return s.step === 3; })[0];
-    var s4 = c.steps.filter(function (s) { return s.step === 4; })[0];
-    var buyCell = "";
-    if (s3) { buyCell += '<span class="buy">3단계 ' + s3.date + '</span> <span class="muted">(' + fmt(s3.pct) + "%, " + fmt(s3.price) + ")</span><br>"; }
-    if (s4) { buyCell += '<span class="buy">4단계 ' + s4.date + '</span> <span class="muted">(' + fmt(s4.pct) + "%, " + fmt(s4.price) + ")</span>"; }
+    var buy = c.buy;
+    var buyCell = buy
+      ? ('<span class="buy">' + buy.step + '단계 ' + buy.date + '</span> <span class="muted">(' + fmt(buy.pct) + "%, " + fmt(buy.price) + ")</span>")
+      : '<span class="muted">미도달</span>';
     var ref = c.ref || {};
     var refCell = "";
     if (ref.case) { refCell += "Case " + ref.case + " "; }

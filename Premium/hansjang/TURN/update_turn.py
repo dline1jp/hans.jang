@@ -32,21 +32,22 @@ ZIGZAG_PCT = 0.08       # 스윙(천장/바닥) 판정 반전폭
 CLI_DECIMALS = 1        # Rule 7: CLI 는 소수점 한자리
 MAX_STEP = 6            # 계단식 단계 표시 상한
 
-# 사례(폭락) 구간. ref 는 엑셀 Sheet1 의 참고값(검증용).
+# 사례(폭락) 구간. anchor 는 문서에 나온 확정 천장/쌍바닥 날짜, ref 는 엑셀 Sheet1 참고값(검증용).
 CASES = [
-    {"key": "닷컴버블1", "from": "2000-01-01", "to": "2003-06-30",
-     "ref": {"case": "A", "lower": "2쌍", "to1": "12개월", "to2": "30개월", "stairDays": 5, "drop30": 0.49}},
-    {"key": "닷컴버블2", "from": "2002-10-01", "to": "2004-06-30",
+    {"key": "닷컴버블1(IT1차)", "from": "2000-01-01", "to": "2002-06-30",
+     "anchor": {"peak": "2000-03-27", "first": "2001-04-04", "second": "2001-09-21"},
+     "ref": {"case": "A", "lower": "2쌍"}},
+    {"key": "닷컴버블2(IT2차)", "from": "2002-01-01", "to": "2003-06-30",
+     "anchor": {"first": "2002-07-23", "second": "2002-10-07"},
      "ref": {"lower": "2쌍", "to1": "6개월"}},
-    {"key": "리먼쇼크", "from": "2007-06-01", "to": "2010-06-30",
-     "ref": {"case": "A", "lower": "2쌍", "to1": "13개월", "to2": "17개월", "stairDays": 14, "drop30": 0.57}},
-    {"key": "2011년 하락", "from": "2011-01-01", "to": "2012-06-30", "ref": {}},
-    {"key": "2015년 하락", "from": "2015-06-01", "to": "2016-12-31", "ref": {}},
-    {"key": "2018년 하락", "from": "2018-06-01", "to": "2019-12-31", "ref": {}},
-    {"key": "2020년 하락", "from": "2019-12-01", "to": "2021-06-30", "ref": {}},
-    {"key": "2022년 하락", "from": "2021-11-01", "to": "2024-06-30",
-     "ref": {"case": "A", "lower": "2쌍", "stairDays": 14}},
-    {"key": "2026년 하락", "from": "2025-01-01", "to": "2026-12-31", "ref": {}},
+    {"key": "리먼쇼크", "from": "2007-06-01", "to": "2009-12-31",
+     "anchor": {"peak": "2007-10-31", "first": "2008-11-20", "second": "2009-03-09"},
+     "ref": {"case": "A", "lower": "2쌍", "to1": "13개월", "to2": "17개월"}},
+    {"key": "2011년 하락", "from": "2011-01-01", "to": "2012-06-30", "anchor": {}, "ref": {}},
+    {"key": "2015년 하락", "from": "2015-06-01", "to": "2016-12-31", "anchor": {}, "ref": {}},
+    {"key": "2018년 하락", "from": "2018-06-01", "to": "2019-12-31", "anchor": {}, "ref": {}},
+    {"key": "2022년 하락", "from": "2021-11-01", "to": "2023-06-30", "anchor": {}, "ref": {"case": "A", "lower": "2쌍"}},
+    {"key": "2026년 하락", "from": "2025-01-01", "to": "2026-12-31", "anchor": {}, "ref": {}},
 ]
 
 
@@ -87,17 +88,22 @@ def zigzag(bars, pct):
 
 
 def staircase(bars, start_idx, end_idx):
-    """start_idx~end_idx 구간의 일봉 하락률을 절대치 크기순으로 정렬해 단계별 날짜를 준다."""
-    drops = []
+    """계단식 하락법: 일봉 하락률을 시간 순서로 보며 단계를 매긴다.
+
+    폭락폭(하락률)이 줄면 단계가 1 늘고, 늘면 그 하락이 속하는 앞(높은) 단계로 되돌아간다.
+    단계 = 지금까지 나온 '더 큰 하락' 단계 수 + 1.
+    """
+    levels = []          # 단계별 하락률(절대치), 내림차순
+    steps = []
     for i in range(start_idx + 1, min(end_idx, len(bars) - 1) + 1):
         prev = bars[i - 1][4]
         cur = bars[i][4]
-        if prev and cur < prev:
-            drops.append((i, (cur / prev - 1) * 100))
-    drops.sort(key=lambda item: item[1])
-    steps = []
-    for step, (i, pct) in enumerate(drops[:MAX_STEP], 1):
-        steps.append({"step": step, "date": bars[i][0], "pct": round(pct, 2), "price": bars[i][4]})
+        if not prev or cur >= prev:
+            continue
+        drop = abs((cur / prev - 1) * 100)
+        step = 1 + sum(1 for level in levels if level > drop)
+        levels = levels[:step - 1] + [drop]
+        steps.append({"step": step, "date": bars[i][0], "pct": round(-drop, 2), "price": cur})
     return steps
 
 
@@ -158,6 +164,14 @@ def build_case(bars, pivots, cli_state, case):
     else:
         first = second = low_idx
 
+    anchor = case.get("anchor") or {}
+    if anchor.get("peak"):
+        peak_idx = index_on_or_after(bars, anchor["peak"])
+    if anchor.get("first"):
+        first = index_on_or_after(bars, anchor["first"])
+    if anchor.get("second"):
+        second = index_on_or_after(bars, anchor["second"])
+
     peak_date, first_date, second_date = bars[peak_idx][0], bars[first][0], bars[second][0]
     to1 = month_diff(peak_date, first_date)
     to2 = month_diff(peak_date, second_date)
@@ -165,18 +179,27 @@ def build_case(bars, pivots, cli_state, case):
 
     if kind == "A":
         start_idx = None
-        for i in range(first + 1, to_idx + 1):
-            if bars[i][4] < bars[first][4]:
-                start_idx = i
-                break
-        start_idx = start_idx if start_idx is not None else second
-        start_note = "2쌍이 1쌍바닥을 뚫은 날"
+        i = second
+        while i > first and bars[i][4] >= bars[first][4]:
+            i -= 1
+        if i > first:
+            j = i
+            while j - 1 > first and bars[j - 1][4] < bars[first][4]:
+                j -= 1
+            start_idx = j
+            start_note = "2쌍이 1쌍바닥을 뚫은 날"
+        else:
+            before = [h for h in highs if h < second]
+            start_idx = before[-1] if before else first
+            start_note = "2쌍 직전 전고점(1쌍 미돌파)"
     else:
         before = [i for i in highs if i < second]
         start_idx = before[-1] if before else first
         start_note = "2쌍 직전 전고점"
 
-    steps = staircase(bars, start_idx, to_idx)
+    steps = staircase(bars, start_idx, second)     # 2쌍바닥까지 카운트
+    target = 3                                     # 문서 기준: 3번째 큰 하락폭에서 매수
+    buy = next((s for s in steps if s["step"] >= target), None)
     signals = sorted(p for p, n in cli_state.items() if n >= 2 and case["from"][:7] <= p <= case["to"][:7])
 
     return {
@@ -191,6 +214,7 @@ def build_case(bars, pivots, cli_state, case):
         "lower": "2쌍" if bars[second][4] < bars[first][4] else "1쌍",
         "drop30": round((bars[peak_idx][4] - bars[second][4]) / bars[peak_idx][4], 3),
         "startDate": bars[start_idx][0], "startNote": start_note,
+        "target": target, "buy": buy,
         "steps": steps,
         "signals": signals,
         "pivotLows": [{"date": bars[i][0], "price": bars[i][4]} for i in lows],
@@ -219,12 +243,13 @@ def main():
 
     print("bars=%d %s..%s  zigzag=%d%%" % (len(bars), bars[0][0], bars[-1][0], int(ZIGZAG_PCT * 100)))
     for c in cases:
-        steps = " ".join("%d단계 %s(%.2f%%)" % (s["step"], s["date"], s["pct"]) for s in c["steps"][:4])
-        print("  %-9s 천장 %s %.2f | 1쌍 %s %.2f | 2쌍 %s %.2f | Case %s | 천장~1쌍 %d개월 | 낮은쪽 %s | %.0f%% | 신호 %s"
-              % (c["key"], c["peak"]["date"], c["peak"]["price"], c["first"]["date"], c["first"]["price"],
-                 c["second"]["date"], c["second"]["price"], c["caseKind"], c["to1"], c["lower"],
-                 c["drop30"] * 100, ",".join(c["signals"])))
-        print("      계단식(카운트 시작 %s, %s): %s" % (c["startDate"], c["startNote"], steps))
+        buy = c["buy"]
+        buy_text = ("%d단계 %s (%.2f%%)" % (buy["step"], buy["date"], buy["pct"])) if buy else "미도달"
+        print("  %-16s 천장 %s | 1쌍 %s %.2f | 2쌍 %s %.2f | Case %s | 낮은쪽 %s | 신호 %s | 매수 %s"
+              % (c["key"], c["peak"]["date"], c["first"]["date"], c["first"]["price"],
+                 c["second"]["date"], c["second"]["price"], c["caseKind"], c["lower"],
+                 ",".join(c["signals"]) or "-", buy_text))
+        print("      카운트 시작 %s (%s)" % (c["startDate"], c["startNote"]))
 
 
 if __name__ == "__main__":
