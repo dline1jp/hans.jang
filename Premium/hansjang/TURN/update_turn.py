@@ -234,6 +234,7 @@ def main():
         "ticker": TICKER,
         "zigzagPct": ZIGZAG_PCT,
         "cliDecimals": CLI_DECIMALS,
+        "bars": [[b[0], b[4]] for b in bars],     # 일봉 종가 (차트용)
         "cases": cases,
     }
     DATA.write_text(

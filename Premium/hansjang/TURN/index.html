@@ -28,6 +28,10 @@
     details { margin: 6px 0; }
     summary { cursor: pointer; color: #8ec8ff; font-weight: 700; }
     .step { color: #ffd76a; font-weight: 700; }
+    svg.chart { width: 100%; height: auto; display: block; background: #0c0c0c; border-radius: 8px; }
+    .tabs { max-width: 1150px; margin: 10px auto; display: flex; flex-wrap: wrap; gap: 8px; }
+    .tabs button { background: #1a1a1a; color: #ddd; border: 1px solid #555; border-radius: 8px; padding: 8px 14px; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .tabs button.on { background: #24406e; color: #fff; border-color: #4da3ff; }
   </style>
 </head>
 <body>
@@ -64,6 +68,13 @@
     <h2>사례별 상세 (스윙 천장/저점 · 계단식 단계)</h2>
     <p class="sub">스윙은 QQQ 일봉 종가 지그재그입니다. 쌍바닥 후보를 눈으로 확인하세요.</p>
     <div id="detail"></div>
+  </section>
+
+  <section class="card">
+    <h2>사례별 차트 (주가 + 천장·쌍바닥·계단식·매수 타점)</h2>
+    <p class="sub" id="chart-sub"></p>
+    <div class="tabs" id="tabs"></div>
+    <svg class="chart" id="chart" viewBox="0 0 1100 460" role="img" aria-label="사례별 주가 차트"></svg>
   </section>
 
   <script src="turn-data.js"></script>
@@ -132,6 +143,84 @@
     detail += "</tbody></table></details>";
   });
   document.getElementById("detail").innerHTML = detail;
+
+  // ---- 사례별 차트 (주가 + 천장·쌍바닥·계단식·매수 타점) ----
+  var bars = data.bars || [];
+  var NS = "http://www.w3.org/2000/svg";
+  var chartSvg = document.getElementById("chart");
+  var chartSub = document.getElementById("chart-sub");
+  var tabsEl = document.getElementById("tabs");
+  var cur = data.cases.length ? data.cases[0].key : null;
+  var CW = 1100, CH = 460, CL = 74, CR = 22, CT = 24, CB = 44;
+
+  function t(iso) { return Date.parse(iso + "T00:00:00Z"); }
+  function nd(tag, attrs, text) {
+    var el = document.createElementNS(NS, tag);
+    if (attrs) { for (var k in attrs) { el.setAttribute(k, attrs[k]); } }
+    if (text !== undefined) { el.textContent = text; }
+    return el;
+  }
+  data.cases.forEach(function (c) {
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = c.key;
+    b.addEventListener("click", function () { cur = c.key; drawChart(); });
+    tabsEl.appendChild(b);
+  });
+
+  function drawChart() {
+    while (chartSvg.firstChild) { chartSvg.removeChild(chartSvg.firstChild); }
+    Array.prototype.forEach.call(tabsEl.children, function (x) { x.classList.toggle("on", x.textContent === cur); });
+    var c = null;
+    data.cases.forEach(function (x) { if (x.key === cur) { c = x; } });
+    if (!c) { return; }
+    var view = bars.filter(function (x) { return x[0] >= c.from && x[0] <= c.to; });
+    if (!view.length) { return; }
+    var lo = Infinity, hi = -Infinity, g;
+    view.forEach(function (x) { if (x[1] < lo) { lo = x[1]; } if (x[1] > hi) { hi = x[1]; } });
+    var pad = (hi - lo) * 0.1 || 1; lo -= pad; hi += pad;
+    var tMin = t(view[0][0]), tMax = t(view[view.length - 1][0]), span = (tMax - tMin) || 1;
+    function X(iso) { return CL + (CW - CL - CR) * (t(iso) - tMin) / span; }
+    function Y(v) { return CH - CB - (v - lo) / (hi - lo) * (CH - CB - CT); }
+
+    chartSvg.appendChild(nd("rect", { x: CL, y: CT, width: CW - CL - CR, height: CH - CB - CT, fill: "#0a0a0a" }));
+    for (g = 0; g <= 4; g++) {
+      var v = lo + (hi - lo) * g / 4, y = Y(v);
+      chartSvg.appendChild(nd("line", { x1: CL, y1: y, x2: CW - CR, y2: y, stroke: "#242424" }));
+      chartSvg.appendChild(nd("text", { x: CL - 6, y: y + 4, fill: "#999", "font-size": 11, "text-anchor": "end" }, v.toFixed(2)));
+    }
+    var path = "";
+    view.forEach(function (x, i) { path += (i ? "L" : "M") + X(x[0]).toFixed(1) + " " + Y(x[1]).toFixed(1) + " "; });
+    chartSvg.appendChild(nd("path", { d: path, fill: "none", stroke: "#4da3ff", "stroke-width": 1.2 }));
+
+    function vline(iso, color, label) {
+      var x = X(iso);
+      chartSvg.appendChild(nd("line", { x1: x, y1: CT, x2: x, y2: CH - CB, stroke: color, "stroke-width": 1, "stroke-dasharray": "3 3" }));
+      chartSvg.appendChild(nd("text", { x: x, y: CT + 12, fill: color, "font-size": 11, "text-anchor": "middle" }, label));
+    }
+    vline(c.peak.date, "#ffd76a", "천장");
+    vline(c.startDate, "#8ec8ff", "시작");
+    vline(c.first.date, "#f7dc6f", "1쌍");
+    vline(c.second.date, "#f7dc6f", "2쌍");
+
+    c.steps.forEach(function (s) {
+      var x = X(s.date), y = Y(s.price);
+      chartSvg.appendChild(nd("circle", { cx: x, cy: y, r: 3, fill: "#ffd76a" }));
+      chartSvg.appendChild(nd("text", { x: x, y: y + 16, fill: "#ffd76a", "font-size": 10, "text-anchor": "middle" }, s.step + "단"));
+    });
+    if (c.buy) {
+      var bx = X(c.buy.date), by = Y(c.buy.price);
+      chartSvg.appendChild(nd("polygon", { points: bx + "," + (by + 10) + " " + (bx - 8) + "," + (by + 26) + " " + (bx + 8) + "," + (by + 26), fill: "#7dcea0" }));
+      chartSvg.appendChild(nd("text", { x: bx, y: by + 42, fill: "#7dcea0", "font-size": 11, "font-weight": 700, "text-anchor": "middle" }, "매수 " + c.buy.date));
+    }
+    for (g = 0; g <= 5; g++) {
+      chartSvg.appendChild(nd("text", { x: CL + (CW - CL - CR) * g / 5, y: CH - 14, fill: "#999", "font-size": 11, "text-anchor": "middle" },
+        new Date(tMin + span * g / 5).toISOString().slice(0, 7)));
+    }
+    chartSub.textContent = c.key + " · 천장 " + c.peak.date + " · 1쌍 " + c.first.date + " (" + fmt(c.first.price) + ")"
+      + " · 2쌍 " + c.second.date + " (" + fmt(c.second.price) + ") · Case " + c.caseKind
+      + (c.buy ? (" · 매수 " + c.buy.step + "단계 " + c.buy.date) : " · 매수 미도달");
+  }
+  drawChart();
 })();
   </script>
 </body>
