@@ -6,7 +6,7 @@
   2. 하락폭이 더 커지다가(전월 대비 더 큰 하락) 하락폭을 줄이기 시작한다.
   3. 하락폭을 2달 이상 줄인 시기와 그 직전 NEAR_MONTHS 개월을 매수 타점으로 본다.
   4. 경기순환사이클 하락 및 주가 바닥 가능시기(BUY_PERIODS)에만 매수 타점을 적용한다.
-  5. 선행지수 전월비 하락폭을 2달 이상 줄인 뒤 그 전후 시기, QQQ 일봉 RSI(14)가 30 미만일 때 분할 매수한다.
+  5. 선행지수 전월비 하락폭을 2달 이상 줄인 뒤 그 전후 시기, QQQ 일봉 RSI(14) 30 이탈 3회 뒤 35 이하(30 위) 저점에서 +2 반등하면 분할 매수한다.
   6. 하락폭을 2달 이상 줄인 구간(사이클)마다 첫 타점 하나만 남긴다.
 
 데이터
@@ -53,8 +53,7 @@ RSI_DIV_LEVEL = 35.0    # 35 이하(30 위) 저점 = 상승 다이버전스 후�
 REBOUND = 2.0           # 저점보다 2 오르면 매수 타점
 MIN_DIPS = 3            # 30 이탈이 세 번은 있어야 한다
 RESET_MONTHS = 12       # 30 이탈끼리 1년 이상 벌어지면 앞의 이탈은 무시하고 새로 센다
-NEAR_MONTHS = 1         # 매수 조건(하락폭 축소 / G20 하락) 시점 전후 이 개월 안이면 인정한다 (0 = 그 달만, 1 = 그 달 전후 1개월)
-G20_MIN_MONTHS = 2      # G20 선행지수 전월비가 이만큼 연속 하락한 전후여야 매수한다
+NEAR_MONTHS = 1         # 하락폭을 2달 이상 줄인 시점의 직전 이 개월 안이면 매수 시점으로 인정한다 (0 = 그 달만)
 
 # 경기순환사이클 하락 및 주가 바닥 가능시기: 이 구간에만 매수 타점을 적용한다. (start_year, end_year) 양끝 포함.
 BUY_PERIODS = [
@@ -311,17 +310,6 @@ def rsi_series(closes, period=RSI_PERIOD):
     return values
 
 
-def decline_run(cli):
-    """월별 G20 전월비 연속 하락 개월 수. {period: n}. 전월비가 0 이상이면 0 으로 초기화한다."""
-    run = {}
-    current = 0
-    for row in cli:
-        mom = row["mom"]
-        current = current + 1 if (mom is not None and mom < 0) else 0
-        run[row["period"]] = current
-    return run
-
-
 def find_dips(series, level):
     """RSI 가 level 아래로 내려간 구간을 순서대로 모은다. level 위로 올라와야 구간이 나뉜다."""
     dips = []
@@ -376,11 +364,6 @@ def month_diff(start_day, end_day):
             (int(start_day[0:4]) * 12 + int(start_day[5:7])))
 
 
-def month_gap(a, b):
-    """'YYYY-MM' 두 개월의 개월 차(절대값)."""
-    return abs((int(b[0:4]) * 12 + int(b[5:7])) - (int(a[0:4]) * 12 + int(a[5:7])))
-
-
 def rebound_day(series, bars, dip, limit):
     """저점보다 REBOUND 만큼 오른 첫 봉. 30 이탈 저점에도 쓴다(무효화 없음)."""
     target = dip["lowValue"] + REBOUND
@@ -400,7 +383,7 @@ def plan_entries(window, dips30, dips35, series, bars, gate, allow_dip_low):
 
     allow_dip_low=False 이면 35 이하(30 위) 저점만 본다. True 이면 그런 저점이 없을 때 30 이탈 저점도 인정한다.
     30 이탈끼리 RESET_MONTHS 달 이상 벌어지면(앞 이탈의 끝 ~ 다음 이탈의 시작) 앞의 이탈은 무시하고 새로 센다.
-    gate(day) 가 False 면 그 후보는 건너뛴다. (하락폭 2달 이상 축소 시점 전후 / G20 하락 전후 조건)
+    gate(day) 가 False 면 그 후보는 건너뛴다. (하락폭 2달 이상 축소 시점 전후 조건)
     구간 안에서 조건을 만족하는 타점을 모두 모아 시간 순서로 돌려준다.
     """
     events = []
@@ -515,11 +498,7 @@ def main():
         })
 
     # 진입 타점: QQQ 일봉 RSI(14) 30 이탈 3회 뒤, 35 이하(30 위) 저점에서 +2 반등한 날 매수.
-    # 진입 타점: QQQ 일봉 RSI(14) 30 이탈 3회 뒤, 35 이하(30 위) 저점에서 +2 반등한 날 매수.
     # (그런 저점이 없으면 30 이탈 저점도 같은 기준으로 인정한다.)
-    # 매수 조건: 하락폭 2달 이상 축소 시점 전후 + G20 전월비 2달 이상 하락 시점 전후.
-    g20_run = decline_run(cli)
-    g20_months = [period for period, run in g20_run.items() if run >= G20_MIN_MONTHS]
     dips30 = annotate_dips(find_dips(daily_rsi, RSI_DIP_LEVEL), daily)
     dips35 = annotate_dips(find_dips(daily_rsi, RSI_DIV_LEVEL), daily)
 
@@ -527,10 +506,8 @@ def main():
         # 하락폭을 2달 이상 줄인 시기와 그 직전 NEAR_MONTHS 개월을 매수 시점으로 본다.
         # (일봉 RSI 저점이 선행지수 하락폭 축소 확정보다 먼저 나오므로 '전' 쪽을 인정한다.)
         month = day[:7]
-        mom_near = any(0 <= month_index(period) - month_index(month) <= NEAR_MONTHS
-                       for period in narrow_months)
-        g20_near = any(month_gap(month, period) <= NEAR_MONTHS for period in g20_months)
-        return mom_near and g20_near
+        return any(0 <= month_index(period) - month_index(month) <= NEAR_MONTHS
+                   for period in narrow_months)
 
     buys = []
     for start_year, end_year in BUY_PERIODS:
@@ -607,9 +584,6 @@ def main():
         "minDips": MIN_DIPS,
         "resetMonths": RESET_MONTHS,
         "nearMonths": NEAR_MONTHS,
-        "g20MinMonths": G20_MIN_MONTHS,
-        "g20AsOf": cli[-1]["period"],
-        "g20Run": g20_run.get(cli[-1]["period"], 0),
         "bars": weekly,
         "cli": [[row["period"], row["obs"], row["mom"]] for row in cli],
         "days": days,

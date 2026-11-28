@@ -37,7 +37,7 @@
 <body>
   <p><a class="home" href="../index.html">← 한스장 타점</a></p>
   <h1>선행지수 타점</h1>
-  <p class="warn">투자 권유가 아닙니다. 참고용. <b>G20 경기선행지수(CLI) 전월비(mom)</b> 하락폭이 <b>2달 이상 줄어든 뒤 그 전후 시기</b>가 매수 타점입니다. <b>경기순환사이클 하락·주가 바닥 가능시기</b> 안에서 <b>나스닥100(QQQ) 일봉 RSI(14)가 30 아래로 3회 내려간 뒤 35 이하 저점(30 이탈 저점 포함)에서 +2 반등</b>한 날을 매수 타점으로 봅니다. (G20 선행지수 전월비가 2달 이상 하락한 이후여야 하고, 30 이탈끼리 1년 이상 벌어지면 앞의 이탈은 무시하고 새로 셉니다.)</p>
+  <p class="warn">투자 권유가 아닙니다. 참고용. <b>G20 경기선행지수(CLI) 전월비(mom)</b> 하락폭이 <b>2달 이상 줄어든 뒤 그 전후 시기</b>가 매수 타점입니다. <b>경기순환사이클 하락·주가 바닥 가능시기</b> 안에서 <b>나스닥100(QQQ) 일봉 RSI(14)가 30 아래로 3회 내려간 뒤 35 이하 저점(30 이탈 저점 포함)에서 +2 반등</b>한 날을 매수 타점으로 봅니다. (30 이탈끼리 1년 이상 벌어지면 앞의 이탈은 무시하고 새로 셉니다.)</p>
   <p class="note" id="asof">불러오는 중…</p>
 
   <section class="rule">
@@ -50,9 +50,8 @@
       <li><b>경기순환사이클 하락 및 주가 바닥 가능시기</b>인 <b>2000-2002, 2003-2004, 2007-2009, 2011-2012, 2015-2016, 2018-2019, 2022-2023, 2025-2027, 2029-2031, 2033-2035</b> 사이에만 매수 타점을 적용합니다.</li>
       <li>경기순환사이클 하락 추정 시기에는 <b>QQQ</b> 일봉 <b>RSI(14)</b>가 <b>30 아래</b>로 내려갔다 올라오기를 반복합니다.</li>
       <li>그렇게 <b>세 번</b> 내려간 뒤, <b>네 번째와 그 이후</b>에도 30 이하로 내려가면 매수하지 않고 계속 대기합니다.</li>
-      <li>그 후 RSI가 <b>35 이하</b>로 내려간 저점에서, 그 <b>최저점보다 2 더 올라가면</b> 매수 타점입니다. (= 상승 다이버전스 출현으로 간주하고 매수합니다. <b>30 이하까지 내려간 저점도</b> 같은 기준으로 인정합니다.)</li>
+      <li>그 후 RSI가 <b>35 이하</b>이면서 <b>30 위</b>에서 멈춘 저점(상승 다이버전스)에서, 그 <b>최저점보다 2 더 올라가면</b> 매수 타점입니다. 그런 저점이 그 구간에 하나도 없을 때만 <b>30 이하까지 내려간 저점</b>에서 +2 반등한 날도 같은 기준으로 인정합니다.</li>
       <li>30 이탈끼리 <b>1년 이상</b> 벌어지면 앞의 이탈은 <b>무시하고 새로 셉니다.</b> (앞 이탈이 끝난 날부터 다음 이탈이 시작한 날까지 1년 이상)</li>
-      <li>단, <b>G20 선행지수가 전월비 2달 이상 하락한 시점 전후</b>여야 매수 조건입니다.</li>
       <li>차트는 위가 <b>나스닥100(QQQ)</b> 주봉과 <b>G20 전월비</b>, 아래가 <b>QQQ 일봉 RSI(14)</b>입니다. 2000년부터 <b>4년 단위</b>로 나눠서 봅니다.</li>
       <li>데이터는 G20은 OECD·Supabase, QQQ는 Yahoo Finance에서 자동 갱신됩니다. 타점에서 진짜 매수할 것인지는 <b>한스장</b>이 최종 판단합니다.</li>
     </ol>
@@ -97,7 +96,6 @@
   var days = data.days || [], buyDays = data.buyDays || [], buyPeriods = data.buyPeriods || [], dips = data.dips || [];
   var rsiPeriod = data.rsiPeriod || 14, rsiDipLevel = data.rsiDipLevel || 30, rsiDivLevel = data.rsiDivLevel || 35;
   var rebound = data.rebound || 2, minDips = data.minDips || 3;
-  var g20Min = data.g20MinMonths || 2, g20Run = data.g20Run || 0;
   var nearMonths = data.nearMonths || 0;
   var W = 1100, H = 620, L = 60, R = 18, T = 26;
   var pH = 320, gap = 46;
@@ -116,7 +114,7 @@
   function monthOf(iso) { return iso.slice(0, 7); }
 
   asofEl.textContent = "기준 G20 " + data.asof + " · QQQ " + data.priceAsof + " 종가 " + fmt(last[4]) + " " + data.currency +
-    " · 매수 타점 " + buyDays.length + "회 · 규칙: 하락폭 2달 이상 축소 뒤 전후 " + nearMonths + "개월 + 경기 하락·바닥 구간에서 일봉 RSI(" + rsiPeriod + ") " + rsiDipLevel + " 이탈 " + minDips + "회 뒤 " + rsiDivLevel + " 이하 저점 +" + rebound + " 반등 매수 · G20 전월비 하락 " + g20Run + "달(" + (g20Run >= g20Min ? "조건 충족" : "조건 " + g20Min + "달 필요") + ")";
+    " · 매수 타점 " + buyDays.length + "회 · 규칙: 하락폭 2달 이상 축소 뒤 전후 " + nearMonths + "개월 + 경기 하락·바닥 구간에서 일봉 RSI(" + rsiPeriod + ") " + rsiDipLevel + " 이탈 " + minDips + "회 뒤 " + rsiDivLevel + " 이하 저점 +" + rebound + " 반등 매수";
 
   function el(tag, attrs, text) {
     var n = document.createElementNS(NS, tag);
