@@ -2,8 +2,9 @@ name: Update leading-index entry points
 on:
   workflow_dispatch:
   schedule:
-    # G20 경기선행지수(월별)는 매달 초에 전월치가 나옵니다. 매달 5일 03:00 UTC = 12:00 KST 에 갱신합니다.
-    - cron: "0 3 5 * *"
+    # QQQ 일봉 시세(RSI 타점)는 매일 갱신한다. G20 경기선행지수(월별)는 새 값이 나오면 자동 반영된다.
+    # 미국 현물장 마감 후인 22:30 UTC = 다음날 07:30 KST 에 돌린다.
+    - cron: "30 22 * * *"
 permissions:
   contents: write
 jobs:
