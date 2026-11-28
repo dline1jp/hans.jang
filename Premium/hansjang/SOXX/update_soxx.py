@@ -6,7 +6,12 @@
 2. 30 이탈이 세 번 나온 뒤, 네 번째와 그 이후에도 30 아래로 내려가면 매수하지 않고 계속 대기한다.
 3. 그 뒤 RSI 가 35 아래로 내려왔지만 30 아래로는 가지 않은 저점에서, 그 저점보다 2 오른 날이 매수 타점이다.
    (상승 다이버전스 출현으로 보고 매수한다.)
-4. 30 이탈끼리 1년 이상 벌어지면 앞의 이탈은 무시하고 새로 센다.
+4. 30 이탈끼리 반년 이상 벌어지면 앞의 이탈은 무시하고 새로 센다.
+5. 단, G20 선행지수가 전월비 기준으로 2달 이상 하락한 이후여야 매수 조건이 된다.
+
+데이터
+  - SOXX 일봉: Yahoo Finance(수정주가).
+  - G20 CLI 월별: OECD SDMX + Supabase(hangjang-table). G20 매수 조건 판정에만 쓴다.
 
     python Premium/hansjang/SOXX/update_soxx.py
 
@@ -15,6 +20,8 @@
 AI 혁신주 타점(Premium/ai-trend/index.html)에 남은 예전 SOXL 메뉴는 지운다.
 """
 import calendar
+import csv
+import io
 import json
 import re
 import time
@@ -42,8 +49,18 @@ RSI_LEVEL = 30.0        # 30 이탈 = 하락 신호
 RSI_LEVEL_BUY = 35.0    # 35 이하 저점이되 30 위에서 멈춘 자리 = 상승 다이버전스 후보
 REBOUND = 2.0           # 저점보다 2 오르면 타점
 MIN_DIPS = 3            # 30 이탈이 세 번은 있어야 한다
-RESET_MONTHS = 12       # 30 이탈끼리 1년 이상 벌어지면 앞의 이탈은 무시하고 새로 센다
-RESET_DAYS = 365        # 30 이탈 사이 간격이 이만큼 벌어지면 앞의 이탈은 다른 하락으로 보고 새로 센다
+RESET_MONTHS = 6        # 30 이탈끼리 반년 이상 벌어지면 앞의 이탈은 무시하고 새로 센다
+RESET_DAYS = 182        # 30 이탈 사이 간격이 이만큼 벌어지면 앞의 이탈은 다른 하락으로 보고 새로 센다
+G20_MIN_MONTHS = 2      # G20 선행지수 전월비가 이만큼 연속 하락한 이후에만 매수한다
+
+# G20 경기선행지수(CLI) 월별 전월비. 매수 조건(경기 하락 확인) 판정에만 쓴다.
+SUPABASE_URL = "https://vlvblacfffkalojefjwp.supabase.co"
+SUPABASE_ANON_KEY = "sb_publishable_C4BZUGCN_QyMZkVe3PIysQ_ZkqosPCL"
+OECD_URL = (
+    "https://sdmx.oecd.org/public/rest/data/"
+    "OECD.SDD.STES,DSD_STES@DF_CLI,4.1/G20.M.LI.IX._Z.AA.IX._Z.H"
+    "?startPeriod=2000-01&format=csvfilewithlabels&dimensionAtObservation=AllDimensions"
+)
 
 # kind: past = 과거 복기, cycle = 경기순환사이클 하락 추정 시기
 WINDOWS = [
@@ -155,6 +172,100 @@ def rsi_series(closes, period=RSI_PERIOD):
     return values
 
 
+def http_get(url, headers=None, timeout=60):
+    merged = dict(HEADERS)
+    if headers:
+        merged.update(headers)
+    request = urllib.request.Request(url, headers=merged)
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return response.read()
+
+
+def fetch_oecd_cli():
+    """OECD SDMX 에서 G20 CLI 월별 관측치를 받는다. {period: obs}"""
+    raw = http_get(OECD_URL, {"Accept": "application/vnd.sdmx.data+csv;version=1.0.0"}, timeout=120)
+    rows = list(csv.reader(io.StringIO(raw.decode("utf-8-sig"))))
+    header = {name: index for index, name in enumerate(rows[0])}
+    period_col = header["TIME_PERIOD"]
+    value_col = header["OBS_VALUE"]
+    out = {}
+    for row in rows[1:]:
+        if len(row) <= max(period_col, value_col):
+            continue
+        period = row[period_col].strip()
+        value = row[value_col].strip()
+        if period and value:
+            try:
+                out[period] = float(value)
+            except ValueError:
+                pass
+    return out
+
+
+def fetch_supabase_cli():
+    """Supabase hangjang-table 에서 G20 전월비를 받는다. {period: (obs, mom)}"""
+    url = (SUPABASE_URL + "/rest/v1/hangjang-table"
+           "?select=reference_area,time_period,obs_value,mom&reference_area=eq.G20"
+           "&order=time_period.asc&limit=5000")
+    raw = http_get(url, {"apikey": SUPABASE_ANON_KEY, "Authorization": "Bearer " + SUPABASE_ANON_KEY})
+    out = {}
+    for row in json.loads(raw.decode("utf-8")):
+        period = str(row.get("time_period") or "")[:7]
+        if not period:
+            continue
+        try:
+            obs = float(row.get("obs_value"))
+        except (TypeError, ValueError):
+            obs = None
+        text = str(row.get("mom") or "").replace("%", "").strip()
+        try:
+            mom = float(text)
+        except ValueError:
+            mom = None
+        out[period] = (obs, mom)
+    return out
+
+
+def build_g20_mom():
+    """G20 CLI 전월비(월별). {period: mom}. OECD 이력 + Supabase 최신값을 쓴다."""
+    oecd = fetch_oecd_cli()
+    supa = fetch_supabase_cli()
+    values = dict(oecd)
+    mom_override = {}
+    for period, (obs, mom) in supa.items():
+        if obs is not None:
+            values[period] = obs
+        if mom is not None:
+            mom_override[period] = mom
+    periods = sorted(values.keys())
+    series = {}
+    for index, period in enumerate(periods):
+        if period in mom_override:
+            mom = round(mom_override[period], 2)
+        elif index > 0:
+            mom = round((values[period] / values[periods[index - 1]] - 1) * 100, 2)
+        else:
+            mom = None
+        series[period] = mom
+    return series
+
+
+def decline_run(g20):
+    """월별 전월비 연속 하락 개월 수. {period: n}. 전월비가 0 이상이면 0 으로 초기화한다."""
+    run = {}
+    current = 0
+    for period in sorted(g20):
+        mom = g20[period]
+        current = current + 1 if (mom is not None and mom < 0) else 0
+        run[period] = current
+    return run
+
+
+def g20_gate(run, day):
+    """G20 전월비가 G20_MIN_MONTHS 달 이상 내리 하락한 이후인지 본다. 그 이후여야 매수 조건이 된다."""
+    return run.get(day[:7], 0) >= G20_MIN_MONTHS
+
+
 def find_dips(series, level):
     """RSI 가 level 아래로 내려간 구간을 순서대로 모은다. level 위로 올라와야 구간이 나뉜다."""
     dips = []
@@ -218,13 +329,14 @@ def rebound_index(series, bars, dip, limit_day):
     return None, "pending"
 
 
-def plan_window(window, strict, loose, series, bars):
+def plan_window(window, strict, loose, series, bars, run):
     """한 구간의 매수 타점을 규칙대로 계산한다. 30 이탈과 35 이하(30 위) 저점을 시간 순서로 본다.
 
-    30 이탈끼리 1년 이상 벌어지면(앞 이탈의 끝 ~ 다음 이탈의 시작) 앞의 이탈은 무시하고 새로 센다.
+    30 이탈끼리 반년 이상 벌어지면(앞 이탈의 끝 ~ 다음 이탈의 시작) 앞의 이탈은 무시하고 새로 센다.
 
     reason: dips = 30 이탈 3회 미만, div = 35 이하(30 위) 저점 없음,
-            wait = 저점은 나왔지만 아직 +2 반등 없음.
+            wait = 저점은 나왔지만 아직 +2 반등 없음,
+            g20 = +2 반등은 나왔지만 G20 전월비 2달 이상 하락 조건이 아님.
     """
     events = []
     for dip in strict:
@@ -245,7 +357,7 @@ def plan_window(window, strict, loose, series, bars):
         if kind == 0:
             start = as_date(dip["startDate"])
             if last_end is not None and start >= add_months(last_end, RESET_MONTHS):
-                ignored.extend(picked)      # 1년 이상 벌어졌다. 앞의 이탈은 무시하고 새로 센다.
+                ignored.extend(picked)      # 반년 이상 벌어졌다. 앞의 이탈은 무시하고 새로 센다.
                 del picked[:]
             picked.append(dip)              # 4번째 이후 30 이탈도 여기서 센다.
             last_end = as_date(dip["endDate"])
@@ -254,6 +366,9 @@ def plan_window(window, strict, loose, series, bars):
             continue                    # 30 이탈이 세 번은 있어야 한다
         trigger, status = rebound_index(series, bars, dip, window["to"])
         if status == "buy":
+            if not g20_gate(run, bars[trigger][0]):
+                plan["reason"] = "g20"      # 반등은 나왔지만 G20 하락 조건이 아직 아니다
+                break
             plan["div"] = dip
             plan["trigger"] = trigger
             break
@@ -262,8 +377,9 @@ def plan_window(window, strict, loose, series, bars):
             break
         # fail: 35 이하 저점이 다시 30 아래로 내려갔다. 다음 이벤트로 넘긴다.
     if plan["div"] is None:
-        plan["reason"] = "dips" if len(picked) < MIN_DIPS else "div"
-    elif plan["trigger"] is None:
+        if plan["reason"] is None:
+            plan["reason"] = "dips" if len(picked) < MIN_DIPS else "div"
+    elif plan["trigger"] is None and plan["reason"] is None:
         plan["reason"] = "wait"
     return plan
 
@@ -324,10 +440,14 @@ def main():
     strict = [annotate(dip, bars) for dip in find_dips(series, RSI_LEVEL)]
     loose = [annotate(dip, bars) for dip in find_dips(series, RSI_LEVEL_BUY)]
 
+    g20 = build_g20_mom()
+    g20_run = decline_run(g20)
+    g20_asof = max(g20) if g20 else None
+
     asof = bars[-1][0]
     plans = []
     for window in WINDOWS:
-        plan = plan_window(window, strict, loose, series, bars)
+        plan = plan_window(window, strict, loose, series, bars, g20_run)
         plan["window"] = window
         plan["state"] = window_state(window, asof)
         plans.append(plan)
@@ -390,6 +510,10 @@ def main():
         "rsiLevel": RSI_LEVEL,
         "rsiLevelBuy": RSI_LEVEL_BUY,
         "rebound": REBOUND,
+        "resetMonths": RESET_MONTHS,
+        "g20MinMonths": G20_MIN_MONTHS,
+        "g20AsOf": g20_asof,
+        "g20Run": g20_run.get(g20_asof, 0) if g20_asof else 0,
         "bars": bars,
         "rsi": series,
         "dips": dips,
@@ -400,7 +524,9 @@ def main():
         encoding="utf-8",
     )
 
-    print("bars=%d %s..%s dips30=%d dips35=%d" % (len(bars), bars[0][0], asof, len(strict), len(loose)))
+    print("bars=%d %s..%s dips30=%d dips35=%d g20=%s(하락 %d달)"
+          % (len(bars), bars[0][0], asof, len(strict), len(loose),
+             g20_asof, g20_run.get(g20_asof, 0) if g20_asof else 0))
     for window in windows:
         if window.get("buy") is not None:
             print("  %-9s %-6s dips30=%d  BUY %s @ %s (RSI %s, 저점 %s %s)"
