@@ -4,9 +4,10 @@
 규칙
   1. G20 전월비(mom)가 음수인 하락 구간만 본다.
   2. 하락폭이 더 커지다가(전월 대비 더 큰 하락) 하락폭을 줄이기 시작한다.
-  3. 하락폭을 줄인 지 2달째 되는 달을 매수 신호 월로 본다.
+  3. 하락폭을 2달 이상 줄인 시기와 그 직전 NEAR_MONTHS 개월을 매수 타점으로 본다.
   4. 경기순환사이클 하락 및 주가 바닥 가능시기(BUY_PERIODS)에만 매수 타점을 적용한다.
-  5. 선행지수 전월비 하락폭을 2달 줄인 뒤, QQQ 일봉 RSI(14)가 30 미만일 때 분할 매수한다.
+  5. 선행지수 전월비 하락폭을 2달 이상 줄인 뒤 그 전후 시기, QQQ 일봉 RSI(14)가 30 미만일 때 분할 매수한다.
+  6. 하락폭을 2달 이상 줄인 구간(사이클)마다 첫 타점 하나만 남긴다.
 
 데이터
   - G20 CLI 월별: OECD SDMX(2000-01~) + Supabase(hangjang-table) 최신값을 덮어쓴다.
@@ -52,7 +53,7 @@ RSI_DIV_LEVEL = 35.0    # 35 이하(30 위) 저점 = 상승 다이버전스 후�
 REBOUND = 2.0           # 저점보다 2 오르면 매수 타점
 MIN_DIPS = 3            # 30 이탈이 세 번은 있어야 한다
 RESET_MONTHS = 12       # 30 이탈끼리 1년 이상 벌어지면 앞의 이탈은 무시하고 새로 센다
-NEAR_MONTHS = 0         # 매수 조건(하락폭 축소 / G20 하락) 시점 전후 이 개월 안이면 인정한다 (0 = 그 달만)
+NEAR_MONTHS = 1         # 매수 조건(하락폭 축소 / G20 하락) 시점 전후 이 개월 안이면 인정한다 (0 = 그 달만, 1 = 그 달 전후 1개월)
 G20_MIN_MONTHS = 2      # G20 선행지수 전월비가 이만큼 연속 하락한 전후여야 매수한다
 
 # 경기순환사이클 하락 및 주가 바닥 가능시기: 이 구간에만 매수 타점을 적용한다. (start_year, end_year) 양끝 포함.
@@ -241,6 +242,42 @@ def narrowing_state(cli):
     return state
 
 
+def narrowing_cycles(cli):
+    """하락폭을 2달 이상 줄인 사이클(구간) 목록. 각 사이클은 연속한 '줄어든 달'(narrowing >= 1)의 월 목록이다.
+
+    narrowing 이 1부터 올라가 2 이상까지 이어지는 구간만 사이클로 본다. (1달만 줄이고 끝난 구간은 제외)
+    """
+    state = narrowing_state(cli)
+    periods = list(state.keys())
+    cycles = []
+    index = 0
+    while index < len(periods):
+        if state[periods[index]] >= 1:
+            end = index
+            peak = 0
+            while end < len(periods) and state[periods[end]] >= 1:
+                peak = max(peak, state[periods[end]])
+                end += 1
+            if peak >= 2:
+                cycles.append(periods[index:end])
+            index = end
+        else:
+            index += 1
+    return cycles
+
+
+def cycle_key(period, cycles):
+    """매수 월(period)이 속한 하락폭 축소 사이클의 인덱스. 없으면 None.
+
+    매수는 축소 구간 시작 전 NEAR_MONTHS 개월까지 인정하므로 그만큼 앞을 포함한다.
+    """
+    month = month_index(period)
+    for index, cycle in enumerate(cycles):
+        if month_index(cycle[0]) - NEAR_MONTHS <= month <= month_index(cycle[-1]):
+            return index
+    return None
+
+
 def rsi_series(closes, period=RSI_PERIOD):
     """Wilder 방식 RSI. 앞 period 구간은 None. [None, ..., float, ...]"""
     values = [None] * len(closes)
@@ -358,14 +395,13 @@ def rebound_day(series, bars, dip, limit):
     return None
 
 
-def plan_entry(window, dips30, dips35, series, bars, gate, allow_dip_low):
-    """한 매수허용구간의 진입 타점. 30 이탈 3회 뒤, 저점에서 +REBOUND 반등이면 매수한다.
+def plan_entries(window, dips30, dips35, series, bars, gate, allow_dip_low):
+    """한 매수허용구간의 진입 타점들. 30 이탈 3회 뒤, 저점에서 +REBOUND 반등이면 매수한다.
 
     allow_dip_low=False 이면 35 이하(30 위) 저점만 본다. True 이면 그런 저점이 없을 때 30 이탈 저점도 인정한다.
     30 이탈끼리 RESET_MONTHS 달 이상 벌어지면(앞 이탈의 끝 ~ 다음 이탈의 시작) 앞의 이탈은 무시하고 새로 센다.
-    gate(day) 가 False 면 그 후보는 건너뛰고 다음 저점을 본다. (하락폭 축소 / G20 하락 전후 조건)
-
-    reason: dips = 30 이탈 3회 미만, div = 35 이하(30 위) 저점 없음, wait = +2 반등 대기.
+    gate(day) 가 False 면 그 후보는 건너뛴다. (하락폭 2달 이상 축소 시점 전후 / G20 하락 전후 조건)
+    구간 안에서 조건을 만족하는 타점을 모두 모아 시간 순서로 돌려준다.
     """
     events = []
     for dip in dips30:
@@ -380,6 +416,7 @@ def plan_entry(window, dips30, dips35, series, bars, gate, allow_dip_low):
 
     picked = []
     last_end = None
+    out = []
     for _start, kind, dip in events:
         if kind == 0:
             if last_end is not None and month_diff(last_end, dip["startDate"]) >= RESET_MONTHS:
@@ -390,20 +427,15 @@ def plan_entry(window, dips30, dips35, series, bars, gate, allow_dip_low):
                 continue
             trigger = rebound_day(series, bars, dip, window["to"])   # 30 이탈 저점도 +2 반등이면 매수
             if trigger is not None and gate(bars[trigger][0]):
-                return {"dips": len(picked), "div": dip, "trigger": trigger, "reason": None}
+                out.append({"dips": len(picked), "div": dip, "trigger": trigger})
             continue
         if len(picked) < MIN_DIPS:
             continue                        # 30 이탈이 세 번은 있어야 한다
         trigger, status = rebound_index(series, bars, dip, window["to"])
-        if status == "buy":
-            if not gate(bars[trigger][0]):
-                continue            # 매수 조건(하락폭 축소 / G20 하락 전후) 미충족. 다음 후보를 본다.
-            return {"dips": len(picked), "div": dip, "trigger": trigger, "reason": None}
-        if status == "pending":
-            return {"dips": len(picked), "div": dip, "trigger": None, "reason": "wait"}
-        # fail: 35 이하 저점이 다시 30 아래로 내려갔다. 다음 이벤트로 넘긴다.
-    return {"dips": len(picked), "div": None, "trigger": None,
-            "reason": "dips" if len(picked) < MIN_DIPS else "div"}
+        if status == "buy" and gate(bars[trigger][0]):
+            out.append({"dips": len(picked), "div": dip, "trigger": trigger})
+        # fail: 35 이하 저점이 다시 30 아래로 내려갔다. pending: 아직 +2 반등이 없다. 다음 후보를 본다.
+    return out
 
 
 def bar_in_month(bars, period):
@@ -492,34 +524,46 @@ def main():
     dips35 = annotate_dips(find_dips(daily_rsi, RSI_DIV_LEVEL), daily)
 
     def buy_gate(day):
+        # 하락폭을 2달 이상 줄인 시기와 그 직전 NEAR_MONTHS 개월을 매수 시점으로 본다.
+        # (일봉 RSI 저점이 선행지수 하락폭 축소 확정보다 먼저 나오므로 '전' 쪽을 인정한다.)
         month = day[:7]
-        mom_near = any(month_gap(month, period) <= NEAR_MONTHS for period in narrow_months)
+        mom_near = any(0 <= month_index(period) - month_index(month) <= NEAR_MONTHS
+                       for period in narrow_months)
         g20_near = any(month_gap(month, period) <= NEAR_MONTHS for period in g20_months)
         return mom_near and g20_near
 
     buys = []
     for start_year, end_year in BUY_PERIODS:
         window = {"from": "%d-01-01" % start_year, "to": "%d-12-31" % end_year}
-        plan = plan_entry(window, dips30, dips35, daily_rsi, daily, buy_gate, False)
-        if plan["trigger"] is None:
-            plan = plan_entry(window, dips30, dips35, daily_rsi, daily, buy_gate, True)   # 30 이탈 저점도 인정
-        if plan["trigger"] is None:
-            continue
-        trigger = plan["trigger"]
-        day = daily[trigger][0]
-        period = day[:7]
-        buys.append({
-            "date": day,
-            "period": period,
-            "window": "%d-%d" % (start_year, end_year),
-            "rsi": round(daily_rsi[trigger], 2),
-            "price": daily[trigger][4],
-            "dips": plan["dips"],
-            "divLowDate": plan["div"]["lowDate"],
-            "divLowRsi": plan["div"]["lowValue"],
-        })
+        entries = plan_entries(window, dips30, dips35, daily_rsi, daily, buy_gate, False)
+        if not entries:
+            entries = plan_entries(window, dips30, dips35, daily_rsi, daily, buy_gate, True)   # 30 이탈 저점도 인정
+        for plan in entries:
+            trigger = plan["trigger"]
+            day = daily[trigger][0]
+            period = day[:7]
+            buys.append({
+                "date": day,
+                "period": period,
+                "window": "%d-%d" % (start_year, end_year),
+                "rsi": round(daily_rsi[trigger], 2),
+                "price": daily[trigger][4],
+                "dips": plan["dips"],
+                "divLowDate": plan["div"]["lowDate"],
+                "divLowRsi": plan["div"]["lowValue"],
+            })
     buys.sort(key=lambda item: item["date"])
-    buy_days = buys
+    # 하락폭을 2달 이상 줄인 구간(사이클)마다 첫 타점 하나만 남긴다.
+    cycles = narrowing_cycles(cli)
+    seen = set()
+    buy_days = []
+    for buy in buys:
+        key = cycle_key(buy["period"], cycles)
+        if key is not None:
+            if key in seen:
+                continue
+            seen.add(key)
+        buy_days.append(buy)
 
     # 차트용 30 이탈(strict) / 35 이하·30 위 저점 목록
     dip_pool = [{"start": dip["start"], "end": dip["end"], "low": dip["low"], "strict": 1} for dip in dips30]
@@ -562,6 +606,7 @@ def main():
         "rebound": REBOUND,
         "minDips": MIN_DIPS,
         "resetMonths": RESET_MONTHS,
+        "nearMonths": NEAR_MONTHS,
         "g20MinMonths": G20_MIN_MONTHS,
         "g20AsOf": cli[-1]["period"],
         "g20Run": g20_run.get(cli[-1]["period"], 0),
